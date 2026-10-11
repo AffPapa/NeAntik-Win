@@ -3,8 +3,8 @@
   "files": [
     {
       "path": ".gitattributes",
-      "size_bytes": 503,
-      "sha256": "e8aadb203fc8cfd829527ae574c8e804f4bb041857413461b3cc42ff05c91f3f"
+      "size_bytes": 568,
+      "sha256": "d76655c5a862e58dc535e68e93204228adf9ce4f6c383e6fa7304e208290221f"
     },
     {
       "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -123,8 +123,8 @@
     },
     {
       "path": "build.ps1",
-      "size_bytes": 8600,
-      "sha256": "ca4bbedb1d177cf5e758f6545116bf6ae03af61b32edd95556a323f3ef80b39a"
+      "size_bytes": 11214,
+      "sha256": "1aa560f433c86a9606c4516b55927156c059246bc18a0974a02216b5c469fbe2"
     },
     {
       "path": "core/CANVAS_PATCH_NOTES.md",
@@ -323,13 +323,13 @@
     },
     {
       "path": "tools/check-public-repo.ps1",
-      "size_bytes": 3670,
-      "sha256": "aaf6e4d46bf50f6be855ed1d45fca56a504a14feb8f651c31bf13635df95451a"
+      "size_bytes": 3740,
+      "sha256": "3ffaf05f7b265e28a96552bcc0849f29ea37a88e9091550ab21ac1d99a1565cd"
     },
     {
       "path": "tools/export-public-source.py",
-      "size_bytes": 6707,
-      "sha256": "c88ade85f0fafafc54fecfe7508e9d7c69b6a00ffbcf4f67200f270f472d3686"
+      "size_bytes": 6867,
+      "sha256": "c6998c3fd0e609da7a4ecc180c78d2f5fb1e1c2983929f469d2382aed1c7500c"
     },
     {
       "path": "tools/fixtures/current-native-driver.js",
@@ -368,8 +368,8 @@
     },
     {
       "path": "tools/native-core/README.md",
-      "size_bytes": 10234,
-      "sha256": "8687e16ae036550a71065a7725e0ed9c52953d75d92446ed98646705a69ca588"
+      "size_bytes": 13119,
+      "sha256": "8106a014b18b4dc8261961543dd7eb64c860a2582546dc7f102c37e9bdc10c91"
     },
     {
       "path": "tools/native-core/bootstrap-sdk.ps1",
@@ -397,6 +397,11 @@
       "sha256": "2d73df840b1f9c3c0e7fe73a62fdeb3dd196ea154c973b6a6e088c58da20f924"
     },
     {
+      "path": "tools/native-core/generate-dependency-receipt.py",
+      "size_bytes": 6823,
+      "sha256": "f8390d307c19552e3c0808aaf1eb5a10fcca1c7a67c2362851d5bf3269015241"
+    },
+    {
       "path": "tools/native-core/generate-seed-patches.py",
       "size_bytes": 11121,
       "sha256": "14fb579a5b8d9281a20d41d48a5a887b473f36c5178feaa581a160acea3e0419"
@@ -412,9 +417,24 @@
       "sha256": "a025f3fd72077d1407d0c6d499b1f1e34c48ce5b549c652951866cdf19487b27"
     },
     {
+      "path": "tools/native-core/package-engine.py",
+      "size_bytes": 13895,
+      "sha256": "8aa713e4b3e3d93e52d8f564aa6a966d7a2da8d9ed68a2ca95ae194a742eddb7"
+    },
+    {
       "path": "tools/native-core/preflight.ps1",
       "size_bytes": 3572,
       "sha256": "1d7e800904a3c8155609688d6a2df17b51526c293aa0015fa8f057c6ab3b1943"
+    },
+    {
+      "path": "tools/native-core/test_generate_dependency_receipt.py",
+      "size_bytes": 2815,
+      "sha256": "431f4ba3e854ade52085c4068a43cb92f0f0da0808229cd62e91a22524cb6d41"
+    },
+    {
+      "path": "tools/native-core/test_package_engine.py",
+      "size_bytes": 6666,
+      "sha256": "d39227cb9668e0e5326a434f3d7004567d1b067911b5d5e1f18ed3a1c0ac0c69"
     },
     {
       "path": "tools/native-core/test_verify_patch_series.py",
@@ -458,8 +478,8 @@
     },
     {
       "path": "tools/test-release-tools.ps1",
-      "size_bytes": 6174,
-      "sha256": "85a184c015377472f81d48da4ce57b2f620b2074b4aceea9b5879fba7c010d1b"
+      "size_bytes": 9751,
+      "sha256": "183f2ee91bc2f69588e6755fbc0519a7d3be9c68373a318f359a0ec2755accc9"
     },
     {
       "path": "tools/test_current_native_fingerprint.py",
@@ -483,8 +503,133 @@
     },
     {
       "path": "tools/verify-release-archive.ps1",
-      "size_bytes": 6252,
-      "sha256": "1e90c09887044937ffee02de80ae4b0dd485bf02ba415e92ca7c1556cd766170"
+      "size_bytes": 10792,
+      "sha256": "d3d8fa6343d9b551d2f058ecd50021aa27256999d6ed1ce71682f7cfc2fdd82a"
+    },
+    {
+      "path": "website/CHANGELOG.md",
+      "size_bytes": 20659,
+      "sha256": "aee1bee192a4cba44064a9635fd6a5ff83a1c35491e00038d71de34a1a635609"
+    },
+    {
+      "path": "website/README.md",
+      "size_bytes": 1044,
+      "sha256": "9df7a8e0c453d2a49a01b7074a69c21619c8141cc7b1efb66960882d8478101d"
+    },
+    {
+      "path": "website/RELEASE_POLICY.md",
+      "size_bytes": 3463,
+      "sha256": "277649ebdf0b3bc8ad78273566d670bfaeae7f4fae1af90ca7659badeb2e0283"
+    },
+    {
+      "path": "website/app/CHANGELOG.md/route.ts",
+      "size_bytes": 360,
+      "sha256": "900743fa3708ee4ffd9eb8d7dbb89e7daeb2cdc4685dcf97586f8898e6a8e4de"
+    },
+    {
+      "path": "website/app/RELEASE_POLICY.md/route.ts",
+      "size_bytes": 373,
+      "sha256": "17ea510f6d1d9ae60702752ac2f2ee3757262b80a0e45cf89046d7f2d19234e9"
+    },
+    {
+      "path": "website/app/globals.css",
+      "size_bytes": 222,
+      "sha256": "1cc323951a486251d44fb454b2e44611d449dc0c5512f89147704d55da421b57"
+    },
+    {
+      "path": "website/app/layout.tsx",
+      "size_bytes": 1487,
+      "sha256": "2d8689f3f4d33ea8da2ff365195b71b41d2a374e6a1d066351c8b232fdc2e022"
+    },
+    {
+      "path": "website/app/page.tsx",
+      "size_bytes": 45425,
+      "sha256": "2acac8584c8ef1d9053cc6ce95adb8639ea1e1c75a7583e135b076871cb16f37"
+    },
+    {
+      "path": "website/next-env.d.ts",
+      "size_bytes": 189,
+      "sha256": "a291a6b60536fec0a3b9d4ffd6d51179b463e9bc20281d7499d756813b4c07d5"
+    },
+    {
+      "path": "website/package-lock.json",
+      "size_bytes": 139372,
+      "sha256": "26b7ea5fee2d83b3f8ef3f3b42ebb363ab7e8bcc81cb0c61ed5ea648de962d6d"
+    },
+    {
+      "path": "website/package.json",
+      "size_bytes": 812,
+      "sha256": "9a3b7f0953ecd046ee3f4f41314c29a4e4275221ee8551e50dae6e9c5a9bdaa0"
+    },
+    {
+      "path": "website/public/_headers",
+      "size_bytes": 355,
+      "sha256": "9b7bcf406603cb35f532a62affc725111e9041f3e6e4248831d1280930119cf0"
+    },
+    {
+      "path": "website/public/assets/brand.svg",
+      "size_bytes": 1106,
+      "sha256": "5d6dd9904f65a899ef2db119d6a774498cf20b1faf7afe1bb616903b6a6bacd0"
+    },
+    {
+      "path": "website/public/assets/favicon.svg",
+      "size_bytes": 1536,
+      "sha256": "fb9c849e79ad3e958808797194526af7886d706b315d521e04dac6106a4582f8"
+    },
+    {
+      "path": "website/public/assets/hero-orbit.svg",
+      "size_bytes": 5334,
+      "sha256": "adf452129c3a91b4de0969803e77a5ea7612a5a0aa24cb3cf6677f4720eecbb7"
+    },
+    {
+      "path": "website/public/assets/icons.svg",
+      "size_bytes": 6472,
+      "sha256": "0f2299b2b70ed387499beb27e202afa9720beb0e24e2bae1cf7b5e79630189ec"
+    },
+    {
+      "path": "website/public/assets/nevision-hero-atmosphere.png",
+      "size_bytes": 1574996,
+      "sha256": "77f50880e7d42199d00c9dd278cc2d7bd3c3fd1fae3f8bb64cc63c764a91a106"
+    },
+    {
+      "path": "website/public/assets/styles.css",
+      "size_bytes": 50412,
+      "sha256": "6143a28102cc372eaf13a4fe2ad883c3eeceeadec19bfa40e39a36e9ba48483b"
+    },
+    {
+      "path": "website/public/release.json",
+      "size_bytes": 189135,
+      "sha256": "788af940630ef37ce8ac999b4540824a9ad1c13598c859d9e030015f4a54f0a1"
+    },
+    {
+      "path": "website/public/robots.txt",
+      "size_bytes": 23,
+      "sha256": "16ceb5ee3e0dc13aa9adf31a3ebbe45a1d965b8c2b9f72eaf84e5911e140ed95"
+    },
+    {
+      "path": "website/public/site.webmanifest",
+      "size_bytes": 451,
+      "sha256": "281cfffc73936dd24d8b515352f17cd49298479f95391d91173e1f6a735b886c"
+    },
+    {
+      "path": "website/raw-content.d.ts",
+      "size_bytes": 81,
+      "sha256": "4b5327e610ba84c0413093c2f7e54d4e7dbf3039037c47b503197ad77dd03896"
+    },
+    {
+      "path": "website/tsconfig.json",
+      "size_bytes": 536,
+      "sha256": "44d17c924681e16201cdaf4f024945d3fd4da819f670413fb5837c3869a544a4"
+    },
+    {
+      "path": "website/vite.config.ts",
+      "size_bytes": 447,
+      "sha256": "98a20cad24046f44bf3a60ab6377fda28cf968aafd62f027174b2c2ccbdbe7ec"
+    },
+    {
+      "path": "website/wrangler.jsonc",
+      "size_bytes": 361,
+      "sha256": "ed4d260f60a7b71ee784a3a615da6c3cc639d4fae36087496697c2c41e8bd709"
     },
     {
       "path": "SOURCE_LICENSE_NOTICE.txt",

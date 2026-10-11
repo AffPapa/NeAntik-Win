@@ -1,0 +1,10 @@
+/* The visual system remains a standalone public asset so the same CSS can be
+   previewed directly and served unchanged by the edge deployment. */
+:root {
+  color-scheme: dark light;
+}
+
+html,
+body {
+  min-height: 100%;
+}

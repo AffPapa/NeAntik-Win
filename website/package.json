@@ -1,0 +1,31 @@
+{
+  "name": "nevision-win-site",
+  "version": "0.2.1-preview",
+  "private": true,
+  "packageManager": "npm",
+  "type": "module",
+  "scripts": {
+    "dev": "vinext dev",
+    "build": "vinext build",
+    "typecheck": "tsc --noEmit",
+    "start": "wrangler dev --config dist/server/wrangler.json"
+  },
+  "dependencies": {
+    "@vinext/cloudflare": "^1.0.0-beta.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-server-dom-webpack": "^19.2.8",
+    "vinext": "^1.0.0-beta.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.47.0",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "@vitejs/plugin-rsc": "^0.5.30",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5",
+    "wrangler": "^4.114.0"
+  }
+}

@@ -1,0 +1,7 @@
+# Preserve Vinext's content-hashed asset caching rule. A checked-in `_headers`
+# file takes precedence over the generated one.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The public Markdown URLs are served by route handlers so they can always set
+# an explicit UTF-8 Content-Type, even when the static host ignores this file.

@@ -1,0 +1,75 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeVision product workspace illustration</title>
+  <desc id="desc">An abstract violet workspace panel, connected profile tiles, and light paths.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="100" y1="80" x2="864" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#18233B"/>
+      <stop offset="1" stop-color="#0D1425"/>
+    </linearGradient>
+    <linearGradient id="core" x1="394" y1="208" x2="602" y2="511" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B7A5FF"/>
+      <stop offset="1" stop-color="#7056E9"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="202" y1="183" x2="786" y2="514" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9A8FF" stop-opacity=".08"/>
+      <stop offset=".45" stop-color="#B9A8FF" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#C7F83A" stop-opacity=".2"/>
+    </linearGradient>
+    <filter id="blur" x="-100" y="-100" width="1160" height="920" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="55"/>
+    </filter>
+    <filter id="card" x="70" y="74" width="820" height="600" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#030613" flood-opacity=".46"/>
+    </filter>
+  </defs>
+  <rect width="960" height="720" rx="36" fill="#0B1020"/>
+  <path d="M209 132C362 43 650 72 790 204C907 314 843 544 646 611C463 674 202 571 150 405C122 316 139 187 209 132Z" fill="#7056E9" fill-opacity=".17" filter="url(#blur)"/>
+  <g opacity=".8">
+    <circle cx="480" cy="362" r="248" stroke="#6E82A9" stroke-opacity=".18"/>
+    <circle cx="480" cy="362" r="184" stroke="#8B6DFF" stroke-opacity=".24"/>
+    <circle cx="480" cy="362" r="120" stroke="#C7F83A" stroke-opacity=".18"/>
+  </g>
+  <path d="M205 235C289 218 325 269 380 304C422 331 512 309 568 269C629 225 691 190 779 223" stroke="url(#trace)" stroke-width="2" stroke-dasharray="7 10"/>
+  <path d="M177 488C252 511 320 490 375 447C433 401 513 405 570 438C637 478 698 526 791 478" stroke="url(#trace)" stroke-width="2" stroke-dasharray="7 10"/>
+  <g filter="url(#card)">
+    <rect x="251" y="150" width="458" height="422" rx="30" fill="url(#canvas)" stroke="#3A4C70"/>
+    <rect x="278" y="177" width="404" height="50" rx="15" fill="#111A2E" stroke="#2E405F"/>
+    <rect x="297" y="193" width="20" height="20" rx="6" fill="#8B6DFF"/>
+    <path d="M303 207V199L311 207V199" stroke="#11182A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="333" y="194" width="114" height="10" rx="5" fill="#E6EBFA" fill-opacity=".9"/>
+    <rect x="609" y="192" width="50" height="13" rx="6.5" fill="#B9A8FF" fill-opacity=".45"/>
+    <rect x="278" y="251" width="187" height="130" rx="18" fill="#1B2740" stroke="#7658EA" stroke-opacity=".72"/>
+    <rect x="298" y="271" width="36" height="36" rx="11" fill="#A994FF"/>
+    <path d="M308 296V281L325 296V281" stroke="#11182A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="298" y="326" width="115" height="12" rx="6" fill="#F4F7FF"/>
+    <rect x="298" y="350" width="78" height="8" rx="4" fill="#9FAED0"/>
+    <circle cx="440" cy="354" r="5" fill="#C7F83A"/>
+    <rect x="494" y="251" width="188" height="130" rx="18" fill="#18233A" stroke="#314361"/>
+    <rect x="514" y="271" width="36" height="36" rx="11" fill="#74C7FF"/>
+    <rect x="514" y="326" width="101" height="12" rx="6" fill="#F4F7FF"/>
+    <rect x="514" y="350" width="72" height="8" rx="4" fill="#9FAED0"/>
+    <circle cx="656" cy="354" r="5" fill="#FFB763"/>
+    <rect x="278" y="403" width="404" height="142" rx="18" fill="#111A2D" stroke="#2D3E5D"/>
+    <rect x="300" y="427" width="94" height="10" rx="5" fill="#AAB8D8"/>
+    <rect x="300" y="454" width="360" height="8" rx="4" fill="#273956"/>
+    <rect x="300" y="477" width="280" height="8" rx="4" fill="#273956"/>
+    <rect x="300" y="500" width="326" height="8" rx="4" fill="#273956"/>
+    <rect x="300" y="454" width="168" height="8" rx="4" fill="#8B6DFF" fill-opacity=".85"/>
+    <rect x="300" y="477" width="222" height="8" rx="4" fill="#C7F83A" fill-opacity=".72"/>
+  </g>
+  <g>
+    <circle cx="190" cy="225" r="21" fill="#111A2D" stroke="#51637F"/>
+    <path d="M183 232V218L197 232V218" stroke="#B9A8FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="784" cy="220" r="21" fill="#111A2D" stroke="#51637F"/>
+    <path d="M774 221H794M784 211V231" stroke="#C7F83A" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="170" cy="489" r="21" fill="#111A2D" stroke="#51637F"/>
+    <path d="M162 489L169 496L179 482" stroke="#74C7FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="794" cy="477" r="21" fill="#111A2D" stroke="#51637F"/>
+    <path d="M786 470H802V486H786V470Z" stroke="#FFB763" stroke-width="2.3" stroke-linejoin="round"/>
+  </g>
+  <g>
+    <circle cx="480" cy="362" r="69" fill="url(#core)" stroke="#D9D0FF" stroke-opacity=".45" stroke-width="2"/>
+    <path d="M448 397V326L512 397V326" stroke="#11182A" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="531" cy="317" r="14" fill="#C7F83A" stroke="#EFFFC5" stroke-width="4"/>
+  </g>
+</svg>

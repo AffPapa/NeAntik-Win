@@ -5,6 +5,7 @@ Set-StrictMode -Version Latest
 $projectRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'release-helpers.ps1')
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('nevision-release-tests-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $testRoot | Out-Null
 $script:passed = 0
@@ -35,8 +36,41 @@ function New-TestArchive([string]$Mode) {
         'licenses/OpenSSL-LICENSE.txt' = 'OpenSSL license fixture'
     }
     if ($Mode -eq 'secret') { $payload['CHANGELOG.md'] = 'ghp_' + ('a' * 32) }
+    $nativeMode = $Mode.StartsWith('native')
+    if ($nativeMode) {
+        $coreFiles = [ordered]@{}
+        foreach ($member in @('chrome.exe', 'chrome.dll', 'LICENSE', 'credits.html',
+            'THIRD_PARTY_LICENSES.txt', 'DEPENDENCY_RECEIPT.json', 'BUILD_PROVENANCE.json')) {
+            $payload["Engine/NeAntikChromium/$member"] = "Synthetic native fixture $member; never launched"
+            $coreFiles[$member] = Get-ReleaseTextHash $payload["Engine/NeAntikChromium/$member"]
+        }
+        if ($Mode -eq 'native-hash') { $coreFiles['chrome.dll'] = '0' * 64 }
+        if ($Mode -eq 'native-path') { $coreFiles['../escape'] = '0' * 64 }
+        if ($Mode -eq 'native-license') { $coreFiles.Remove('credits.html'); $payload.Remove('Engine/NeAntikChromium/credits.html') }
+        if ($Mode -eq 'native-unlisted') { $payload['Engine/NeAntikChromium/unlisted.pak'] = 'not in core inventory' }
+        $coreManifest = [ordered]@{ format = 'neantik-native-core-v1'; engine_id = 'neantik-chromium';
+            version = '155.0.8059.40'; source_commit = 'cfaadc5a132d78e1828635aa8405a499f3e14864'; schema = 1; files = $coreFiles }
+        if ($Mode -eq 'native-identity') { $coreManifest.source_commit = '0' * 40 }
+        if ($Mode -eq 'native-schema-string') { $coreManifest.schema = '1' }
+        if ($Mode -eq 'native-schema-fraction') { $coreManifest.schema = 1.5 }
+        if ($Mode -eq 'native-schema-bool') { $coreManifest.schema = $true }
+        $payload['Engine/NeAntikChromium/core-manifest.json'] = $coreManifest | ConvertTo-Json -Depth 8 -Compress
+    }
     $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
     $manifest = [ordered]@{ format = 'nevision-release-v1'; version = '0.2.0-preview'; files = $files }
+    if ($nativeMode) {
+        $manifest.native_core_bundled = $true
+        $manifest.engine = [ordered]@{ engine_id = 'neantik-chromium'; version = '155.0.8059.40';
+            source_commit = 'cfaadc5a132d78e1828635aa8405a499f3e14864';
+            manifest_sha256 = Get-ReleaseTextHash $payload['Engine/NeAntikChromium/core-manifest.json'];
+            qa_report_sha256 = 'a' * 64; qa_status = 'passed'; canvas_scope = 'opaque-srgb-uint8' }
+        if ($Mode -eq 'native-undeclared') { $manifest.Remove('native_core_bundled') }
+        if ($Mode -eq 'native-false') { $manifest.native_core_bundled = $false }
+        if ($Mode -eq 'native-manifest-hash') { $manifest.engine.manifest_sha256 = '0' * 64 }
+        if ($Mode -eq 'native-qa') { $manifest.engine.qa_status = 'failed' }
+        if ($Mode -eq 'native-flag-type') { $manifest.native_core_bundled = 'true' }
+    }
+    if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
     if ($Mode -eq 'neantik') {
         $folder = 'NeAntikWin-portable-v0.2.0-preview'
         $payload['NeAntikWin.exe'] = $payload['NeVisionWin.exe']
@@ -80,10 +114,23 @@ Expect-Failure 'parent itself rejected' { Assert-ReleaseChildPath $testRoot $tes
 $valid = New-TestArchive 'valid'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $valid
 $script:passed++
+$native = New-TestArchive 'native-valid'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $native
+$script:passed++
+$launcherOnly = New-TestArchive 'launcher-only'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $launcherOnly
+$script:passed++
 $renamed = New-TestArchive 'neantik'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $renamed
 $script:passed++
 foreach ($case in @(@('data', 'Forbidden'), @('hash', 'mismatch'), @('missing-license', 'missing'), @('unlisted', 'Unlisted'), @('version', 'Inconsistent'), @('traversal', 'Unsafe'), @('duplicate', 'Duplicate'), @('secret', 'credential'))) {
+    $archive = New-TestArchive $case[0]
+    Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
+}
+foreach ($case in @(@('native-hash', 'hash mismatch'), @('native-path', 'Unsafe'), @('native-license', 'license missing'),
+    @('native-unlisted', 'Unlisted native'), @('native-identity', 'Unknown native'), @('native-undeclared', 'requires'),
+    @('native-false', 'requires'), @('native-manifest-hash', 'manifest hash mismatch'), @('native-qa', 'evidence'), @('native-flag-type', 'boolean'),
+    @('native-schema-string', 'Unknown native'), @('native-schema-fraction', 'Unknown native'), @('native-schema-bool', 'Unknown native'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
 }

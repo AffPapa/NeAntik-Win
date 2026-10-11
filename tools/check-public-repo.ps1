@@ -61,7 +61,7 @@ foreach ($relativePath in $candidatePaths) {
     }
 
     $extension = [System.IO.Path]::GetExtension($file.Name).ToLowerInvariant()
-    if ($file.Name -in @('.gitignore', '.gitattributes') -or $textExtensions -contains $extension) {
+    if ($file.Name -in @('.gitignore', '.gitattributes', '_headers', 'LICENSE') -or $extension -in @('.jsonc', '.webmanifest') -or $textExtensions -contains $extension) {
         $content = Get-Content -LiteralPath $fullPath -Raw -Encoding UTF8
         foreach ($rule in $secretPatterns) {
             if ([regex]::IsMatch($content, $rule.Pattern)) {

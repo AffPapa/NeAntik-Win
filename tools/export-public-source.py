@@ -23,7 +23,7 @@ ROOT_FILES = {
 }
 TEXT_SUFFIXES = {'.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json',
     '.svg', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.html', '.css',
-    '.toml', '.csv', '.ini', '.cfg', '.terms'}
+    '.toml', '.csv', '.ini', '.cfg', '.terms', '.jsonc', '.webmanifest'}
 BINARY_SUFFIXES = {'.ico', '.png'}
 FORBIDDEN_PARTS = {'.git', 'data', 'build', 'dist', 'release', 'engine',
     'logs', 'outputs', 'storage', 'tdata', 'secrets', '__pycache__', '.venv',
@@ -54,6 +54,8 @@ def allowed(relative: Path) -> bool:
     top = parts[0].lower()
     if relative.as_posix() == 'core/native/LICENSE':
         return True
+    if top == 'website':
+        return suffix in TEXT_SUFFIXES | BINARY_SUFFIXES or relative.as_posix() == 'website/public/_headers'
     if top == 'docs':
         return not (len(parts) > 1 and parts[1].lower() == 'qa') and suffix in {'.md', '.csv'}
     if top == 'assets':
