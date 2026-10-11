@@ -52,7 +52,7 @@
     "low_memory_consecutive_samples": 3,
     "policy_is_estimate_not_upstream_requirement": true,
     "memory_gib_minimum": 16,
-    "jobs": 4,
+    "jobs": 3,
     "default_root": "C:\\NeAntikCoreBuild"
   },
   "gn_args": [
