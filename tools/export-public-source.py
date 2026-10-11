@@ -23,7 +23,7 @@ ROOT_FILES = {
 }
 TEXT_SUFFIXES = {'.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json',
     '.svg', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.html', '.css',
-    '.toml', '.csv', '.ini', '.cfg', '.terms', '.jsonc', '.webmanifest'}
+    '.toml', '.csv', '.ini', '.cfg', '.terms', '.jsonc', '.webmanifest', '.inc'}
 BINARY_SUFFIXES = {'.ico', '.png'}
 FORBIDDEN_PARTS = {'.git', 'data', 'build', 'dist', 'release', 'engine',
     'logs', 'outputs', 'storage', 'tdata', 'secrets', '__pycache__', '.venv',

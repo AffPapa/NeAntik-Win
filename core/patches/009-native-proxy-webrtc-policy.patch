@@ -1,0 +1,189 @@
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -1136,9 +1136,9 @@
+         "{\"engine_id\":\"neantik-chromium\",\"schema\":1,\"version\":\"" +
+         std::string(version_info::GetVersionNumber()) +
+         "\",\"source_commit\":\"cfaadc5a132d78e1828635aa8405a499f3e14864\",\"capability_evidence\":\"compiled-source-only\",\"capabilities\":{\"stable_seed\":true,"
+         "\"hardware_concurrency\":true,\"device_memory\":true,"
+-        "\"canvas\":false,\"canvas_opaque_srgb_uint8\":true,\"canvas_float16\":false,\"canvas_display_p3\":false,\"canvas_translucent\":false,\"timezone\":true},\"compiled_stage\":6}";
++        "\"canvas\":false,\"canvas_opaque_srgb_uint8\":true,\"canvas_float16\":false,\"canvas_display_p3\":false,\"canvas_translucent\":false,\"timezone\":true,\"webrtc_non_proxied_udp_proxied_webframes\":true},\"compiled_stage\":9}";
+     if (!base::WriteFile(neantik_command.GetSwitchValuePath(
+                             blink::neantik::kCoreInfoSwitch), info)) {
+       return 74;
+     }
+--- a/chrome/browser/renderer_preferences_util.cc
++++ b/chrome/browser/renderer_preferences_util.cc
+@@ -8,8 +8,10 @@
+ 
+ #include <string>
+ #include <vector>
+ 
++#include "base/check.h"
++#include "base/command_line.h"
+ #include "base/logging.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/utf_string_conversions.h"
+@@ -20,8 +22,9 @@
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "chrome/browser/ash/login/demo_mode/demo_session.h"
+ #endif
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/autofill/core/common/autofill_prefs.h"
+ #include "components/language/core/browser/language_prefs.h"
+ #include "components/language/core/browser/pref_names.h"
+@@ -29,8 +32,9 @@
+ #include "components/universal_optout/features.h"
+ #include "components/universal_optout/prefs.h"
+ #include "content/public/browser/renderer_preferences_util.h"
+ #include "media/media_buildflags.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
+ #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
+ #include "third_party/blink/public/mojom/peerconnection/webrtc_ip_handling_policy.mojom.h"
+ #include "third_party/blink/public/public_buildflags.h"
+@@ -108,8 +112,26 @@
+ 
+ }  // namespace
+ 
+ namespace renderer_preferences_util {
++
++void ApplyNeAntikProxiedWebRtcPolicy(
++    blink::RendererPreferences* prefs,
++    bool native_persona,
++    const base::CommandLine& command_line) {
++  CHECK(prefs);
++  if (!native_persona ||
++      !command_line.HasSwitch(switches::kProxyServer) ||
++      command_line.GetSwitchValueNative(switches::kProxyServer).empty()) {
++    return;
++  }
++  // Website-frame routing policy only: not a system network kill-switch or
++  // an assertion about privileged standalone extension processes.
++  prefs->webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDisableNonProxiedUdp;
++  // Matching per-URL preferences otherwise supersede the global enum.
++  prefs->webrtc_ip_handling_urls.clear();
++}
+ 
+ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
+                               Profile* profile) {
+   const PrefService* pref_service = profile->GetPrefs();
+@@ -193,8 +215,12 @@
+     }
+     prefs->webrtc_ip_handling_urls.push_back(
+         {pattern, blink::ToWebRTCIPHandlingPolicy(*handling)});
+   }
++  ApplyNeAntikProxiedWebRtcPolicy(
++      prefs, blink::neantik::GetFingerprintConfig() != nullptr,
++      *base::CommandLine::ForCurrentProcess());
++
+   if (pref_service->IsManagedPreference(
+           prefs::kWebRTCPostQuantumKeyAgreement)) {
+     prefs->webrtc_post_quantum_key_agreement =
+         pref_service->GetBoolean(prefs::kWebRTCPostQuantumKeyAgreement);
+--- a/chrome/browser/renderer_preferences_util.h
++++ b/chrome/browser/renderer_preferences_util.h
+@@ -3,8 +3,12 @@
+ // found in the LICENSE file.
+ 
+ #ifndef CHROME_BROWSER_RENDERER_PREFERENCES_UTIL_H_
+ #define CHROME_BROWSER_RENDERER_PREFERENCES_UTIL_H_
++
++namespace base {
++class CommandLine;
++}
+ 
+ class Profile;
+ 
+ namespace blink {
+@@ -12,8 +16,15 @@
+ }  // namespace blink
+ 
+ namespace renderer_preferences_util {
+ 
++// Narrow in-memory policy helper; native/proxy predicates are explicit for
++// unit tests. Production caller supplies immutable native persona state.
++void ApplyNeAntikProxiedWebRtcPolicy(
++    blink::RendererPreferences* prefs,
++    bool native_persona,
++    const base::CommandLine& command_line);
++
+ // Copies system configuration preferences into |prefs|.
+ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
+                               Profile* profile);
+ 
+--- a/chrome/browser/renderer_preferences_util_unittest.cc
++++ b/chrome/browser/renderer_preferences_util_unittest.cc
+@@ -5,9 +5,11 @@
+ #include "chrome/browser/renderer_preferences_util.h"
+ 
+ #include <array>
+ 
++#include "base/command_line.h"
+ #include "base/memory/raw_ptr.h"
++#include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/test/base/testing_profile.h"
+ #include "components/content_settings/core/common/content_settings_pattern.h"
+ #include "components/prefs/pref_service.h"
+@@ -158,4 +160,57 @@
+                                                       &profile_);
+   EXPECT_EQ(renderer_preferences.is_global_privacy_control_setting_enabled,
+             true);
+ }
++
++TEST_F(RendererPreferencesUtilTest, NeAntikNativeExplicitProxyBlocksUdp) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(switches::kProxyServer, "http://127.0.0.1:9999");
++  blink::RendererPreferences values;
++  values.webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDefault;
++  values.webrtc_ip_handling_urls.push_back(
++      {ContentSettingsPattern::FromString("[*.]example.com"),
++       blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++  renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++      &values, true, command);
++  EXPECT_EQ(values.webrtc_ip_handling_policy,
++            blink::mojom::WebRtcIpHandlingPolicy::kDisableNonProxiedUdp);
++  EXPECT_TRUE(values.webrtc_ip_handling_urls.empty());
++  EXPECT_EQ(pref_service_->GetString(prefs::kWebRTCIPHandlingPolicy), "default");
++}
++
++TEST_F(RendererPreferencesUtilTest, NeAntikOrdinaryProxyRemainsUnchanged) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(switches::kProxyServer, "http://127.0.0.1:9999");
++  blink::RendererPreferences values;
++  values.webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDefaultPublicInterfaceOnly;
++  values.webrtc_ip_handling_urls.push_back(
++      {ContentSettingsPattern::FromString("[*.]example.com"),
++       blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++  renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++      &values, false, command);
++  EXPECT_EQ(values.webrtc_ip_handling_policy,
++            blink::mojom::WebRtcIpHandlingPolicy::kDefaultPublicInterfaceOnly);
++  EXPECT_EQ(values.webrtc_ip_handling_urls.size(), 1u);
++}
++
++TEST_F(RendererPreferencesUtilTest, NeAntikNativeMissingOrEmptyProxyUnchanged) {
++  for (bool empty_switch : {false, true}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    if (empty_switch) {
++      command.AppendSwitch(switches::kProxyServer);
++    }
++    blink::RendererPreferences values;
++    values.webrtc_ip_handling_policy =
++        blink::mojom::WebRtcIpHandlingPolicy::kDefault;
++    values.webrtc_ip_handling_urls.push_back(
++        {ContentSettingsPattern::FromString("[*.]example.com"),
++         blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++    renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++        &values, true, command);
++    EXPECT_EQ(values.webrtc_ip_handling_policy,
++              blink::mojom::WebRtcIpHandlingPolicy::kDefault);
++    EXPECT_EQ(values.webrtc_ip_handling_urls.size(), 1u);
++  }
++}

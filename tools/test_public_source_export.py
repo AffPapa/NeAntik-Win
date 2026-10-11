@@ -34,7 +34,7 @@ class PublicExportTests(unittest.TestCase):
         for name in ('browser_engine.py', 'test_browser_engine.py', 'tests/fixtures/fingerprint.html',
                      'tools/engine.js', '.github/workflows/ci.yml', 'docs/PLAN.md',
                      'core/patches/003-canvas.patch', 'core/native/helper.cc',
-                     'core/native/LICENSE', 'current_core.py', 'test_current_core.py'):
+                     'core/native/LICENSE', 'core/native/helper_tests.inc', 'current_core.py', 'test_current_core.py'):
             self.write(name, '# synthetic fixture\n')
         for name in ('Data/private.json', 'Engine/config.json', 'build/trace.txt',
                      'release/README.md', '.git/config', 'docs/qa/host.json',
@@ -46,6 +46,7 @@ class PublicExportTests(unittest.TestCase):
         self.assertIn('tests/fixtures/fingerprint.html', paths)
         self.assertIn('core/patches/003-canvas.patch', paths)
         self.assertIn('core/native/LICENSE', paths)
+        self.assertIn('core/native/helper_tests.inc', paths)
         self.assertIn('current_core.py', paths)
         self.assertNotIn('Engine/config.json', paths)
         self.assertNotIn('docs/qa/host.json', paths)
@@ -56,7 +57,7 @@ class PublicExportTests(unittest.TestCase):
 
     def test_secrets_in_new_text_types_abort_before_output(self):
         token = 'ghp_' + 'a' * 32
-        for suffix in ('.js', '.html', '.toml', '.csv'):
+        for suffix in ('.js', '.html', '.toml', '.csv', '.inc'):
             with self.subTest(suffix=suffix):
                 path = 'tools/unsafe' + suffix
                 self.write(path, token)

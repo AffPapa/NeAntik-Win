@@ -37,7 +37,7 @@ $secretPatterns = @(
     @{ Name = 'Private key block'; Pattern = '-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----' },
     @{ Name = 'Hard-coded credential assignment'; Pattern = '(?im)^\s*(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["''][^"''\r\n]{8,}["'']' }
 )
-$textExtensions = @('.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json', '.svg', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.html', '.css', '.toml', '.csv', '.ini', '.cfg', '.terms', '.patch', '.diff', '.cc', '.h', '.cpp', '.gn', '.gni', '.gitignore', '.gitattributes')
+$textExtensions = @('.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json', '.svg', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.html', '.css', '.toml', '.csv', '.ini', '.cfg', '.terms', '.patch', '.diff', '.cc', '.h', '.cpp', '.inc', '.gn', '.gni', '.gitignore', '.gitattributes')
 $failures = New-Object System.Collections.Generic.List[string]
 $maxBytes = $MaxFileSizeMb * 1MB
 

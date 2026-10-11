@@ -18,10 +18,12 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
@@ -37,6 +39,9 @@ jobs:
 
       - name: Verify independent native QA harness
         run: python -m unittest discover -s tools -p test_current_native_harness_unit.py -v
+
+      - name: Verify owned WebRTC network fixtures
+        run: python -m unittest discover -s tools -p test_native_webrtc_privacy_unit.py -v
 
       - name: Verify pinned-source tooling
         run: python -m unittest discover -s tools/native-core -p test_*.py -v

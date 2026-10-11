@@ -22,7 +22,9 @@ MANIFEST_NAME = "core-manifest.json"
 MANIFEST_FORMAT = "neantik-native-core-v1"
 CPU_OPTIONS = (2, 4, 8, 12, 16, 24, 32, 64)
 MEMORY_OPTIONS = ("2", "4", "8", "16", "32")
-REQUIRED_CAPABILITIES = ("stable_seed", "hardware_concurrency", "device_memory", "canvas_opaque_srgb_uint8", "timezone")
+REQUIRED_CAPABILITIES = ("stable_seed", "hardware_concurrency", "device_memory",
+                         "canvas_opaque_srgb_uint8", "timezone",
+                         "webrtc_non_proxied_udp_proxied_webframes")
 
 
 class CoreError(ValueError):
@@ -162,4 +164,4 @@ class CoreResolver:
                 raise CoreError("Runtime-версия native-ядра не соответствует manifest.")
             capabilities = info.get("capabilities")
             if not isinstance(capabilities, dict) or any(capabilities.get(key) is not True for key in REQUIRED_CAPABILITIES):
-                raise CoreError("Эта сборка ядра ещё не реализует обязательные native fingerprint-поверхности.")
+                raise CoreError("Эта сборка ядра ещё не реализует обязательные native-функции, включая WebRTC-политику для сайтов с proxy.")

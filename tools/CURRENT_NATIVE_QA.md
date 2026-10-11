@@ -47,6 +47,27 @@ part of the public-source export.
 - Canvas exact native pixel reference, absolute-coordinate subrects, repeated
   reads, `putImageData`, clearing, PNG exports, HTML and Offscreen paths.
 - 2048 x 2048 readback and PNG timings, plus owned-process peak committed memory.
+- WebRTC five-scenario network checks: ordinary and native unproxied positive
+  controls must emit actual valid STUN packets to an owned IPv4 loopback listener;
+  native with an owned HTTP proxy must load the fixture through that proxy and
+  send no datagrams to the listener. A broken HTTP proxy must receive the test
+  document request without any DIRECT request reaching the owned origin.
+  An additional unavailable TCP proxy test holds an exclusively bound, non-listening
+  IPv4 TCP socket alive throughout the browser visit. Chrome must show the exact
+  `ERR_PROXY_CONNECTION_FAILED` neterror, exit normally, and make no origin hit.
+
+The network fixture removes Chrome's implicit loopback HTTP bypass with
+`--proxy-bypass-list=<-loopback>`. Without that, visiting `127.0.0.1` would not
+prove HTTP proxy use. These observations do not cover remote network interfaces,
+external IP leaks, HTTPS CONNECT tunnelling, SOCKS, extensions, other UDP APIs or
+a global network kill-switch. CONNECT is deliberately rejected, not claimed
+tested. In the broken-proxy case JavaScript never loads, so its zero STUN count
+does not by itself demonstrate WebRTC protection; the successful-proxy visit and
+positive unproxied native control are both mandatory.
+Both HTTP 502 and TCP unavailability are covered; the latter fixture may refuse
+or drop a Windows SYN until timeout, but Chrome's precise neterror is separately
+mandatory. DNS failure, proxy authentication and
+failover lists remain separate uncovered cases.
 
 Canvas protection is intentionally scoped to opaque sRGB uint8 pixels. P3,
 float16, and translucent observations are recorded as **unprotected**. RGB high

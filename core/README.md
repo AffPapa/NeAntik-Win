@@ -2,6 +2,8 @@
 
 Status: **stages001–008 are source-applied and exact postimages checked**. Supplementary008 was independently reviewed and applied only after a controlled build pause. A verified final patched EXE and runtime release checks are still required. Upstream Chromium does not support these switches without this patch series.
 
+Supplementary009 is a reviewed **candidate**, not yet applied to the active compiler checkout. It pins Chrome website-frame WebRTC routing to `disable_non_proxied_udp` only when an immutable native persona and a nonempty explicit `--proxy-server` are both present. Matching per-URL overrides are cleared in renderer preferences, without writing stored preferences or OS settings. This is not a network kill-switch, protection for privileged standalone extensions, or a guarantee about DNS, proxy bypass rules, TCP/TURN, or every UDP API. Ordinary and native unproxied profiles retain upstream behavior. Candidate source-contract tests and owned socket-fixture tests are not compiled-browser evidence.
+
 The user selected a current, own Chromium core on 2026-10-11. The external Chromium150 prototype is not the chosen release implementation. Its initial loopback fixture runs timed out, so no positive fingerprint capability was proved from that binary.
 
 ## Exact upstream pin
@@ -61,6 +63,7 @@ CPU caveat: exact155 `NavigatorBase::hardwareConcurrency` calls the native gette
 - `patches/006-core-capability-scope.patch`: handshake exposes exact source commit and deliberately granular opaque sRGB8 Canvas capability, not generic all-format coverage. Adds three C++ no-argument/unknown-switch/query regressions. `capability-chain-provenance.json` records all six patch hashes and27 final postimages; neither file proves runtime behaviour.
 - `patches/007-deterministic-midl-name-hashes.patch`: controlled unbranded Windows build fix for deterministic MIDL name hashes; no OS locale change.
 - `patches/008-windows155-memory-values.patch`: limits validated persona memory to Windows1552/4/8/16/32; adds C++ rejection/no-clamp regression. The shared browser/renderer JS/HTTP memory getter is unchanged. `memory-chain-provenance.json` records scratch verification and controlled actual checkout application with all28 final postimages. It does not prove compilation or runtime behaviour.
+- `patches/009-native-proxy-webrtc-policy.patch`: candidate Chrome website-frame routing policy, three authored Chrome unit tests, and the narrow `webrtc_non_proxied_udp_proxied_webframes` source capability. `webrtc-candidate-provenance.json` records disposable post008 apply evidence, not actual checkout application or runtime success. The real Chrome harness requires positive unproxied STUN controls, proxy-routed page observations and absence of owned UDP for the protected case before release.
 - `native/` contains original authored helper and test source used by `tools/native-core/generate-seed-patches.py`. That generator fetches exact immutable Gitiles sources, rejects changed/repeated replacement anchors, generates unified patches, and checks/applies the sequence in a disposable source fixture. It does not touch the actual Chromium checkout.
 - `patches/seed-patch-provenance.json` records patch hashes, exact baseline source hashes and apply evidence. **Compilation and runtime checks are explicitly not run.**
 

@@ -208,7 +208,8 @@ def validate_probe_info(info):
             'Unrecognized capability declaration evidence contract')
     caps=info.get('capabilities')
     require(isinstance(caps,dict) and all(caps.get(name) is True for name in
-      ('stable_seed','hardware_concurrency','device_memory','canvas_opaque_srgb_uint8','timezone')),
+      ('stable_seed','hardware_concurrency','device_memory','canvas_opaque_srgb_uint8','timezone',
+       'webrtc_non_proxied_udp_proxied_webframes')),
       'Actual core is incomplete for the required fingerprint test cycle')
     require(all(caps.get(name) is False for name in
       ('canvas','canvas_float16','canvas_display_p3','canvas_translucent')),
@@ -241,6 +242,7 @@ class Server(ThreadingHTTPServer):
         super().__init__(('127.0.0.1',0),Handler);self.state=state;self.cross=''
         self.read_js=(FIXTURES/'current-native-surfaces.js').read_text(encoding='utf-8')
         self.driver_js=(FIXTURES/'current-native-driver.js').read_text(encoding='utf-8')
+        self.webrtc_js=(FIXTURES/'current-native-webrtc.js').read_text(encoding='utf-8')
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -262,9 +264,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         case,path,query=self.case()
         if case is None:return self.reply(403,b'Unknown test token; no forwarding')
+        if 'origin_hits' in case:case['origin_hits']+=1
         token=query['token'][0]
-        config='const CONFIG='+json.dumps({'token':token,'cross':self.server.cross})+';'
+        config='const CONFIG='+json.dumps({'token':token,'cross':self.server.cross,'stunUrl':case.get('stun_url')})+';'
         script=config+self.server.read_js
+        if path=='/webrtc':
+            page='<!doctype html><meta charset="utf-8"><title>Owned native WebRTC QA</title><pre id="current-webrtc-result">pending</pre>'
+            page+='<img src="/barrier?token='+token+'" alt="load barrier"><script>'+config+self.server.webrtc_js+'</script>'
+            return self.reply(200,page.encode(),'text/html; charset=utf-8')
         if path=='/case':
             page='<!doctype html><meta charset="utf-8"><title>Own155 native QA</title><pre id="current-native-result">pending</pre>'
             page+='<img src="/barrier?token='+token+'" alt="load barrier"><script>'+script+self.server.driver_js+'</script>'
@@ -450,6 +457,9 @@ def main():
             ('Hardware timezone',765432,16,'16','America/New_York')]:
             report['visits'].append(visit(browser,root,server,label,seed,cpu,memory,zone))
         report['assertions']=assess(report['visits'])
+        from test_native_webrtc_privacy import run_webrtc_checks
+        report['webrtc']=run_webrtc_checks(browser,root)
+        report['assertions']+=report['webrtc']['assertions']
         report['comparisons']=comparisons(report['visits'])
         report['status']='passed' if report['assertions'] and all(item['passed'] for item in report['assertions']) else 'failed'
         _,final_verification=verify_bundle(args.portable_root,args.trusted_manifest_sha256)

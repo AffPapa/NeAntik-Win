@@ -3,8 +3,8 @@
   "files": [
     {
       "path": ".gitattributes",
-      "size_bytes": 568,
-      "sha256": "d76655c5a862e58dc535e68e93204228adf9ce4f6c383e6fa7304e208290221f"
+      "size_bytes": 586,
+      "sha256": "c190dd4a282c04af4cb78603be0197affb4ebc174d105695bd1a2b362dffec65"
     },
     {
       "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -28,8 +28,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "size_bytes": 2480,
-      "sha256": "c00fa6076ea3d77de92072c06de26ca73c3d1e5fcaf8fae12d30f46db58adee4"
+      "size_bytes": 2768,
+      "sha256": "97130ba7efdb60a735fc51fef0ed66eb6697d833b73f0834f27881cd58052559"
     },
     {
       "path": ".gitignore",
@@ -133,8 +133,8 @@
     },
     {
       "path": "core/README.md",
-      "size_bytes": 16991,
-      "sha256": "89da32833026c69612ea1f3b3b59d9b7c947875b359bda718eb98c9c9281f69d"
+      "size_bytes": 18193,
+      "sha256": "f84c164215ab09508f2b1e32e308c45ee54f7fe73d1e7582764e43415332e6e1"
     },
     {
       "path": "core/native/LICENSE",
@@ -160,6 +160,16 @@
       "path": "core/native/neantik_fingerprint_unittest.cc",
       "size_bytes": 4563,
       "sha256": "a42b09accf114fd248a2b4b813afa44ea221430238ee989e11a855a92134ae6f"
+    },
+    {
+      "path": "core/native/neantik_timezone_tests.inc",
+      "size_bytes": 1848,
+      "sha256": "1062ec9838a4b6d62fb1f8648bb495ee22fbedb0ac1baf1c533cc0607b30bbf9"
+    },
+    {
+      "path": "core/native/neantik_webrtc_policy_tests.inc",
+      "size_bytes": 2504,
+      "sha256": "f07c444b981a15348420f9928c1190a3137979c87287c33167aa0739c408b603"
     },
     {
       "path": "core/native/timezone-expected.txt",
@@ -217,6 +227,11 @@
       "sha256": "9bc732be9444bb53ab19ed319d2c68a129c94717165dd294c04958dc289388f3"
     },
     {
+      "path": "core/patches/009-native-proxy-webrtc-policy.patch",
+      "size_bytes": 8150,
+      "sha256": "9c22c99b46fd70d4114ef1723c77fe0d4a081536518efed32eeda3f01643704e"
+    },
+    {
       "path": "core/patches/capability-chain-provenance.json",
       "size_bytes": 4990,
       "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
@@ -247,9 +262,14 @@
       "sha256": "f94e7c07cfc3ffe5ff5b2c94a739a9606bbb5b7dddf7f07ca0da9790f1c2c2bc"
     },
     {
+      "path": "core/patches/webrtc-candidate-provenance.json",
+      "size_bytes": 6076,
+      "sha256": "dc0655e86cf97acc0dbb3a37e8a6d72828c3be6daa24de1af242e89d4cbcbe98"
+    },
+    {
       "path": "current_core.py",
-      "size_bytes": 10293,
-      "sha256": "136c136107eb90e31b54b0175ad1ed64bcf43a85141b9dd2cafe9f4e48033b53"
+      "size_bytes": 10436,
+      "sha256": "3ec8c1059d1ab9d25533183182bbc549e5dc3d396c117a41fb19baf16c304695"
     },
     {
       "path": "docs/CYCLE_PLAN.md",
@@ -318,8 +338,8 @@
     },
     {
       "path": "test_current_core.py",
-      "size_bytes": 15489,
-      "sha256": "37563464b3f66ce9f6415d2f5c2f227450dc15529e8b741f2c02afd3954345c8"
+      "size_bytes": 16120,
+      "sha256": "dc376ccc5cfe26757c301be832d95913b19999de361aae3ff5b412ae44b5978c"
     },
     {
       "path": "test_nevision_win.py",
@@ -328,8 +348,8 @@
     },
     {
       "path": "tools/CURRENT_NATIVE_QA.md",
-      "size_bytes": 3587,
-      "sha256": "93d49127267103bd817ced27fde62b95423075c1d4154d64f8f122851262440a"
+      "size_bytes": 5091,
+      "sha256": "11fb12847c107eaea36f5f2a83d73debf4a8143e4ab870cd0161bdc4cf092d30"
     },
     {
       "path": "tools/benchmark_runtime.py",
@@ -343,13 +363,13 @@
     },
     {
       "path": "tools/check-public-repo.ps1",
-      "size_bytes": 3740,
-      "sha256": "3ffaf05f7b265e28a96552bcc0849f29ea37a88e9091550ab21ac1d99a1565cd"
+      "size_bytes": 3748,
+      "sha256": "5cc924f91fd33720743ff5460a7196cc78d171619ba56a5e6fcfc6fb2d9b0069"
     },
     {
       "path": "tools/export-public-source.py",
-      "size_bytes": 6867,
-      "sha256": "c6998c3fd0e609da7a4ecc180c78d2f5fb1e1c2983929f469d2382aed1c7500c"
+      "size_bytes": 6875,
+      "sha256": "c78dc64a93c03998574ac4139521ac107bf70eafe179601a440b85bf1b0c4e8c"
     },
     {
       "path": "tools/fixtures/current-native-driver.js",
@@ -360,6 +380,11 @@
       "path": "tools/fixtures/current-native-surfaces.js",
       "size_bytes": 4914,
       "sha256": "f1a1684f98dba2a03213beb3c8384f95aefd27acf06f557d1a8fa3b629c44cd7"
+    },
+    {
+      "path": "tools/fixtures/current-native-webrtc.js",
+      "size_bytes": 1050,
+      "sha256": "bc0a9ba1c6d64a7c265a76483e2a3fabbdf35050ae79e5e16625f413b08dc7e1"
     },
     {
       "path": "tools/gui_regression.py",
@@ -437,6 +462,11 @@
       "sha256": "790482e1042fba335651cdc171a4422a1b1a3a0fd27f5ebcc2ac271b6f651af6"
     },
     {
+      "path": "tools/native-core/generate-webrtc-policy-patch.py",
+      "size_bytes": 6900,
+      "sha256": "ee1b5ae70944da1131aeaaf39aa6b2ec83ce9ce3ad677a1f459e6e9ebfd4cc3e"
+    },
+    {
       "path": "tools/native-core/inspect-sdk-bootstrap.py",
       "size_bytes": 1286,
       "sha256": "a025f3fd72077d1407d0c6d499b1f1e34c48ce5b549c652951866cdf19487b27"
@@ -487,6 +517,11 @@
       "sha256": "c4448862f93f8a4808f32c284749a263cea68e069eb57161098e65d95909faaf"
     },
     {
+      "path": "tools/native-core/test_webrtc_patch_contract.py",
+      "size_bytes": 1928,
+      "sha256": "d6624514c4feed62d03cbe6f80c07b777d53831d764287db4f04233023f4d4b7"
+    },
+    {
       "path": "tools/native-core/verify-patch-series.py",
       "size_bytes": 5885,
       "sha256": "d19b7f5aa675299f2dc4515261ca7e607fba57fce4c29dad2d2b7f31ab3871d1"
@@ -523,13 +558,13 @@
     },
     {
       "path": "tools/test_current_native_fingerprint.py",
-      "size_bytes": 28381,
-      "sha256": "f540e67e9d02fe322ad5473b9e25be4964dd857fce20c4e26c67d41dc1e360cd"
+      "size_bytes": 29159,
+      "sha256": "55efbf162424007a2e0de7772f56f98b461c07fe088dd011f9457a60db3094b9"
     },
     {
       "path": "tools/test_current_native_harness_unit.py",
-      "size_bytes": 7124,
-      "sha256": "c7a9e9360758c4d76540b40d17c4cdd51f0e81eaacca91083ff80578f5e2bfd6"
+      "size_bytes": 7312,
+      "sha256": "be1338f8243b85bf4019f3065177d7295fa8982985806225a4c752842aad554e"
     },
     {
       "path": "tools/test_native_fingerprint.py",
@@ -537,9 +572,19 @@
       "sha256": "49d0ca3b69c9c5cc61593c1c077b89a72c9687251929c327104ef35faa4e24b5"
     },
     {
+      "path": "tools/test_native_webrtc_privacy.py",
+      "size_bytes": 12026,
+      "sha256": "8b8959075ac207dd673c16179cb7545aa37c9565ba433072968c7bc21cb49ce4"
+    },
+    {
+      "path": "tools/test_native_webrtc_privacy_unit.py",
+      "size_bytes": 6639,
+      "sha256": "a26060e6536c22f1184a5ca8ffdddefc564ce50fb9eae51028e05772bba97b16"
+    },
+    {
       "path": "tools/test_public_source_export.py",
-      "size_bytes": 5740,
-      "sha256": "c06a5cb1ddf10feebbc341735b54f36b3c5dd50535949068b1b4a572414b8a20"
+      "size_bytes": 5841,
+      "sha256": "cdce991d6a5afbb696fac07f58b3952cfefe951e35df54f2dcb60dfbb55c9bf9"
     },
     {
       "path": "tools/verify-release-archive.ps1",

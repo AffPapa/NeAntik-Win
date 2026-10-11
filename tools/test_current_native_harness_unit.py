@@ -47,15 +47,17 @@ class NativeHarnessValidatorTests(unittest.TestCase):
     def test_probe_requires_narrow_coverage_and_exact_source(self):
         info={'engine_id':'neantik-chromium','version':harness.VERSION,'source_commit':harness.COMMIT,
           'schema':1,'capability_evidence':'compiled-source-only','capabilities':dict.fromkeys(
-            ('stable_seed','hardware_concurrency','device_memory','canvas_opaque_srgb_uint8','timezone'),True)}
+            ('stable_seed','hardware_concurrency','device_memory','canvas_opaque_srgb_uint8','timezone',
+             'webrtc_non_proxied_udp_proxied_webframes'),True)}
         info['capabilities'].update(dict.fromkeys(
           ('canvas','canvas_float16','canvas_display_p3','canvas_translucent'),False))
         harness.validate_probe_info(info)
-        for change in ('general_canvas','wrong_source','missing_narrow'):
+        for change in ('general_canvas','wrong_source','missing_narrow','missing_webrtc'):
             invalid=copy.deepcopy(info)
             if change=='general_canvas':invalid['capabilities']['canvas']=True
             elif change=='wrong_source':invalid['source_commit']='0'*40
-            else:invalid['capabilities'].pop('canvas_opaque_srgb_uint8')
+            elif change=='missing_narrow':invalid['capabilities'].pop('canvas_opaque_srgb_uint8')
+            else:invalid['capabilities'].pop('webrtc_non_proxied_udp_proxied_webframes')
             with self.assertRaises(harness.HarnessError):harness.validate_probe_info(invalid)
     def cases(self):
         return [synthetic_case('Baseline',None),synthetic_case('A',123456),

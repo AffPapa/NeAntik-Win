@@ -231,6 +231,18 @@ class BundleTests(unittest.TestCase):
             bad["capabilities"]["canvas"] = True
             with self.subTest(capability=value), self.assertRaises(core.CoreError):
                 run_probe(bad)
+        webrtc = "webrtc_non_proxied_udp_proxied_webframes"
+        self.assertIn(webrtc, core.REQUIRED_CAPABILITIES)
+        for value in (False, 1, "true", None):
+            bad = copy.deepcopy(valid)
+            bad["capabilities"][webrtc] = value
+            with self.subTest(webrtc=value), self.assertRaisesRegex(core.CoreError, "WebRTC"):
+                run_probe(bad)
+        # An otherwise valid pre009 core must not authorize final native mode.
+        legacy = copy.deepcopy(valid)
+        legacy["capabilities"].pop(webrtc)
+        with self.assertRaisesRegex(core.CoreError, "WebRTC"):
+            run_probe(legacy)
 
     def test_hash_cache_provenance_and_missing_native_core(self):
         with tempfile.TemporaryDirectory() as temporary:
