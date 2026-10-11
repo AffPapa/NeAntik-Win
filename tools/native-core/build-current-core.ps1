@@ -21,6 +21,10 @@ $depotHead = (& git -C $depot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $depotHead -ne $spec.depot_tools.commit) { throw 'depot_tools HEAD does not match its pinned commit.' }
 $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($root))
 if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) { throw 'The 40 GiB OS reserve has been reached. Stop without deleting user files.' }
+$memory = Get-CimInstance -ClassName Win32_OperatingSystem
+$minimumFreeRamKb = [long]$spec.resource_policy.minimum_free_ram_gib_during_build * 1MB / 1KB
+$minimumFreeCommitKb = [long]$spec.resource_policy.minimum_free_commit_gib_during_build * 1MB / 1KB
+if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) { throw 'Insufficient free RAM or commit headroom for the configured build workers; close workloads or lower jobs before retrying.' }
 if (-not $BuildBaseline -and @($spec.patch_contract.patch_series).Count -eq 0) { throw 'Native fingerprint patch series is not ready. Only explicit -BuildBaseline may compile unmodified Chromium.' }
 $patchCheckArguments = @((Join-Path $PSScriptRoot 'verify-patch-series.py'),'--source',$source)
 if ($BuildBaseline) { $patchCheckArguments += '--baseline' }
@@ -44,12 +48,18 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
     # Cache the native handle before the child exits. Windows PowerShell may
     # otherwise lose ExitCode after polling a Start-Process -PassThru object.
     $ownedHandle = $process.Handle
-    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserve $($spec.resource_policy.os_reserve_gib) GiB."
+    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserves $($spec.resource_policy.os_reserve_gib) GiB disk, $($spec.resource_policy.minimum_free_ram_gib_during_build) GiB RAM, $($spec.resource_policy.minimum_free_commit_gib_during_build) GiB commit."
     while (-not $process.WaitForExit(2000)) {
         if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
             $process.WaitForExit()
             throw 'Build stopped: live 40 GiB OS reserve reached. Only this build process tree was stopped; no files were deleted.'
+        }
+        $memory = Get-CimInstance -ClassName Win32_OperatingSystem
+        if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) {
+            & taskkill.exe /PID $process.Id /T /F | Out-Null
+            $process.WaitForExit()
+            throw "Build stopped: live RAM/commit reserve reached ($([math]::Round($memory.FreePhysicalMemory / 1MB, 2)) GiB RAM, $([math]::Round($memory.FreeVirtualMemory / 1MB, 2)) GiB commit). Only this build process tree was stopped; no files were deleted."
         }
     }
     $process.WaitForExit()
