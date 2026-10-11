@@ -6,6 +6,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from native_qa_synthetic_fixture import full_report
 
 module_spec = importlib.util.spec_from_file_location("native_package", Path(__file__).with_name("package-engine.py"))
 package = importlib.util.module_from_spec(module_spec)
@@ -107,13 +108,18 @@ class PackagingTests(unittest.TestCase):
         result = self.execute()
         sha = result["manifest_sha256"]
         qa = self.root / "qa.json"
-        report = {"format": "neantik-own155-native-qa-v1", "status": "passed",
-                  "verification": {"manifest_sha256": sha},
-                  "bundle_reverified_after_visits": True,
-                  "assertions": [{"passed": True}]}
+        _, verification = package.native_qa_report.fingerprint.verify_bundle(self.destination.parent.parent, sha)
+        report = full_report(verification)
         qa.write_text(json.dumps(report))
         with patch.object(package.core.CoreResolver, "_probe"):
             self.assertEqual(package.verify_existing(self.destination, sha, qa)["qa_status"], "passed")
+        minimal = {"format": "neantik-own155-native-qa-v1", "status": "passed",
+                   "verification": {"manifest_sha256": sha},
+                   "bundle_reverified_after_visits": True,
+                   "assertions": [{"passed": True}]}
+        qa.write_text(json.dumps(minimal))
+        with self.assertRaisesRegex(ValueError, "QA report"):
+            package.verify_existing(self.destination, sha, qa)
         # The actual native harness records post-visit revalidation at top level.
         # A legacy nested-only field must never authorize a release.
         report.pop("bundle_reverified_after_visits")
@@ -134,6 +140,27 @@ class PackagingTests(unittest.TestCase):
             package.verify_existing(self.destination, sha, qa)
         with self.assertRaisesRegex(ValueError, "manifest SHA"):
             package.verify_existing(self.destination, "0" * 64, qa)
+
+    def test_existing_bundle_rehashed_after_native_probe(self):
+        result = self.execute()
+        sha = result['manifest_sha256']
+        _, verification = package.native_qa_report.fingerprint.verify_bundle(self.destination.parent.parent, sha)
+        qa = self.root / 'qa.json'
+        qa.write_text(json.dumps(full_report(verification)))
+        for member in ('chrome.dll', package.core.MANIFEST_NAME):
+            path = self.destination / member
+            original = path.read_bytes()
+            def mutate_during_probe(*args):
+                path.write_bytes(b'changed during synthetic native probe')
+                return self.destination / 'chrome.exe'
+            try:
+                # Isolate the package's post-resolver recheck, independently of
+                # the resolver's own existing internal hash checks.
+                with patch.object(package.core.CoreResolver, 'resolve', side_effect=mutate_during_probe):
+                    with self.subTest(member=member), self.assertRaisesRegex(ValueError, 'hash|Manifest'):
+                        package.verify_existing(self.destination, sha, qa)
+            finally:
+                path.write_bytes(original)
 
 
 if __name__ == "__main__":

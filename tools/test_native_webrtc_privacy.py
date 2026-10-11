@@ -91,6 +91,41 @@ def proxy_neterror(dom):
     return match.group(1) if match else None
 
 
+def proxy_failure_netlog(data,expected_url):
+    """Bind exact -130 to the owned URL_REQUEST's START_JOB begin/end pair."""
+    if not isinstance(data,dict):return None
+    constants=data.get('constants') or {};events=data.get('events')
+    if not isinstance(constants,dict) or not isinstance(events,list) or len(events)>100000:return None
+    maps=[constants.get(name) for name in ('logEventTypes','logSourceType','logEventPhase')]
+    if not all(isinstance(value,dict) for value in maps):return None
+    types,sources,phases=maps
+    event_type=types.get('URL_REQUEST_START_JOB');source_type=sources.get('URL_REQUEST')
+    begin=phases.get('PHASE_BEGIN');end=phases.get('PHASE_END')
+    if not all(type(value) is int for value in (event_type,source_type,begin,end)) or begin==end:return None
+    candidates={}
+    for index,event in enumerate(events):
+        if not isinstance(event,dict) or type(event.get('type')) is not int or event.get('type')!=event_type:continue
+        source=event.get('source') or {};params=event.get('params') or {}
+        if not isinstance(source,dict) or not isinstance(params,dict) or type(source.get('type')) is not int or source.get('type')!=source_type or type(source.get('id')) is not int or source['id']<0 or type(event.get('phase')) is not int:continue
+        record=candidates.setdefault(source['id'],{'begins':[],'ends':[]})
+        if event.get('phase')==begin:record['begins'].append((index,params.get('url')))
+        elif event.get('phase')==end:record['ends'].append((index,params.get('net_error')))
+    matches=[]
+    for source_id,record in candidates.items():
+        if len(record['begins'])!=1 or len(record['ends'])!=1:continue
+        start,url=record['begins'][0];finish,error=record['ends'][0]
+        if url==expected_url and start<finish and type(error) is int and error==-130:
+            matches.append({'source_id':source_id,'event':'URL_REQUEST_START_JOB',
+              'net_error':-130,'error_name':'ERR_PROXY_CONNECTION_FAILED','owned_url_matched':True})
+    return matches[0] if len(matches)==1 else None
+
+
+def read_proxy_failure_netlog(path,expected_url):
+    if not path.is_file() or path.stat().st_size>8*1024*1024:return None
+    try:return proxy_failure_netlog(harness.unique_json(path.read_text(encoding='utf-8')),expected_url)
+    except (ValueError,UnicodeError,harness.HarnessError):return None
+
+
 class ProxyHandler(BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def do_CONNECT(self):
@@ -139,8 +174,12 @@ def assessment(visits):
         add(label+' owned process exited normally',visit.get('process',{}).get('return_code')==0 and
           visit.get('process',{}).get('active_processes')==0)
         if label=='native unavailable TCP proxy':
+            evidence=visit.get('proxy_failure_netlog') or {}
+            precise_failure=visit.get('proxy_neterror')=='ERR_PROXY_CONNECTION_FAILED' or (
+              evidence.get('owned_url_matched') is True and type(evidence.get('net_error')) is int and
+              evidence['net_error']==-130 and evidence.get('event')=='URL_REQUEST_START_JOB')
             add('unavailable TCP proxy produces precise Chromium neterror and no DIRECT fallback',
-              visit.get('proxy_unavailable_checked') is True and visit.get('proxy_neterror')=='ERR_PROXY_CONNECTION_FAILED' and
+              visit.get('proxy_unavailable_checked') is True and precise_failure and
               visit.get('origin_hits')==0 and visit.get('result') is None)
             add('unavailable TCP proxy sends no STUN datagrams',visit.get('udp_datagrams')==0)
         elif label=='native broken HTTP proxy':
@@ -175,12 +214,14 @@ def run_webrtc_checks(browser,root):
                 state[token]=case
                 url=f'http://127.0.0.1:{origin.server_port}/webrtc?token={token}'
                 folder=root/('webrtc-'+label.replace(' ','-'));folder.mkdir()
+                netlog=folder/'net-log.json'
                 arguments=[str(browser),'--headless','--dump-dom',f'--user-data-dir={folder}',
                   '--timeout=30000' if 'unavailable' in label else '--timeout=15000',
                   '--no-first-run','--no-default-browser-check','--disable-background-networking',
                   '--disable-component-update','--disable-sync','--disable-extensions','--disable-quic',
                   '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1']
                 if native:arguments+=harness.current_core.identity_arguments(harness.current_core.new_identity())
+                if 'unavailable' in label:arguments+=['--log-net-log='+str(netlog)]
                 if proxied:
                     proxy=OwnedUnavailableProxy() if label=='native unavailable TCP proxy' else OwnedProxy(
                       f'http://127.0.0.1:{origin.server_port}',broken)
@@ -195,6 +236,7 @@ def run_webrtc_checks(browser,root):
                   'proxy_unavailable_checked':getattr(proxy,'unavailable_checked',False),
                   'proxy_fixture_outcome':getattr(proxy,'fixture_outcome',None),
                   'proxy_neterror':proxy_neterror(stdout.decode('utf-8','replace')),
+                  'proxy_failure_netlog':read_proxy_failure_netlog(netlog,url) if 'unavailable' in label else None,
                   'stderr_tail':stderr.decode('utf-8','replace').replace(str(root),'<qa-root>')[-1000:]})
             finally:
                 if proxy:proxy.close()

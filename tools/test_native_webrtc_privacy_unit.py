@@ -1,5 +1,6 @@
 """Synthetic protocol/assessment checks; never Chromium runtime evidence."""
 import socket
+import copy
 import struct
 import threading
 import unittest
@@ -23,6 +24,35 @@ def fixture_cases():
 
 
 class OwnedWebRtcTests(unittest.TestCase):
+    def test_netlog_pairs_exact_owned_request_and_rejects_unrelated_errors(self):
+        url='http://127.0.0.1:12345/webrtc?token=synthetic'
+        data={'constants':{'logEventTypes':{'URL_REQUEST_START_JOB':42},'logSourceType':{'URL_REQUEST':1},
+          'logEventPhase':{'PHASE_BEGIN':1,'PHASE_END':2}},'events':[
+            {'type':42,'phase':1,'source':{'id':7,'type':1},'params':{'url':url}},
+            {'type':42,'phase':2,'source':{'id':7,'type':1},'params':{'net_error':-130}}]}
+        evidence=qa.proxy_failure_netlog(data,url)
+        self.assertTrue(evidence['owned_url_matched']);self.assertEqual(evidence['net_error'],-130)
+        for mutation in ('url','source','source_kind','event','phase','error','bool_error','reverse',
+          'double_begin','double_end','missing_constants','missing_begin','bool_id'):
+            bad=copy.deepcopy(data)
+            if mutation=='url':bad['events'][0]['params']['url']='http://unrelated.invalid/'
+            elif mutation=='source':bad['events'][1]['source']['id']=8
+            elif mutation=='source_kind':bad['events'][1]['source']['type']=2
+            elif mutation=='event':bad['events'][1]['type']=43
+            elif mutation=='phase':bad['events'][1]['phase']=0
+            elif mutation=='error':bad['events'][1]['params']['net_error']=-102
+            elif mutation=='bool_error':bad['events'][1]['params']['net_error']=True
+            elif mutation=='reverse':bad['events'].reverse()
+            elif mutation=='double_begin':bad['events'].insert(0,copy.deepcopy(bad['events'][0]))
+            elif mutation=='double_end':bad['events'].append(copy.deepcopy(bad['events'][1]))
+            elif mutation=='missing_constants':bad['constants']={}
+            elif mutation=='missing_begin':bad['events'].pop(0)
+            else:bad['events'][0]['source']['id']=True
+            with self.subTest(mutation=mutation):self.assertIsNone(qa.proxy_failure_netlog(bad,url))
+        visits=fixture_cases();visits[4]['proxy_neterror']=None;visits[4]['proxy_failure_netlog']=evidence
+        self.assertTrue(all(item['passed'] for item in qa.assessment(visits)))
+        visits[4]['proxy_failure_netlog']['owned_url_matched']=False
+        self.assertFalse(all(item['passed'] for item in qa.assessment(visits)))
     def test_owned_unavailable_proxy_port_is_reserved_and_not_listening(self):
         proxy=qa.OwnedUnavailableProxy()
         try:

@@ -19,6 +19,8 @@ import tempfile
 REPOSITORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY))
 import current_core as core
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import native_qa_report
 
 
 def safe_relative(raw: str) -> str:
@@ -188,12 +190,19 @@ def verify_existing(directory: Path, trusted_hash: str, qa_report: Path) -> dict
         raise ValueError("Exact own-core directory and external trusted manifest SHA-256 required")
     if core.sha256_file(directory / core.MANIFEST_NAME) != trusted_hash:
         raise ValueError("External trusted native manifest SHA-256 mismatch")
-    report = json.loads(qa_report.read_text(encoding="utf-8"))
-    verification = report.get("verification", {})
-    assertions = report.get("assertions")
-    if report.get("format") != "neantik-own155-native-qa-v1" or report.get("status") != "passed" or verification.get("manifest_sha256") != trusted_hash or report.get("bundle_reverified_after_visits") is not True or not isinstance(assertions, list) or not assertions or any(not isinstance(item, dict) or item.get("passed") is not True for item in assertions):
-        raise ValueError("Independent own155 QA report does not attest this exact bundle")
+    report = native_qa_report.load_report(qa_report)
+    try:
+        _, verification = native_qa_report.fingerprint.verify_bundle(directory.parent.parent, trusted_hash)
+    except native_qa_report.fingerprint.HarnessError as exc:
+        raise ValueError("Independent own155 QA report: " + str(exc)) from exc
+    native_qa_report.validate_report(report, verification)
     executable = core.CoreResolver(directory.parent.parent).resolve()
+    try:
+        _, final_verification = native_qa_report.fingerprint.verify_bundle(directory.parent.parent, trusted_hash)
+    except native_qa_report.fingerprint.HarnessError as exc:
+        raise ValueError("Independent own155 QA report: " + str(exc)) from exc
+    if not native_qa_report.typed_equal(final_verification, verification):
+        raise ValueError("Independent own155 QA report: bundle changed during native probe")
     return {"state": "existing-core-verified", "manifest_sha256": trusted_hash,
             "engine_version": core.ENGINE_VERSION, "executable": str(executable), "qa_status": "passed"}
 

@@ -55,6 +55,12 @@ part of the public-source export.
   An additional unavailable TCP proxy test holds an exclusively bound, non-listening
   IPv4 TCP socket alive throughout the browser visit. Chrome must show the exact
   `ERR_PROXY_CONNECTION_FAILED` neterror, exit normally, and make no origin hit.
+  Since headless Chrome may emit an empty dumpDOM for failed navigation, exact
+  source-bound NetLog evidence is also accepted: the owned URL's unique
+  `URL_REQUEST_START_JOB` BEGIN/END pair, same URL_REQUEST source ID, with numeric
+  `net_error=-130`. Empty output, arbitrary log text or a different request's
+  error cannot satisfy this check. NetLog uses default capture mode, lives only
+  in the disposable private QA profile, and is never packaged/published.
 
 The network fixture removes Chrome's implicit loopback HTTP bypass with
 `--proxy-bypass-list=<-loopback>`. Without that, visiting `127.0.0.1` would not

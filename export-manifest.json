@@ -63,8 +63,8 @@
     },
     {
       "path": "RELEASE_CHECKLIST.md",
-      "size_bytes": 5592,
-      "sha256": "14e600c896f1a71c94f5568d29a0d59fc503726e76cd4c2b16c4c9821f2318ea"
+      "size_bytes": 7405,
+      "sha256": "a0856f98e5d9ce26134804002a8b99d86d5a25a8a52ab69e0cc9037ec27fae6f"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -348,8 +348,8 @@
     },
     {
       "path": "tools/CURRENT_NATIVE_QA.md",
-      "size_bytes": 5091,
-      "sha256": "11fb12847c107eaea36f5f2a83d73debf4a8143e4ab870cd0161bdc4cf092d30"
+      "size_bytes": 5556,
+      "sha256": "9c6fcdaf0d7bbd35f3e2e7c5c859de4a81756cfd5865dd40e5720a9611bcd726"
     },
     {
       "path": "tools/benchmark_runtime.py",
@@ -413,8 +413,8 @@
     },
     {
       "path": "tools/native-core/README.md",
-      "size_bytes": 14659,
-      "sha256": "a9194d9f96efdeb42b0f9111ffb5621f06984271ac3bd61d0167beb7b8301155"
+      "size_bytes": 15484,
+      "sha256": "7cf49d16b67c3fa9e679c4867bbaa319c5981f3f7c06a110c523e5c568b8d4fb"
     },
     {
       "path": "tools/native-core/bootstrap-sdk.ps1",
@@ -477,9 +477,19 @@
       "sha256": "b794b24e87bb52af0c004f4a7b215114619a6ab64c633d82e91f75fcb91a8087"
     },
     {
+      "path": "tools/native-core/native_qa_report.py",
+      "size_bytes": 11333,
+      "sha256": "fd4084b1ae5b05234e04859e9ded4588419cd8647db9354d5a3eae42cd69ad80"
+    },
+    {
+      "path": "tools/native-core/native_qa_synthetic_fixture.py",
+      "size_bytes": 4502,
+      "sha256": "33b5792edcd98c7088728c08a68c17a9907c3113811f9c94eca41f242538f181"
+    },
+    {
       "path": "tools/native-core/package-engine.py",
-      "size_bytes": 13889,
-      "sha256": "6359da3c4a99322eea3baf9277e2bc0739233bc63750a7dd807908033b6c599b"
+      "size_bytes": 14165,
+      "sha256": "da89c8d84b30279ed4a4eac6872137c21011972c38525f79443ccb31f21864ee"
     },
     {
       "path": "tools/native-core/preflight.ps1",
@@ -502,9 +512,14 @@
       "sha256": "823c5ee9921ff3f6a5172c30affc2353079fb9e96711bc72fed9b1f90f603762"
     },
     {
+      "path": "tools/native-core/test_native_qa_report.py",
+      "size_bytes": 9151,
+      "sha256": "4230e7b96e52ba501cbdae9e852d1f5586c0bc2a86772fe3322e4283766db62d"
+    },
+    {
       "path": "tools/native-core/test_package_engine.py",
-      "size_bytes": 8475,
-      "sha256": "47a09a05c0b4f249b783447372e990e056b5d1d7150330512c212ebe7d60df8f"
+      "size_bytes": 10046,
+      "sha256": "9d527371d4e3776e30169c5181343cefb225e2b80bbc71090cf3d2fb62fa3d59"
     },
     {
       "path": "tools/native-core/test_verify_patch_series.py",
@@ -573,13 +588,13 @@
     },
     {
       "path": "tools/test_native_webrtc_privacy.py",
-      "size_bytes": 12026,
-      "sha256": "8b8959075ac207dd673c16179cb7545aa37c9565ba433072968c7bc21cb49ce4"
+      "size_bytes": 14951,
+      "sha256": "f81e6167c9e84250a4adc1047b5c117fc9df9daea624d8b8f538e4737ca39eae"
     },
     {
       "path": "tools/test_native_webrtc_privacy_unit.py",
-      "size_bytes": 6639,
-      "sha256": "a26060e6536c22f1184a5ca8ffdddefc564ce50fb9eae51028e05772bba97b16"
+      "size_bytes": 8927,
+      "sha256": "8be13a645ffd097f693bfc8afa4a9e7cbac98883e7521e13c4bf3c184a23f18f"
     },
     {
       "path": "tools/test_public_source_export.py",
