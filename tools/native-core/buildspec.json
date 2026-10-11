@@ -45,7 +45,7 @@
     "minimum_free_gib_before_checkout": 140,
     "minimum_free_gib_before_build": 40,
     "os_reserve_gib": 40,
-    "minimum_free_ram_gib_during_build": 4,
+    "minimum_free_ram_gib_during_build": 3.5,
     "minimum_free_commit_gib_during_build": 1.5,
     "critical_free_ram_gib_during_build": 2,
     "critical_free_commit_gib_during_build": 1,
