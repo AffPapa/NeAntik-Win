@@ -97,10 +97,14 @@
       {
         "path": "core/patches/008-windows155-memory-values.patch",
         "sha256": "9bc732be9444bb53ab19ed319d2c68a129c94717165dd294c04958dc289388f3"
+      },
+      {
+        "path": "core/patches/009-native-proxy-webrtc-policy.patch",
+        "sha256": "9c22c99b46fd70d4114ef1723c77fe0d4a081536518efed32eeda3f01643704e"
       }
     ],
     "postimage_sha256": {
-      "chrome/app/chrome_main_delegate.cc": "a526716c395e77a82b9675e39501533281822196b6ba4e935b28780685b8de26",
+      "chrome/app/chrome_main_delegate.cc": "6726783cd7b6afeaa748ad3c55fc466d79db2f98f9cf7e60f0132c8f4b74e0e3",
       "content/browser/renderer_host/render_process_host_impl.cc": "eb765f4f56307bfa81413af0314b87fbde871a8db2e1d0a06461e570bc67a652",
       "third_party/blink/common/BUILD.gn": "46a35230a92d38d2baca2fbb94185bdac8cd91036ab5555df53a3e1a8304c6de",
       "third_party/blink/common/device_memory/approximated_device_memory.cc": "caec7325a921da52c559db21ee88068a983b68fc4427da023fc4efd616698537",
@@ -127,7 +131,10 @@
       "third_party/blink/web_tests/neantik/canvas-readback-expected.txt": "d30e4fbf14e4ed5ac865f866b1bbd6931fa05b93e7e046716c95a907573bc063",
       "third_party/blink/web_tests/neantik/canvas-readback.html": "4ad71ca0ce22b902d9fd3f344b46338409479347e4069dfb74724e2e0e2ca9fe",
       "DEPS": "a4e72f5140a96b13f87ce367634df5546de0596da9ee3406ce074c751c3d1cf4",
-      "build/toolchain/win/midl.py": "aa1e8eee69f10344bf4ab65fcf434b32d7119cada064849ceabe9a8698127d1b"
+      "build/toolchain/win/midl.py": "aa1e8eee69f10344bf4ab65fcf434b32d7119cada064849ceabe9a8698127d1b",
+      "chrome/browser/renderer_preferences_util.cc": "cdac757c925f38a6e83459e7c6d30d4f24a7fa8f8bfd3da349bea6bbd02ea279",
+      "chrome/browser/renderer_preferences_util.h": "d5207eeab8618623f34dedea09d59b86b5e861bd5cc7e21ba60778249c44062f",
+      "chrome/browser/renderer_preferences_util_unittest.cc": "c46ff9c224238b6c6e3dc9ea58da1b89232fa4a99a3c393c74d40dbc110c3a88"
     },
     "required_test_contexts": [
       "main-frame",

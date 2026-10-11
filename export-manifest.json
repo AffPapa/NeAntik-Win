@@ -133,8 +133,8 @@
     },
     {
       "path": "core/README.md",
-      "size_bytes": 18193,
-      "sha256": "f84c164215ab09508f2b1e32e308c45ee54f7fe73d1e7582764e43415332e6e1"
+      "size_bytes": 18314,
+      "sha256": "c67991e1acfaab6a1435e760d6f258ed28a53613ec99de9598c9eded25088bb8"
     },
     {
       "path": "core/native/LICENSE",
@@ -265,6 +265,11 @@
       "path": "core/patches/webrtc-candidate-provenance.json",
       "size_bytes": 6076,
       "sha256": "dc0655e86cf97acc0dbb3a37e8a6d72828c3be6daa24de1af242e89d4cbcbe98"
+    },
+    {
+      "path": "core/patches/webrtc-chain-provenance.json",
+      "size_bytes": 6358,
+      "sha256": "915b2456dbfee146b9dbbffcebb2963cefd14a8e4ab2535688e9608c0aa7bcf9"
     },
     {
       "path": "current_core.py",
@@ -433,8 +438,8 @@
     },
     {
       "path": "tools/native-core/buildspec.json",
-      "size_bytes": 8463,
-      "sha256": "a33b9c9c0fcf74204c267ba9f1791b36eb755969872ea8812cf86b08944be713"
+      "size_bytes": 9005,
+      "sha256": "835a734e14d7a563f6afe2102b138a79972081a3e14df57f0be7ac99b7451de4"
     },
     {
       "path": "tools/native-core/generate-capability-scope-patch.py",
