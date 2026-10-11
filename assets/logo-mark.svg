@@ -1,0 +1,18 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeVision mark</title>
+  <desc id="desc">A violet rounded square with an abstract letter N and lime status point.</desc>
+  <defs>
+    <linearGradient id="tile" x1="10" y1="7" x2="57" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A68CFF"/>
+      <stop offset="1" stop-color="#7056E9"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="12" y1="10" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D7CCFF" stop-opacity=".65"/>
+      <stop offset="1" stop-color="#D7CCFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="17" fill="url(#tile)"/>
+  <rect x="4.75" y="4.75" width="54.5" height="54.5" rx="16.25" stroke="url(#edge)" stroke-width="1.5"/>
+  <path d="M20 43V21L40.5 43V21" stroke="#11182A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="47" cy="17" r="5" fill="#C7F83A" stroke="#F0FFC8" stroke-width="2"/>
+</svg>

@@ -1,0 +1,15 @@
+# Keep source diffs stable across Windows and GitHub.
+* text=auto
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=crlf
+*.svg text eol=lf
+
+# Binary visual assets must not be line-ending converted.
+*.ico binary
+*.png binary

@@ -1,0 +1,65 @@
+# -----------------------------------------------------------------------------
+# Never commit runtime data or release outputs.
+# `Data/` can contain Chromium cookies, sessions, browser history and DPAPI-bound
+# proxy secrets. Release folders can accidentally contain a populated Data/ tree.
+# -----------------------------------------------------------------------------
+/Data/
+/data/
+/build/
+/dist/
+/release/
+/Engine/
+/native-build/
+/logs/
+/outputs/
+/storage/
+
+# Python, virtual environments and test output
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local databases, browser/Telegram data and temporary archives
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.session
+*.session-journal
+**/tdata/
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.gz
+*.partial
+*.sha256
+
+# Build products
+*.spec
+*.exe
+*.dll
+*.pdb
+
+# Credentials and certificates
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.kdbx
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/

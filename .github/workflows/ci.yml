@@ -1,0 +1,62 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# The CI only checks a checkout. It never receives release/signing secrets and cannot publish.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify portable build
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned build dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-build.txt
+
+      - name: Guard the public source tree
+        shell: pwsh
+        run: .\tools\check-public-repo.ps1
+
+      - name: Run unit tests
+        run: python -m unittest -v test_nevision_win.py test_browser_engine.py
+
+      - name: Verify safe source export
+        run: python -m unittest discover -s tools -p test_public_source_export.py -v
+
+      - name: Run source self-test
+        run: python .\nevision_win.py --self-test
+
+      - name: Verify release tooling
+        shell: pwsh
+        run: .\tools\test-release-tools.ps1
+
+      - name: Build portable application
+        shell: pwsh
+        run: .\build.ps1 -Clean
+
+      - name: Run packaged self-test
+        shell: pwsh
+        run: |
+          $version = (Get-Content .\release-version.json -Raw | ConvertFrom-Json).version
+          $archive = Join-Path $PWD "release/NeAntikWin-portable-v$version.zip"
+          .\tools\verify-release-archive.ps1 -ArchivePath $archive
+          $testRoot = Join-Path $env:RUNNER_TEMP ("nevision-smoke-" + [guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $archive -DestinationPath $testRoot
+          $exe = Join-Path $testRoot "NeAntikWin-portable-v$version/NeAntikWin.exe"
+          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged self-test failed: $($process.ExitCode)" }

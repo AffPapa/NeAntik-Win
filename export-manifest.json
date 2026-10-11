@@ -1,0 +1,291 @@
+{
+  "format": "neantik-public-source-export-v1",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size_bytes": 328,
+      "sha256": "9bc512da660e963d511738154a90542b06727d3c6bef4faf11e77cd85961383d"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "size_bytes": 1439,
+      "sha256": "ed427c945d6b9d1df0a6f5e99e046b25131465d667177ca865a4cc198f59425e"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "size_bytes": 646,
+      "sha256": "1d88ef7f3765809a40db9bf215468bb453f62c9980ea4270467ba009a4ed5fd8"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "size_bytes": 437,
+      "sha256": "0cf186cf42c6e670849857442d32665468e8c4de4856dd15935b7fdba7ef2866"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "size_bytes": 260,
+      "sha256": "daabcc6129adc5664b679c2380673eaa43bfddb72594bebc89492940e359e78b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "size_bytes": 2056,
+      "sha256": "c6221389a628f89588f6f3f635e55502e5a47458faab326d9ee4581d8baa1f23"
+    },
+    {
+      "path": ".gitignore",
+      "size_bytes": 1002,
+      "sha256": "b820b8e26bfb2ae288c7ceed76023ea49f819f363d61ad877071d19708363f35"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "size_bytes": 7229,
+      "sha256": "20655427fe57ac27013f91adc1c7a04f5a6d409ddef5aef2b6464cf7e81d2558"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "size_bytes": 5736,
+      "sha256": "31baf96694f4a603829d32096c53bf112e6ebbfc67e0a55b87151e203ecb6213"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "size_bytes": 1060,
+      "sha256": "afb418e44762f7a31d7d38f1fe2f855e013ab7e251dfee2e021a93d62f206e12"
+    },
+    {
+      "path": "PUBLISHING.md",
+      "size_bytes": 3041,
+      "sha256": "738bae793435bbe66b0c55397e000819a9bd36fdc1369296f9c989ceed3dd3c8"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 5712,
+      "sha256": "910d5d573eed0420405528136767a7d4fcfd2b55f6393fc19176ed4ed825ccd9"
+    },
+    {
+      "path": "RELEASE_CHECKLIST.md",
+      "size_bytes": 5592,
+      "sha256": "14e600c896f1a71c94f5568d29a0d59fc503726e76cd4c2b16c4c9821f2318ea"
+    },
+    {
+      "path": "RELEASE_NOTES.md",
+      "size_bytes": 165,
+      "sha256": "3ca94d16ef4de5ebaf5226f4b68d567b4aa08e817772d159b426f2ab9e21c545"
+    },
+    {
+      "path": "SECURITY.md",
+      "size_bytes": 972,
+      "sha256": "50c682d7aefc03c957aba1862345e49718d7788b8e667d6d57bc94d9d6bc6efe"
+    },
+    {
+      "path": "SECURITY_AND_SCOPE.md",
+      "size_bytes": 4816,
+      "sha256": "08abd34fae15d55f21fa61f1fb310d5ed4f2b45f4b4d188442f88938fe44d0a5"
+    },
+    {
+      "path": "SUPPORT.md",
+      "size_bytes": 344,
+      "sha256": "17dea626d1c7fa44a484bd568acbe4d0dbb9a082a0c0e059f01331bdc9727f4c"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "size_bytes": 2281,
+      "sha256": "b25c513144b5f3525f49328ed9db99a407fc60ca42e0019c8206a64661fec778"
+    },
+    {
+      "path": "assets/README.md",
+      "size_bytes": 635,
+      "sha256": "19dc6ecacda9558678f041699fa0c683a401c97109359894b8173884fc6ccbf0"
+    },
+    {
+      "path": "assets/app-icon-source.svg",
+      "size_bytes": 1536,
+      "sha256": "fb9c849e79ad3e958808797194526af7886d706b315d521e04dac6106a4582f8"
+    },
+    {
+      "path": "assets/logo-mark.svg",
+      "size_bytes": 1106,
+      "sha256": "5d6dd9904f65a899ef2db119d6a774498cf20b1faf7afe1bb616903b6a6bacd0"
+    },
+    {
+      "path": "assets/nevision-icon-preview.png",
+      "size_bytes": 4367,
+      "sha256": "099d692838731385568dadee5254c6130400d0aa565bd4192152b1d353fd39b8"
+    },
+    {
+      "path": "assets/nevision.ico",
+      "size_bytes": 24667,
+      "sha256": "bfe93be49320c48384f75fdebe043931e95acca1245ae2f47b900415b6528456"
+    },
+    {
+      "path": "browser_engine.py",
+      "size_bytes": 23717,
+      "sha256": "20d5c00ef02fcd4ec4bfebab836628918b72f7f2f8d72393728660264a7b508d"
+    },
+    {
+      "path": "build.ps1",
+      "size_bytes": 8581,
+      "sha256": "e319747481bf800b6caa09c91fb35b08807e66e1d6d1b57327c71c1a8be1f589"
+    },
+    {
+      "path": "docs/CYCLE_PLAN.md",
+      "size_bytes": 13355,
+      "sha256": "d4a8caa00bc26bcdac0d17be6a43d6596ec9fa0f60bbfba675907ead9d2194b5"
+    },
+    {
+      "path": "docs/MARKET_RESEARCH.md",
+      "size_bytes": 54689,
+      "sha256": "b86428028618dbe1f99cfc82fbddc0c1d90da58e2d96fc293e1bebb72591c567"
+    },
+    {
+      "path": "docs/NEANTIK_CORE_RESEARCH.md",
+      "size_bytes": 16792,
+      "sha256": "50b29983b0e6351361aabac61651f7ee2d5b445870b02dccd81e323738f27a80"
+    },
+    {
+      "path": "docs/NEANTIK_IMPLEMENTATION_PLAN.md",
+      "size_bytes": 16750,
+      "sha256": "2a9e3c2c9de4e7180569f8f39a0f14d5a1d4cf13e4264820d3c3721ebb7e7c11"
+    },
+    {
+      "path": "docs/NEANTIK_PUBLIC_SOURCE_AUDIT.md",
+      "size_bytes": 7917,
+      "sha256": "b3d4a358f0c5b381fea0b4cdf473ffe83e694ae54c6835633f6d8f11314dce55"
+    },
+    {
+      "path": "docs/PLATFORM_AND_EXTENSIONS.md",
+      "size_bytes": 51605,
+      "sha256": "2ffc51c3632a8280c9f7d666f0ccf23c86f37e0e6564f97bf4aa191c5ac7d823"
+    },
+    {
+      "path": "docs/QA_REPORT.md",
+      "size_bytes": 14903,
+      "sha256": "ca2674fad3772755327096dcd520abefa9358dc700e6801d357b6c3d8b6c6224"
+    },
+    {
+      "path": "docs/RESEARCH_BACKLOG.csv",
+      "size_bytes": 21615,
+      "sha256": "490fa134b4682c0a99272d1db92aa98b644969abe701bb7dc6185f20eda0f3da"
+    },
+    {
+      "path": "nevision_win.py",
+      "size_bytes": 151378,
+      "sha256": "0f49a14f6e4674d52bce83c74bd7683f9b00658f8039272670b233981cc8cde4"
+    },
+    {
+      "path": "release-version.json",
+      "size_bytes": 89,
+      "sha256": "07586ebec91a2443bf0af31172e88498153f9fde0fb54ed7f9c4217004a74a1a"
+    },
+    {
+      "path": "requirements-build.txt",
+      "size_bytes": 55,
+      "sha256": "045ce50480dc2c0b0028dff5b36d9a625ba5ccc83fc17a1f13deffbe1799d729"
+    },
+    {
+      "path": "requirements-dev.txt",
+      "size_bytes": 96,
+      "sha256": "b9f669f530e76bccda51788e376f429cbfebc41f3f63dc4eafe0b0e3a62d586b"
+    },
+    {
+      "path": "test_browser_engine.py",
+      "size_bytes": 12640,
+      "sha256": "dbe4bc3ac0e53b1e74136a5f18b15c0d55f58129dfb59a15f66f0fd890ef5133"
+    },
+    {
+      "path": "test_nevision_win.py",
+      "size_bytes": 40975,
+      "sha256": "c6661474f3da8ab966a52e540df77d2cdb556dfe20faca8ca0d8ae039a4bf697"
+    },
+    {
+      "path": "tools/benchmark_runtime.py",
+      "size_bytes": 2746,
+      "sha256": "5acfb5045193e6267627ff1f077549210a3318829bad84cf97933964283ac740"
+    },
+    {
+      "path": "tools/browser_integration.py",
+      "size_bytes": 28397,
+      "sha256": "8632f304fe567aa206831c6e932ff7f8007308201dffebfaf922ff9ec6190aa2"
+    },
+    {
+      "path": "tools/check-public-repo.ps1",
+      "size_bytes": 3615,
+      "sha256": "270416e14bd7f414c66716b75183a88220469c7955283b8b8a1e00edd6b61ec2"
+    },
+    {
+      "path": "tools/export-public-source.py",
+      "size_bytes": 6560,
+      "sha256": "02942b6c46dafc94e1d74cfe54f4297cca3aa15c95a5c113ce85fee903f67327"
+    },
+    {
+      "path": "tools/gui_regression.py",
+      "size_bytes": 5596,
+      "sha256": "876b159062573a2c8272140c1dfcc8bbc9d7c2f8a3a8ca71fac3599697f6a267"
+    },
+    {
+      "path": "tools/install-browser-engine.py",
+      "size_bytes": 829,
+      "sha256": "72ff39de6c0b7b31b9c64b743b172febfa3c33ef2e5043494585407433d5eb49"
+    },
+    {
+      "path": "tools/licenses/OpenSSL-LICENSE.txt",
+      "size_bytes": 10175,
+      "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"
+    },
+    {
+      "path": "tools/licenses/Tcl-license.terms",
+      "size_bytes": 2255,
+      "sha256": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16"
+    },
+    {
+      "path": "tools/measure-process.ps1",
+      "size_bytes": 8638,
+      "sha256": "d05d471419880a3b05e6d03940e6b072cf385d4d6ff2439c6453dca611fe9122"
+    },
+    {
+      "path": "tools/prepare-build-metadata.py",
+      "size_bytes": 4874,
+      "sha256": "8936d15627a8a95f8dcbb6d7fed14758f23f4a3c41025294470ed2a666dd4c34"
+    },
+    {
+      "path": "tools/proxy_integration.py",
+      "size_bytes": 20118,
+      "sha256": "9cd32237a9fea68084be5a5806dceee1ba4cbe08949d25b1faeae9a072431a36"
+    },
+    {
+      "path": "tools/release-helpers.ps1",
+      "size_bytes": 2359,
+      "sha256": "e4b80be7a00d396c01763811831cbd401709c8754b153f687f2c1fbac146694d"
+    },
+    {
+      "path": "tools/render_brand_icon.py",
+      "size_bytes": 2639,
+      "sha256": "0ed9c7728fa61a856f92661cd8341f87a9d81fd5667f039793cd580c9f812d70"
+    },
+    {
+      "path": "tools/test-release-tools.ps1",
+      "size_bytes": 6174,
+      "sha256": "85a184c015377472f81d48da4ce57b2f620b2074b4aceea9b5879fba7c010d1b"
+    },
+    {
+      "path": "tools/test_native_fingerprint.py",
+      "size_bytes": 20967,
+      "sha256": "885fbf9b9f9f29798d373637349cd8763bbdfbd05edcf4c12fc87bd86184c269"
+    },
+    {
+      "path": "tools/test_public_source_export.py",
+      "size_bytes": 5412,
+      "sha256": "61049af304f97a7c27f526b94abfcbf504c858ec38e67b0f395f0dbad612b768"
+    },
+    {
+      "path": "tools/verify-release-archive.ps1",
+      "size_bytes": 6252,
+      "sha256": "1e90c09887044937ffee02de80ae4b0dd485bf02ba415e92ca7c1556cd766170"
+    },
+    {
+      "path": "SOURCE_LICENSE_NOTICE.txt",
+      "size_bytes": 214,
+      "sha256": "d8229b84100b8a57ea89a74600f0f2e898c9d0b0e66b7e46aec7b8f93da1ef25"
+    }
+  ],
+  "transient_qa_reports_included": false
+}
