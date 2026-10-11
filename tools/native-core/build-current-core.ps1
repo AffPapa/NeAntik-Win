@@ -22,8 +22,8 @@ if ($LASTEXITCODE -ne 0 -or $depotHead -ne $spec.depot_tools.commit) { throw 'de
 $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($root))
 if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) { throw 'The 40 GiB OS reserve has been reached. Stop without deleting user files.' }
 $memory = Get-CimInstance -ClassName Win32_OperatingSystem
-$minimumFreeRamKb = [long]$spec.resource_policy.minimum_free_ram_gib_during_build * 1MB / 1KB
-$minimumFreeCommitKb = [long]$spec.resource_policy.minimum_free_commit_gib_during_build * 1MB / 1KB
+$minimumFreeRamKb = [long]$spec.resource_policy.minimum_free_ram_gib_during_build * 1GB / 1KB
+$minimumFreeCommitKb = [long]$spec.resource_policy.minimum_free_commit_gib_during_build * 1GB / 1KB
 if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) { throw 'Insufficient free RAM or commit headroom for the configured build workers; close workloads or lower jobs before retrying.' }
 if (-not $BuildBaseline -and @($spec.patch_contract.patch_series).Count -eq 0) { throw 'Native fingerprint patch series is not ready. Only explicit -BuildBaseline may compile unmodified Chromium.' }
 $patchCheckArguments = @((Join-Path $PSScriptRoot 'verify-patch-series.py'),'--source',$source)
