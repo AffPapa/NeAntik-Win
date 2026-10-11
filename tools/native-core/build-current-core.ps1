@@ -41,6 +41,9 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
     [IO.Directory]::CreateDirectory($logDirectory) | Out-Null
     $logPrefix = Join-Path $logDirectory ('native-' + $Stage.ToLowerInvariant() + '-' + [DateTime]::UtcNow.ToString('yyyyMMddHHmmssfff'))
     $process = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d','/s','/c', $CommandLine) -WorkingDirectory $source -WindowStyle Hidden -PassThru -RedirectStandardOutput ($logPrefix + '.stdout.log') -RedirectStandardError ($logPrefix + '.stderr.log')
+    # Cache the native handle before the child exits. Windows PowerShell may
+    # otherwise lose ExitCode after polling a Start-Process -PassThru object.
+    $ownedHandle = $process.Handle
     Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserve $($spec.resource_policy.os_reserve_gib) GiB."
     while (-not $process.WaitForExit(2000)) {
         if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) {
@@ -49,7 +52,10 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
             throw 'Build stopped: live 40 GiB OS reserve reached. Only this build process tree was stopped; no files were deleted.'
         }
     }
-    if ($process.ExitCode -ne 0) { throw "Native $Stage failed (exit $($process.ExitCode))." }
+    $process.WaitForExit()
+    $process.Refresh()
+    $exitCode = $process.ExitCode
+    if ($null -eq $exitCode -or $exitCode -ne 0) { throw "Native $Stage failed (exit $exitCode)." }
 }
 try {
     $env:Path = "$depot;$savedPath"

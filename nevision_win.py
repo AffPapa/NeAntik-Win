@@ -525,7 +525,11 @@ class Storage:
             encoded = profile.pop("fingerprint_json")
             try:
                 profile["fingerprint"] = validate_identity(json.loads(encoded)) if encoded is not None else ordinary_identity()
-            except (CoreError, json.JSONDecodeError) as exc:
+            except CoreError as exc:
+                # Identity validators emit fixed explanations, never profile
+                # secrets. Keep incompatibility actionable without rewriting it.
+                raise NeVisionError(f"Fingerprint-настройки несовместимы: {exc}") from exc
+            except json.JSONDecodeError as exc:
                 raise NeVisionError("Fingerprint-настройки профиля повреждены. Восстановите проверенный backup.") from exc
             profiles.append(profile)
         return profiles
@@ -545,7 +549,9 @@ class Storage:
         if result is not None:
             try:
                 result["fingerprint"] = validate_identity(json.loads(fingerprint["config_json"])) if fingerprint else ordinary_identity()
-            except (CoreError, json.JSONDecodeError) as exc:
+            except CoreError as exc:
+                raise NeVisionError(f"Fingerprint-настройки несовместимы: {exc}") from exc
+            except json.JSONDecodeError as exc:
                 raise NeVisionError("Fingerprint-настройки профиля повреждены. Восстановите проверенный backup.") from exc
         return result
 

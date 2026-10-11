@@ -222,6 +222,9 @@ def malformed_input_checks(browser,root):
       'orphan_cpu':['--neantik-hardware-concurrency=8'],
       'invalid_cpu':['--neantik-fingerprint-seed=123','--neantik-hardware-concurrency=0'],
       'unknown_iana':['--neantik-fingerprint-seed=123','--neantik-timezone=Not/AReal_Zone']}
+    for memory in ('0.25','0.5','1'):
+        cases['unsupported_windows_memory_'+memory]=[
+          '--neantik-fingerprint-seed=123','--neantik-device-memory='+memory]
     for label,flags in cases.items():
         folder=root/('reject-'+label);folder.mkdir()
         _,stderr,stats=run_owned([str(browser),f'--user-data-dir={folder / "profile"}',

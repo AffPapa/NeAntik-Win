@@ -14,6 +14,20 @@ from nevision_win import AppPaths, BrowserLauncher, NeVisionApp, NeVisionError, 
 
 
 class IdentityTests(unittest.TestCase):
+    def test_windows155_memory_values_and_rejected_drafts_are_not_clamped(self):
+        self.assertEqual(core.MEMORY_OPTIONS, ("2", "4", "8", "16", "32"))
+        for memory in core.MEMORY_OPTIONS:
+            identity = core.new_identity(memory=memory)
+            self.assertEqual(identity["device_memory"], memory)
+            self.assertIn("--neantik-device-memory=" + memory, core.identity_arguments(identity))
+        for memory in ("0.25", "0.5", "1"):
+            draft = {**core.new_identity(), "device_memory": memory}
+            original = copy.deepcopy(draft)
+            with self.subTest(memory=memory), self.assertRaisesRegex(core.CoreError, "Windows Chromium 155"):
+                core.validate_identity(draft)
+            self.assertEqual(draft, original)
+            with self.assertRaises(core.CoreError):
+                core.identity_arguments(draft)
     def test_timezone_optional_legacy_and_strict_flags(self):
         identity = core.new_identity(timezone="Asia/Bangkok")
         self.assertIn("--neantik-timezone=Asia/Bangkok", core.identity_arguments(identity))
@@ -61,6 +75,21 @@ class LifecycleTests(unittest.TestCase):
         self.storage.save_profile({"name": "Renamed"}, self.profile_id)
         self.assertEqual(Storage(self.paths).get_profile(self.profile_id)["fingerprint"], self.identity)
         self.assertEqual(self.storage.list_profiles()[0]["fingerprint"], self.identity)
+
+    def test_legacy_invalid_memory_db_blob_and_browser_data_are_preserved(self):
+        browser_file = self.storage.profile_path(self.profile_id) / "synthetic-session.txt"
+        browser_file.write_bytes(b"unchanged browser session")
+        for memory in ("0.25", "0.5", "1"):
+            blob = json.dumps({**self.identity, "device_memory": memory}, sort_keys=True)
+            with self.storage.connection() as db:
+                db.execute("UPDATE profile_fingerprints SET config_json=? WHERE profile_id=?", (blob, self.profile_id))
+            for read in (lambda: self.storage.get_profile(self.profile_id), self.storage.list_profiles):
+                with self.subTest(memory=memory), self.assertRaisesRegex(NeVisionError, "Windows Chromium 155"):
+                    read()
+            with self.storage.connection() as db:
+                saved = db.execute("SELECT config_json FROM profile_fingerprints WHERE profile_id=?", (self.profile_id,)).fetchone()[0]
+            self.assertEqual(saved, blob)
+            self.assertEqual(browser_file.read_bytes(), b"unchanged browser session")
 
     def test_old_profile_without_identity_row_is_explicit_ordinary(self):
         profile = self.storage.save_profile({"name": "Old ordinary"})

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import test_current_native_fingerprint as harness
 
@@ -28,6 +29,21 @@ def synthetic_case(label,seed,cpu=8,memory='8',zone='Europe/Berlin'):
 
 
 class NativeHarnessValidatorTests(unittest.TestCase):
+    def test_low_memory_rejections_require_actual_exit78(self):
+        with tempfile.TemporaryDirectory(prefix='neantik-validator-unit-') as temporary:
+            with patch.object(harness,'run_owned',return_value=(b'',b'',{'return_code':78})) as owned:
+                checks=harness.malformed_input_checks(Path('synthetic-never-executed.exe'),Path(temporary))
+            for memory in ('0.25','0.5','1'):
+                self.assertTrue(any(item['name']=='unsupported_windows_memory_'+memory for item in checks))
+                self.assertTrue(any('--neantik-device-memory='+memory in call.args[0] and
+                  '--neantik-fingerprint-seed=123' in call.args[0] for call in owned.call_args_list))
+        for memory in ('0.25','0.5','1'):
+            def accepted_low(arguments,folder,timeout):
+                return b'',b'',{'return_code':0 if '--neantik-device-memory='+memory in arguments else 78}
+            with tempfile.TemporaryDirectory(prefix='neantik-validator-unit-') as temporary:
+                with patch.object(harness,'run_owned',side_effect=accepted_low):
+                    with self.assertRaisesRegex(harness.HarnessError,'unsupported_windows_memory_'):
+                        harness.malformed_input_checks(Path('synthetic-never-executed.exe'),Path(temporary))
     def test_probe_requires_narrow_coverage_and_exact_source(self):
         info={'engine_id':'neantik-chromium','version':harness.VERSION,'source_commit':harness.COMMIT,
           'schema':1,'capability_evidence':'compiled-source-only','capabilities':dict.fromkeys(

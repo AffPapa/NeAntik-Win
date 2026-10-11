@@ -1,6 +1,6 @@
 # NeAntik native core: current-source patch contract
 
-Status: **native C++ stages 001–006 authored and exact-source apply checked, not compiled**. Upstream Chromium does not support these switches without the patch series. A patched EXE and runtime verification are still required.
+Status: **stages001–008 are source-applied and exact postimages checked**. Supplementary008 was independently reviewed and applied only after a controlled build pause. A verified final patched EXE and runtime release checks are still required. Upstream Chromium does not support these switches without this patch series.
 
 The user selected a current, own Chromium core on 2026-10-11. The external Chromium150 prototype is not the chosen release implementation. Its initial loopback fixture runs timed out, so no positive fingerprint capability was proved from that binary.
 
@@ -22,7 +22,7 @@ One immutable validated persona per browser profile/process. The first authored 
 ```text
 --neantik-fingerprint-seed=<nonzero uint64 decimal>
 --neantik-hardware-concurrency=<integer 1..64>
---neantik-device-memory=<0.25|0.5|1|2|4|8|16|32>
+--neantik-device-memory=<2|4|8|16|32>  # Windows155 scope after008
 --neantik-timezone=<IANA identifier>   # optional, requires seed
 --neantik-core-info=<output JSON file>  # capability query; exits before navigation
 ```
@@ -36,7 +36,7 @@ The runtime capability manifest must distinguish `implemented`, `compiled`, `obs
 | Capability | Native target at exact tag | Required invariant | First-cycle scope |
 |---|---|---|---|
 | CPU | [navigator_concurrent_hardware.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc) | Same explicit CPU value in window/iframes/dedicated/shared/service workers | Implement shared accessor with immutable state |
-| Device memory | [navigator_device_memory.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/frame/navigator_device_memory.cc), [approximated_device_memory.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/common/device_memory/approximated_device_memory.cc) | JS and device-memory Client Hints agree, secure-context rules unchanged | Understand current cap feature; no assumption of universal 8GB cap |
+| Device memory | [navigator_device_memory.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/frame/navigator_device_memory.cc), [approximated_device_memory.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/common/device_memory/approximated_device_memory.cc) | JS and device-memory Client Hints agree, secure-context rules unchanged | Windows155 discrete2/4/8/16/32 scope; no Android limit mixture |
 | UA/Client Hints | [user_agent_utils.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/components/embedder_support/user_agent_utils.cc), [client_hints.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/content/browser/client_hints/client_hints.cc) | HTTP UA/CH and JS agree; actual core major/full version; genuine Windows desktop architecture | Central metadata construction, no arbitrary old-version pool |
 | Window/worker navigator | [navigator_base.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/execution_context/navigator_base.cc), [worker_navigator.h](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/workers/worker_navigator.h), [navigator.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/frame/navigator.cc) | Common context UA/platform model, including early script reads | Verify shared execution-context paths; preserve Windows `Win32` default |
 | Child state | [render_process_host_impl.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/content/browser/renderer_host/render_process_host_impl.cc) | State present before page/worker creation, OOPIF/process restart consistent | Explicit propagation plus tests; no unreviewed unrestricted forwarding |
@@ -46,7 +46,9 @@ The runtime capability manifest must distinguish `implemented`, `compiled`, `obs
 | OffscreenCanvas | [offscreen_canvas.cc](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc) | convertToBlob and worker readback match main-thread canvas | Same native pixel/seed algorithm, no window-only override |
 | Screen/fonts/GPU/audio | Actual Windows OS/backend defaults initially | No impossible Windows/macOS/GPU mixture; no fabricated support | Deferred until coherent native implementations and tests exist |
 
-Chromium155 `ApproximatedDeviceMemory` contains a 32GB maximum with an 8GB compatibility branch. Preserve the actual current-feature behavior or document a deliberate consistent override; old assumptions from Chromium148 are not a spec.
+Exact Chromium155 Windows source quantizes and clamps deviceMemory to2–32GB. Its Android-only branch uses1–8GB, not a Windows compatibility branch. Supplementary008 therefore rejects0.25/0.5/1 in both native CLI and application identity validation. Existing invalid unreleased drafts fail explicitly: no silent clamp, seed rotation, database blob rewrite or ordinary-browser fallback occurs. UI presets4/8/16 remain valid. Chromium148-era values are not the current Windows contract.
+
+CPU caveat: exact155 `NavigatorBase::hardwareConcurrency` calls the native getter and then the stock Inspector `ApplyHardwareConcurrencyOverride` probe. Explicit attached CDP/DevTools emulation can therefore supersede the profile count per target. This is not a website-accessible setting and is not enabled by default, but unconditional CPU immutability against developer emulation is not promised. Real execution performance, GPU and fonts remain those of the host; exposed counts do not prove undetectability.
 
 ## Authored patch series and remaining stages
 
@@ -57,6 +59,8 @@ Chromium155 `ApproximatedDeviceMemory` contains a 32GB maximum with an 8GB compa
 - `patches/timezone-chain-provenance.json`: final ordered001/002/003/004 exact-source apply evidence and every modified/new postimage SHA256. It is not compile/runtime evidence.
 - `patches/0005-omit-branded-updater-test.patch`: excludes only a branded old-updater x86 test fixture from this unbranded source build, without disabling endpoint protection.
 - `patches/006-core-capability-scope.patch`: handshake exposes exact source commit and deliberately granular opaque sRGB8 Canvas capability, not generic all-format coverage. Adds three C++ no-argument/unknown-switch/query regressions. `capability-chain-provenance.json` records all six patch hashes and27 final postimages; neither file proves runtime behaviour.
+- `patches/007-deterministic-midl-name-hashes.patch`: controlled unbranded Windows build fix for deterministic MIDL name hashes; no OS locale change.
+- `patches/008-windows155-memory-values.patch`: limits validated persona memory to Windows1552/4/8/16/32; adds C++ rejection/no-clamp regression. The shared browser/renderer JS/HTTP memory getter is unchanged. `memory-chain-provenance.json` records scratch verification and controlled actual checkout application with all28 final postimages. It does not prove compilation or runtime behaviour.
 - `native/` contains original authored helper and test source used by `tools/native-core/generate-seed-patches.py`. That generator fetches exact immutable Gitiles sources, rejects changed/repeated replacement anchors, generates unified patches, and checks/applies the sequence in a disposable source fixture. It does not touch the actual Chromium checkout.
 - `patches/seed-patch-provenance.json` records patch hashes, exact baseline source hashes and apply evidence. **Compilation and runtime checks are explicitly not run.**
 

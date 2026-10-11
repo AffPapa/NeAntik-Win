@@ -133,8 +133,8 @@
     },
     {
       "path": "core/README.md",
-      "size_bytes": 15575,
-      "sha256": "219b099ce4906b806bace4de8e252e7a70388a05a2d2fefd2704b524a85f81e4"
+      "size_bytes": 16991,
+      "sha256": "89da32833026c69612ea1f3b3b59d9b7c947875b359bda718eb98c9c9281f69d"
     },
     {
       "path": "core/native/LICENSE",
@@ -212,6 +212,11 @@
       "sha256": "56b38129f88f6890ecd71328cc120dca151b322789b1839be5c187603e77faf2"
     },
     {
+      "path": "core/patches/008-windows155-memory-values.patch",
+      "size_bytes": 2844,
+      "sha256": "9bc732be9444bb53ab19ed319d2c68a129c94717165dd294c04958dc289388f3"
+    },
+    {
       "path": "core/patches/capability-chain-provenance.json",
       "size_bytes": 4990,
       "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
@@ -220,6 +225,11 @@
       "path": "core/patches/combined-patch-provenance.json",
       "size_bytes": 3243,
       "sha256": "b3b6701d1bad7cbedf5920de58fac78bee23262b010ccbc160c15a573a89d9b2"
+    },
+    {
+      "path": "core/patches/memory-chain-provenance.json",
+      "size_bytes": 5555,
+      "sha256": "8ee6aca55b0c870b0b7c93bf4ee96dd87a44958a31b9c7427caab1a10b1fdda1"
     },
     {
       "path": "core/patches/midl-chain-provenance.json",
@@ -238,8 +248,8 @@
     },
     {
       "path": "current_core.py",
-      "size_bytes": 10144,
-      "sha256": "2e4c1265a187be2f1eb8874416c31e1e7a2305fea068e9a11c2612d106b37ceb"
+      "size_bytes": 10293,
+      "sha256": "136c136107eb90e31b54b0175ad1ed64bcf43a85141b9dd2cafe9f4e48033b53"
     },
     {
       "path": "docs/CYCLE_PLAN.md",
@@ -283,8 +293,8 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 162545,
-      "sha256": "ab1848597ce2e38bfc8e6927bb128c2bbe70fea15e281f88f7cfe69a2307b41d"
+      "size_bytes": 162975,
+      "sha256": "3ee0bb349faadf4c2d157c5252dbcfc7e4596858cee45d476f3f3e2912939596"
     },
     {
       "path": "release-version.json",
@@ -308,8 +318,8 @@
     },
     {
       "path": "test_current_core.py",
-      "size_bytes": 13514,
-      "sha256": "08a13ab052a644695239997350c52461a5b4fc5eb3205def9121bfea0745e93d"
+      "size_bytes": 15489,
+      "sha256": "37563464b3f66ce9f6415d2f5c2f227450dc15529e8b741f2c02afd3954345c8"
     },
     {
       "path": "test_nevision_win.py",
@@ -378,8 +388,8 @@
     },
     {
       "path": "tools/native-core/README.md",
-      "size_bytes": 14204,
-      "sha256": "39ade2964c7662b39025df9228be069b3fc6bb714c6c0e809dd9ba87ea263493"
+      "size_bytes": 14659,
+      "sha256": "a9194d9f96efdeb42b0f9111ffb5621f06984271ac3bd61d0167beb7b8301155"
     },
     {
       "path": "tools/native-core/bootstrap-sdk.ps1",
@@ -393,13 +403,13 @@
     },
     {
       "path": "tools/native-core/build-current-core.ps1",
-      "size_bytes": 5385,
-      "sha256": "f778d36e22a3c15860d607985262dcd0d4627f6584d0a5507fcd669f83100464"
+      "size_bytes": 5664,
+      "sha256": "fe26bd90af27017dd458e97c483ea050e6ed500481e0844b8229fd6c6f4345df"
     },
     {
       "path": "tools/native-core/buildspec.json",
-      "size_bytes": 8294,
-      "sha256": "85e6a6b2f225b25505eaeb7e26e661a3e08acdf4c824e52b0b6ce38f16066962"
+      "size_bytes": 8463,
+      "sha256": "a33b9c9c0fcf74204c267ba9f1791b36eb755969872ea8812cf86b08944be713"
     },
     {
       "path": "tools/native-core/generate-capability-scope-patch.py",
@@ -410,6 +420,11 @@
       "path": "tools/native-core/generate-dependency-receipt.py",
       "size_bytes": 6823,
       "sha256": "f8390d307c19552e3c0808aaf1eb5a10fcca1c7a67c2362851d5bf3269015241"
+    },
+    {
+      "path": "tools/native-core/generate-memory-values-patch.py",
+      "size_bytes": 5030,
+      "sha256": "aa76ea849249ac5ed3a67e3dd412e84b60d929cf6bec3b6958c3b6d3a83c619b"
     },
     {
       "path": "tools/native-core/generate-seed-patches.py",
@@ -440,6 +455,11 @@
       "path": "tools/native-core/preflight.ps1",
       "size_bytes": 3572,
       "sha256": "1d7e800904a3c8155609688d6a2df17b51526c293aa0015fa8f057c6ab3b1943"
+    },
+    {
+      "path": "tools/native-core/test-owned-process-exit.ps1",
+      "size_bytes": 1198,
+      "sha256": "45202b1c2734eb784e2fa1577cb29049abcd69771a7019ee7fd6272b5baca534"
     },
     {
       "path": "tools/native-core/test_generate_dependency_receipt.py",
@@ -503,13 +523,13 @@
     },
     {
       "path": "tools/test_current_native_fingerprint.py",
-      "size_bytes": 28211,
-      "sha256": "9b346c67913ca76b298551e56d933488e31bb444845d129ba56f09901d65b243"
+      "size_bytes": 28381,
+      "sha256": "f540e67e9d02fe322ad5473b9e25be4964dd857fce20c4e26c67d41dc1e360cd"
     },
     {
       "path": "tools/test_current_native_harness_unit.py",
-      "size_bytes": 5793,
-      "sha256": "d8678cabcba1410ac645c54f12361e1937f6b49e5ca8810ae938b68bd9b23d0d"
+      "size_bytes": 7124,
+      "sha256": "c7a9e9360758c4d76540b40d17c4cdd51f0e81eaacca91083ff80578f5e2bfd6"
     },
     {
       "path": "tools/test_native_fingerprint.py",

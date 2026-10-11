@@ -93,6 +93,10 @@
       {
         "path": "core/patches/007-deterministic-midl-name-hashes.patch",
         "sha256": "56b38129f88f6890ecd71328cc120dca151b322789b1839be5c187603e77faf2"
+      },
+      {
+        "path": "core/patches/008-windows155-memory-values.patch",
+        "sha256": "9bc732be9444bb53ab19ed319d2c68a129c94717165dd294c04958dc289388f3"
       }
     ],
     "postimage_sha256": {
@@ -100,8 +104,8 @@
       "content/browser/renderer_host/render_process_host_impl.cc": "eb765f4f56307bfa81413af0314b87fbde871a8db2e1d0a06461e570bc67a652",
       "third_party/blink/common/BUILD.gn": "46a35230a92d38d2baca2fbb94185bdac8cd91036ab5555df53a3e1a8304c6de",
       "third_party/blink/common/device_memory/approximated_device_memory.cc": "caec7325a921da52c559db21ee88068a983b68fc4427da023fc4efd616698537",
-      "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "ae3a98566d60edec263a1d74e98e72af4ff1fade3d011c2156271970aece2297",
-      "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc": "277c5cce8a04d69bf768bdb3c675ebbba2685981fc97c109361c4e01fa80361a",
+      "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "d93f91177fe22314d4b9488eee144ad091643064632dd08462479e190a80eae3",
+      "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc": "0ad21257e08919b1846f75fae06df209757ee97722ee4b9868b92cb4e4ce1c1c",
       "third_party/blink/public/common/BUILD.gn": "bc993c4df097d5b5ab8538ee4297c4290c87ed95d67ab28f46fc4e58cd7e7ece",
       "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h": "c155acc34525ca2630956fc0831558c380da81f39a72f133a2608e3c3ced4379",
       "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc": "65e9160b071481ab1cfa97c127e8ea1499d0829e804e97d2459e9aa475c9709e",

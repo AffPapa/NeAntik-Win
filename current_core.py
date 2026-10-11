@@ -21,7 +21,7 @@ ENGINE_DIRECTORY = Path("Engine") / "NeAntikChromium"
 MANIFEST_NAME = "core-manifest.json"
 MANIFEST_FORMAT = "neantik-native-core-v1"
 CPU_OPTIONS = (2, 4, 8, 12, 16, 24, 32, 64)
-MEMORY_OPTIONS = ("0.25", "0.5", "1", "2", "4", "8", "16", "32")
+MEMORY_OPTIONS = ("2", "4", "8", "16", "32")
 REQUIRED_CAPABILITIES = ("stable_seed", "hardware_concurrency", "device_memory", "canvas_opaque_srgb_uint8", "timezone")
 
 
@@ -52,8 +52,10 @@ def validate_identity(value: Mapping[str, Any]) -> dict[str, Any]:
     seed, cpu, memory = value.get("seed"), value.get("hardware_concurrency"), value.get("device_memory")
     if type(seed) is not int or not 1 <= seed <= 0xFFFFFFFFFFFFFFFF:
         raise CoreError("Seed должен быть ненулевым uint64.")
-    if type(cpu) is not int or cpu not in CPU_OPTIONS or not isinstance(memory, str) or memory not in MEMORY_OPTIONS:
+    if type(cpu) is not int or cpu not in CPU_OPTIONS:
         raise CoreError("Выберите поддерживаемые CPU и память fingerprint-профиля.")
+    if not isinstance(memory, str) or memory not in MEMORY_OPTIONS:
+        raise CoreError("Native-память Windows Chromium 155: 2, 4, 8, 16 или 32 GB. Несовместимые настройки не изменены.")
     timezone = value.get("timezone", "system")
     if not isinstance(timezone, str) or len(timezone) > 128 or (timezone not in ("system", "UTC") and not re.fullmatch(r"[A-Za-z0-9_+\-]+(?:/[A-Za-z0-9_+\-]+){1,3}", timezone)):
         raise CoreError("Часовой пояс должен быть system, UTC или IANA-именем, например Europe/Berlin.")
