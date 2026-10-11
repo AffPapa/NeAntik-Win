@@ -104,7 +104,8 @@ class EngineBundleTests(unittest.TestCase):
         with patch.object(engine, "windows_file_version", return_value=engine.ENGINE_VERSION):
             result = engine.verify_engine(self.root)
             argv = engine.build_native_launch_arguments(self.root, engine.new_identity(), self.root / "профиль с пробелами")
-        self.assertEqual(result.executable, self.directory / "chrome.exe")
+        # Windows TEMP may use an 8.3 alias; the resolver returns canonical paths.
+        self.assertEqual(result.executable, (self.directory / "chrome.exe").resolve())
         self.assertEqual(argv[1], f"--user-data-dir={self.root / 'профиль с пробелами'}")
         self.assertTrue(result.experimental)
 

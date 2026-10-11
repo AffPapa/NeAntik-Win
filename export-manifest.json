@@ -188,13 +188,13 @@
     },
     {
       "path": "test_browser_engine.py",
-      "size_bytes": 12640,
-      "sha256": "dbe4bc3ac0e53b1e74136a5f18b15c0d55f58129dfb59a15f66f0fd890ef5133"
+      "size_bytes": 12735,
+      "sha256": "aef348baf2b78486ef2bcb081ded6042815a90ce8245ee7e0bb875fb16f1a876"
     },
     {
       "path": "test_nevision_win.py",
-      "size_bytes": 40975,
-      "sha256": "c6661474f3da8ab966a52e540df77d2cdb556dfe20faca8ca0d8ae039a4bf697"
+      "size_bytes": 40994,
+      "sha256": "097c21bcc92c98ec63c8c919818897a42367649342a62a35fd7d67ecedee1a4a"
     },
     {
       "path": "tools/benchmark_runtime.py",
