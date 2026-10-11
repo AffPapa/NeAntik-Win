@@ -1,2 +1,2 @@
 # Only needed to regenerate assets/nevision.ico from tools/render_brand_icon.py.
-pillow==10.4.0
+pillow==12.3.0
