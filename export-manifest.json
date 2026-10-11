@@ -133,8 +133,8 @@
     },
     {
       "path": "core/README.md",
-      "size_bytes": 18314,
-      "sha256": "c67991e1acfaab6a1435e760d6f258ed28a53613ec99de9598c9eded25088bb8"
+      "size_bytes": 18831,
+      "sha256": "f5a2ede609ca6a62253f48c961a138d0281f7a66928e20d0ee46ae345dfa283b"
     },
     {
       "path": "core/native/LICENSE",
@@ -148,8 +148,8 @@
     },
     {
       "path": "core/native/neantik_fingerprint.cc",
-      "size_bytes": 3830,
-      "sha256": "f31e9caf69a46c7a65fd7fc17e02e85cc55e1d8c05a2161223325609f3abc41d"
+      "size_bytes": 3864,
+      "sha256": "bd21e9fc5a5a0f6f6c58ba39c4b6a36b5115ebd274104b95a264b36d0a699ab6"
     },
     {
       "path": "core/native/neantik_fingerprint.h",
@@ -232,6 +232,11 @@
       "sha256": "9c22c99b46fd70d4114ef1723c77fe0d4a081536518efed32eeda3f01643704e"
     },
     {
+      "path": "core/patches/010-define-core-info-file-path.patch",
+      "size_bytes": 395,
+      "sha256": "46f27ce7bf90f085ad0b877ba7dc95de8aaf8b0b100b5ad0b16841a785f0ad7c"
+    },
+    {
       "path": "core/patches/capability-chain-provenance.json",
       "size_bytes": 4990,
       "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
@@ -240,6 +245,11 @@
       "path": "core/patches/combined-patch-provenance.json",
       "size_bytes": 3243,
       "sha256": "b3b6701d1bad7cbedf5920de58fac78bee23262b010ccbc160c15a573a89d9b2"
+    },
+    {
+      "path": "core/patches/file-path-chain-provenance.json",
+      "size_bytes": 6511,
+      "sha256": "3c87bbedb62cb094f07d2a35c5ca7178d6f4643ddfc05413bb43a887574a5f07"
     },
     {
       "path": "core/patches/memory-chain-provenance.json",
@@ -438,8 +448,8 @@
     },
     {
       "path": "tools/native-core/buildspec.json",
-      "size_bytes": 9005,
-      "sha256": "835a734e14d7a563f6afe2102b138a79972081a3e14df57f0be7ac99b7451de4"
+      "size_bytes": 9176,
+      "sha256": "5022ac93365f138ec6b6b18115dc345fe2af07ae04bf1e90bfa31fcba047cde2"
     },
     {
       "path": "tools/native-core/generate-capability-scope-patch.py",
@@ -505,6 +515,11 @@
       "path": "tools/native-core/test-owned-process-exit.ps1",
       "size_bytes": 1198,
       "sha256": "45202b1c2734eb784e2fa1577cb29049abcd69771a7019ee7fd6272b5baca534"
+    },
+    {
+      "path": "tools/native-core/test_file_path_patch_contract.py",
+      "size_bytes": 1185,
+      "sha256": "31c38d4225900889d04d80e300481099bdc6695e6e5eb573d5064380288bca74"
     },
     {
       "path": "tools/native-core/test_generate_dependency_receipt.py",

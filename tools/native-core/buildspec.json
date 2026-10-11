@@ -101,6 +101,10 @@
       {
         "path": "core/patches/009-native-proxy-webrtc-policy.patch",
         "sha256": "9c22c99b46fd70d4114ef1723c77fe0d4a081536518efed32eeda3f01643704e"
+      },
+      {
+        "path": "core/patches/010-define-core-info-file-path.patch",
+        "sha256": "46f27ce7bf90f085ad0b877ba7dc95de8aaf8b0b100b5ad0b16841a785f0ad7c"
       }
     ],
     "postimage_sha256": {
@@ -108,7 +112,7 @@
       "content/browser/renderer_host/render_process_host_impl.cc": "eb765f4f56307bfa81413af0314b87fbde871a8db2e1d0a06461e570bc67a652",
       "third_party/blink/common/BUILD.gn": "46a35230a92d38d2baca2fbb94185bdac8cd91036ab5555df53a3e1a8304c6de",
       "third_party/blink/common/device_memory/approximated_device_memory.cc": "caec7325a921da52c559db21ee88068a983b68fc4427da023fc4efd616698537",
-      "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "d93f91177fe22314d4b9488eee144ad091643064632dd08462479e190a80eae3",
+      "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "e4235832ac75b15217acb78a93b3ca40542c31ef952e36c70e02491edb974cd9",
       "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc": "0ad21257e08919b1846f75fae06df209757ee97722ee4b9868b92cb4e4ce1c1c",
       "third_party/blink/public/common/BUILD.gn": "bc993c4df097d5b5ab8538ee4297c4290c87ed95d67ab28f46fc4e58cd7e7ece",
       "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h": "c155acc34525ca2630956fc0831558c380da81f39a72f133a2608e3c3ced4379",
