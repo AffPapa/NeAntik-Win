@@ -453,8 +453,8 @@
     },
     {
       "path": "tools/native-core/test_package_engine.py",
-      "size_bytes": 7571,
-      "sha256": "b165d5cd970bb19025602058e2512e371f4b0960ffe4d13a9995e440625cb85a"
+      "size_bytes": 8475,
+      "sha256": "47a09a05c0b4f249b783447372e990e056b5d1d7150330512c212ebe7d60df8f"
     },
     {
       "path": "tools/native-core/test_verify_patch_series.py",

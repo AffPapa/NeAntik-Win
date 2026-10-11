@@ -44,8 +44,9 @@ class PackagingTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def execute(self, execute=True):
-        with patch.object(package, "verify_source", return_value={"mock": True}), patch.object(package, "query_runtime", return_value=self.document), patch.object(package.subprocess, "run", return_value=SimpleNamespace(stdout=b"synthetic clang version")), patch.object(package.core.CoreResolver, "_probe"):
+    def execute(self, execute=True, free_bytes=100 * 1024**3):
+        # Synthetic fixtures must not inherit the runner's real disk capacity.
+        with patch.object(package.shutil, "disk_usage", return_value=SimpleNamespace(free=free_bytes)), patch.object(package, "verify_source", return_value={"mock": True}), patch.object(package, "query_runtime", return_value=self.document), patch.object(package.subprocess, "run", return_value=SimpleNamespace(stdout=b"synthetic clang version")), patch.object(package.core.CoreResolver, "_probe"):
             return package.package(self.source, self.output, self.destination, self.credits, self.licenses, self.receipt, execute)
 
     def test_readonly_plan_then_atomic_package_exact_manifest(self):
@@ -90,6 +91,17 @@ class PackagingTests(unittest.TestCase):
         (self.output / "args.gn").write_text('is_debug=true')
         with self.assertRaisesRegex(ValueError, "GN args"):
             self.execute()
+
+    def test_packaging_preserves_real_policy_with_synthetic_low_disk(self):
+        spec = json.loads(Path(__file__).with_name("buildspec.json").read_text())
+        reserve = spec["resource_policy"]["os_reserve_gib"] * 1024**3
+        self.assertEqual(reserve, 40 * 1024**3)
+        size = self.execute(False, free_bytes=0)["uncompressed_bytes"]
+        for free in (39 * 1024**3, reserve, reserve + size - 1):
+            with self.subTest(free_bytes=free), self.assertRaisesRegex(ValueError, "OS disk reserve"):
+                self.execute(free_bytes=free)
+            self.assertFalse(self.destination.exists())
+            self.assertEqual(list(self.destination.parent.glob(".native-package-*")), [])
 
     def test_existing_bundle_requires_exact_independent_qa(self):
         result = self.execute()
