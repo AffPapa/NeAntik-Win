@@ -51,7 +51,8 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
     # otherwise lose ExitCode after polling a Start-Process -PassThru object.
     $ownedHandle = $process.Handle
     $lowMemorySamples = 0
-    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserves $($spec.resource_policy.os_reserve_gib) GiB disk, $($spec.resource_policy.minimum_free_ram_gib_during_build) GiB RAM, $($spec.resource_policy.minimum_free_commit_gib_during_build) GiB commit ($($spec.resource_policy.low_memory_consecutive_samples) consecutive samples); emergency stop at $($spec.resource_policy.critical_free_ram_gib_during_build) GiB RAM / $($spec.resource_policy.critical_free_commit_gib_during_build) GiB commit."
+    $criticalMemorySamples = 0
+    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserves $($spec.resource_policy.os_reserve_gib) GiB disk, $($spec.resource_policy.minimum_free_ram_gib_during_build) GiB RAM, $($spec.resource_policy.minimum_free_commit_gib_during_build) GiB commit ($($spec.resource_policy.low_memory_consecutive_samples) consecutive samples); critical stop at $($spec.resource_policy.critical_free_ram_gib_during_build) GiB RAM / $($spec.resource_policy.critical_free_commit_gib_during_build) GiB commit after the same consecutive-sample confirmation."
     while (-not $process.WaitForExit(2000)) {
         if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
@@ -60,10 +61,11 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
         }
         $memory = Get-CimInstance -ClassName Win32_OperatingSystem
         if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) { $lowMemorySamples++ } else { $lowMemorySamples = 0 }
-        if ($memory.FreePhysicalMemory -le $criticalFreeRamKb -or $memory.FreeVirtualMemory -le $criticalFreeCommitKb -or $lowMemorySamples -ge $spec.resource_policy.low_memory_consecutive_samples) {
+        if ($memory.FreePhysicalMemory -le $criticalFreeRamKb -or $memory.FreeVirtualMemory -le $criticalFreeCommitKb) { $criticalMemorySamples++ } else { $criticalMemorySamples = 0 }
+        if ($criticalMemorySamples -ge $spec.resource_policy.low_memory_consecutive_samples -or $lowMemorySamples -ge $spec.resource_policy.low_memory_consecutive_samples) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
             $process.WaitForExit()
-            throw "Build stopped after $lowMemorySamples consecutive low-reserve samples or an emergency threshold ($([math]::Round($memory.FreePhysicalMemory / 1MB, 2)) GiB RAM, $([math]::Round($memory.FreeVirtualMemory / 1MB, 2)) GiB commit). Only this build process tree was stopped; no files were deleted."
+            throw "Build stopped after $lowMemorySamples low-reserve and $criticalMemorySamples critical-reserve samples ($([math]::Round($memory.FreePhysicalMemory / 1MB, 2)) GiB RAM, $([math]::Round($memory.FreeVirtualMemory / 1MB, 2)) GiB commit). Only this build process tree was stopped; no files were deleted."
         }
     }
     $process.WaitForExit()
