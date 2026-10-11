@@ -49,7 +49,7 @@
     "minimum_free_commit_gib_during_build": 3,
     "policy_is_estimate_not_upstream_requirement": true,
     "memory_gib_minimum": 16,
-    "jobs": 8,
+    "jobs": 7,
     "default_root": "C:\\NeAntikCoreBuild"
   },
   "gn_args": [
