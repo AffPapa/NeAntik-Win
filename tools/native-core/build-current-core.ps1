@@ -24,6 +24,8 @@ if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) 
 $memory = Get-CimInstance -ClassName Win32_OperatingSystem
 $minimumFreeRamKb = [long]([double]$spec.resource_policy.minimum_free_ram_gib_during_build * 1GB / 1KB)
 $minimumFreeCommitKb = [long]([double]$spec.resource_policy.minimum_free_commit_gib_during_build * 1GB / 1KB)
+$criticalFreeRamKb = [long]([double]$spec.resource_policy.critical_free_ram_gib_during_build * 1GB / 1KB)
+$criticalFreeCommitKb = [long]([double]$spec.resource_policy.critical_free_commit_gib_during_build * 1GB / 1KB)
 if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) { throw 'Insufficient free RAM or commit headroom for the configured build workers; close workloads or lower jobs before retrying.' }
 if (-not $BuildBaseline -and @($spec.patch_contract.patch_series).Count -eq 0) { throw 'Native fingerprint patch series is not ready. Only explicit -BuildBaseline may compile unmodified Chromium.' }
 $patchCheckArguments = @((Join-Path $PSScriptRoot 'verify-patch-series.py'),'--source',$source)
@@ -48,7 +50,8 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
     # Cache the native handle before the child exits. Windows PowerShell may
     # otherwise lose ExitCode after polling a Start-Process -PassThru object.
     $ownedHandle = $process.Handle
-    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserves $($spec.resource_policy.os_reserve_gib) GiB disk, $($spec.resource_policy.minimum_free_ram_gib_during_build) GiB RAM, $($spec.resource_policy.minimum_free_commit_gib_during_build) GiB commit."
+    $lowMemorySamples = 0
+    Write-Output "Owned build PID $($process.Id); logs $logPrefix; live reserves $($spec.resource_policy.os_reserve_gib) GiB disk, $($spec.resource_policy.minimum_free_ram_gib_during_build) GiB RAM, $($spec.resource_policy.minimum_free_commit_gib_during_build) GiB commit ($($spec.resource_policy.low_memory_consecutive_samples) consecutive samples); emergency stop at $($spec.resource_policy.critical_free_ram_gib_during_build) GiB RAM / $($spec.resource_policy.critical_free_commit_gib_during_build) GiB commit."
     while (-not $process.WaitForExit(2000)) {
         if ($drive.AvailableFreeSpace -le ($spec.resource_policy.os_reserve_gib * 1GB)) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
@@ -56,10 +59,11 @@ function Invoke-GuardedBuildProcess([string]$CommandLine) {
             throw 'Build stopped: live 40 GiB OS reserve reached. Only this build process tree was stopped; no files were deleted.'
         }
         $memory = Get-CimInstance -ClassName Win32_OperatingSystem
-        if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) {
+        if ($memory.FreePhysicalMemory -le $minimumFreeRamKb -or $memory.FreeVirtualMemory -le $minimumFreeCommitKb) { $lowMemorySamples++ } else { $lowMemorySamples = 0 }
+        if ($memory.FreePhysicalMemory -le $criticalFreeRamKb -or $memory.FreeVirtualMemory -le $criticalFreeCommitKb -or $lowMemorySamples -ge $spec.resource_policy.low_memory_consecutive_samples) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
             $process.WaitForExit()
-            throw "Build stopped: live RAM/commit reserve reached ($([math]::Round($memory.FreePhysicalMemory / 1MB, 2)) GiB RAM, $([math]::Round($memory.FreeVirtualMemory / 1MB, 2)) GiB commit). Only this build process tree was stopped; no files were deleted."
+            throw "Build stopped after $lowMemorySamples consecutive low-reserve samples or an emergency threshold ($([math]::Round($memory.FreePhysicalMemory / 1MB, 2)) GiB RAM, $([math]::Round($memory.FreeVirtualMemory / 1MB, 2)) GiB commit). Only this build process tree was stopped; no files were deleted."
         }
     }
     $process.WaitForExit()
