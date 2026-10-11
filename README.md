@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser project, previously named NeVision Win. The working-tree rename is not a new published release. Native fingerprint integration is being evaluated; see [core research](docs/NEANTIK_CORE_RESEARCH.md) and [implementation gates](docs/NEANTIK_IMPLEMENTATION_PLAN.md).
+Local-first portable Windows browser project, previously named NeVision Win. This source tree includes an authored native Chromium 155 patch series and launcher integration; it is not yet a verified native browser release. See [native core contract](core/README.md), [build instructions](tools/native-core/README.md) and [independent runtime QA](tools/CURRENT_NATIVE_QA.md).
 
 ## Download and start
 
@@ -18,7 +18,9 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Native browser Extensions page for a closed profile; install only extensions you trust.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The manager does **not** modify Chromium fingerprints or promise anonymity, account safety or passing anti-detection tests. It launches stock Chrome/Edge. Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
+The published NeVision 0.2.1 release launches stock Chrome/Edge without fingerprint changes. The current NeAntik source adds explicit native profiles with persistent seed, CPU/memory settings and optional IANA timezone. Existing profiles remain ordinary. Native profiles refuse to launch when the matching verified engine is missing; there is no stock-browser fallback. The C++ series covers only opaque sRGB uint8 Canvas readback, not every Canvas format or fingerprint surface. Actual compiled-browser observations are still required. No anonymity, account-safety or anti-detection-test guarantee is made.
+
+Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 
 Copied proxy passwords are cleared after 30 seconds, or on normal close, only if the clipboard still contains that password. Windows clipboard history, synchronization and copies made by other apps are not erased.
 
@@ -46,7 +48,7 @@ Use Windows x64, PowerShell and Python 3.12 in an authorized source checkout:
 
 ```powershell
 python -m pip install -r requirements-build.txt
-python -m unittest -v test_nevision_win.py
+python -m unittest -v test_nevision_win.py test_browser_engine.py test_current_core.py
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
@@ -55,6 +57,8 @@ python nevision_win.py --self-test
 ```
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
+
+Building the launcher alone does not build Chromium and does not create a complete native release. Follow the separate native build and independent runtime QA instructions before bundling or publishing an engine. Native backup uses `neantik-profile-backup-v2` and preserves seed/settings; ordinary v1 backups remain readable. A clean settings clone creates a new seed and copies no cookies.
 
 The source freeze checkpoint passed 44 core tests, 7 Tk checks, 13 release-tool checks and the source self-test. This is not evidence that a later artifact passed packaged or public-download QA: follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for each release.
 

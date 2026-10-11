@@ -1,0 +1,55 @@
+# NeAntik current native core preparation
+
+This directory is source-build preparation, not a completed browser core. No third-party Chromium 150 fallback is selected. Application native profiles require the separately compiled, hashed and runtime-verified own core; preparation scripts alone do not enable fingerprint protection.
+
+## Pinned source and update policy
+
+On 2026-10-11 the [official Windows stable VersionHistory API](https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/all/releases?filter=endtime=none&order_by=version%20desc&page_size=100) reports 155.0.8059.40 as pinnable, fraction 1, served since October 6. A small 156 rollout is not the broadly available baseline. The [exact Chromium tag](https://chromium.googlesource.com/chromium/src/+refs/tags/155.0.8059.40?format=JSON) resolves to `cfaadc5a132d78e1828635aa8405a499f3e14864`. `verify-pins.py` independently checks release eligibility, tag/commit and the pinned depot_tools commit. A new stable version makes verification fail until an intentional source/patch rebuild and full QA cycle. Existence of a higher Git tag does not prove that it is the current supported release.
+
+Record exact Chromium/depot_tools commits, DEPS hash and resolved dependency/CIPD revisions, patch hashes, GN arguments, actual compiler revision, VS package catalog and Windows SDK package versions in build provenance. Source pinning alone is not proof of bit-for-bit reproducibility; establish that separately with independent build hashes. No embedded production API keys are needed.
+
+## Toolchain preparation
+
+[The instructions in this exact Chromium tag](https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/docs/windows_build_instructions.md) require VS 2026 >=18, desktop C++ and MFC/ATL, Windows SDK 10.0.28000.2270 and recent debugging tools. Chromium uses its pinned clang-cl; installing a random external LLVM build does not replace the required headers/libraries/toolchain.
+
+The [official VS release history](https://learn.microsoft.com/en-us/visualstudio/releases/2026/release-history) supplies a fixed VS Build Tools 18.10.3 bootstrapper in `buildspec.json`. [Microsoft component IDs](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=visualstudio) identify Build Tools `Microsoft.VisualStudio.Workload.VCTools`, `Microsoft.VisualStudio.Component.VC.Tools.x86.x64` and `Microsoft.VisualStudio.Component.VC.ATLMFC`. The IDE's `NativeDesktop` workload name is not substituted blindly for Build Tools.
+
+The [SDK downloads page](https://learn.microsoft.com/en-us/windows/apps/windows-sdk/downloads) lists the June 28000.2270 installer: `https://go.microsoft.com/fwlink/?linkid=2370315`. Use its installer options to include the debugging tools; verify the installed SDK and debugger versions afterwards. The RC binary alone may not encode the complete SDK servicing version, so retain the package catalog/install evidence.
+
+Review [Build Tools license terms](https://visualstudio.microsoft.com/license-terms/vs2026-ga-diagnostic-buildtools/) and the SDK installer terms for the chosen use. Obtain bootstrappers from Microsoft, verify valid Microsoft Authenticode signatures, and record SHA-256 and exact package catalogs. The downloaded 18.10.3 bootstrapper is 5,693,376 bytes; SHA-256 `283d526008bf3ac56ec2c6aeb3102b8ca68b9af75643c8f5d0ee58060a1886bb`; Authenticode is Valid, signed by Microsoft Corporation, ProductVersion 18.10.3. `bootstrap-vs2026.ps1` verifies all three properties before execution; its default mode prints the concrete command and makes no installation.
+
+After approval of the concrete installation and terms, the [documented silent bootstrapper parameters](https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio?view=visualstudio) are:
+
+```text
+vs_BuildTools.exe --quiet --wait --norestart --installPath C:\NeAntikToolchain\VS2026 --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.ATLMFC
+```
+
+This is a reviewed command example, not a provisioning script. It affects the host, may need administrator rights, and can return a reboot-required result; do not restart automatically. Do not disable Defender, sandboxing or machine security protections to accelerate a build.
+
+## Disk and host preflight
+
+Run `powershell -File tools/native-core/preflight.ps1`. It only reads host state. `-RequireReady` also fails when prerequisites are missing.
+
+Initial host: C: NTFS, approximately 244 GiB free, 31 GiB RAM, 16 logical processors. The user authorized toolchain installation and selected this existing disk. VS Build Tools 18.10.12224.181 and SDK/debugger 10.0.28000.2270 were installed with verified Microsoft-signed bootstrappers; both installers exited 0 without a reboot request. `inspect-sdk-bootstrap.py` reads the pinned SDK bootstrapper's embedded metadata to verify feature IDs before installation. Use one compact release build, non-component, all symbol levels zero, plus the native unit-test targets; omit duplicate source/output trees. Retain 40 GiB for the OS. Pre-checkout requires the stated 100 GiB minimum plus reserve; an existing checkout uses the build-phase reserve rather than pretending the source must be downloaded twice. Whether all source/object/link output fits is not proven.
+
+Use a dedicated short directory outside the TGNET repository, currently `C:\NeAntikBuild`. Never fetch Chromium into application source or personal `Data`. Disk exhaustion can interrupt Git/CIPD extraction, produce partial object files, stop linking and consume paging space. No script deletes user files to make room. The build driver checks the reserve before starting and every two seconds during its own GN/autoninja process; if reached, it stops only that owned PID and descendants. A very fast allocation can still cross the threshold between samples. Persistent stdout/stderr logs are kept under the dedicated root's `logs` directory. This guard does not control unrelated user processes or a separately launched gclient sync.
+
+## Dedicated checkout and baseline build
+
+Once toolchain/disk preparation is complete, provision separate pinned checkouts. The steps are intentionally described rather than executed automatically:
+
+1. Clone depot_tools and check out its exact commit. Set `DEPOT_TOOLS_UPDATE=0` only in the build process.
+2. Make `<BuildRoot>\chromium\src` a shallow checkout of the exact Chromium tag/commit. Create the official `.gclient` configuration in `<BuildRoot>\chromium`; never reuse a user checkout.
+3. Initial clean synchronization can select the exact pinned revision. After reviewed patches are applied, resume with `gclient sync --nohooks --no-history --revision src@unmanaged`, preserving pinned HEAD and local source delta; the exact native patch gate proves both before build. Run `gclient runhooks` with local VS selected, `DEPOT_TOOLS_WIN_TOOLCHAIN=0` and task-local Git config. Synchronization downloads substantial DEPS/CIPD/compiler dependencies. Do not force a checkout/reset over reviewed patches to resume.
+4. Confirm upstream HEADs and record resolved dependency revisions. Apply the reviewed patch series only after `git apply --check`; preserve its hashes and native test results.
+5. `build-current-core.ps1 -BuildRoot <root> -Stage Configure -BuildBaseline`, then the same command with `-Stage Build`, builds an explicitly unmodified Chromium baseline for toolchain validation. It is not the antidetect release.
+
+The driver refuses an empty native patch series. `verify-patch-series.py` checks exact upstream HEAD, every patch hash, the complete source-delta allowlist and final source hashes. It then reverses the series sequentially in a disposable fixture and proves recovery of exact upstream files without changing the real checkout. The reviewed 001–004 native series and 005 omission of a Windows Defender-blocked branded, test-only old-updater fixture are pinned in buildspec. The source omission does not disable Defender, restore quarantined content or turn off OS updates; unbranded Chromium already sets `enable_updater=false`. The driver never applies patches or silently weakens this check. All build processes receive a dedicated `GIT_CONFIG_GLOBAL=<BuildRoot>\gitconfig`; provision it before running. GN args are an initial compact configuration, not measured performance tuning. Default targets are `chrome`, `blink_common_unittests`, `blink_platform_unittests`; startup and sandbox behavior still need actual runtime tests.
+
+## Native patch scope and acceptance
+
+One immutable, versioned configuration must reach the browser, renderers and workers before scripts execute. Config parsing belongs in native code; shared context propagation must cover workers and navigations. Native CPU/memory values, UA/Client Hints request headers, locale/timezone/ICU and seeded Canvas/OffscreenCanvas must be coherent in the contexts advertised by the product. Namespaced NeAntik switches/config are planned application interfaces and do not already exist in upstream Chromium.
+
+Keep the first patch series small and auditable, with default-disabled behavior preserving ordinary Chromium. Do not import the old engine's entire undocumented behavior or claim universal undetectability. Native tests, independent fixture tests, real sandboxed Windows browser use, backup identity stability, source licensing, release provenance and security update rebuilds remain required before a portable release can claim fingerprint protection.
+
+Patch 006 reports the exact source commit and granular `canvas_opaque_srgb_uint8` capability. The general `canvas` capability remains false: translucent pixels, float16 and Display-P3 are not advertised as covered. Capability info is compiled-source evidence, not successful runtime QA. The application requires the granular surface plus seed, CPU, memory and timezone; it never accepts a blanket Canvas assertion as a substitute. Timezone identity defaults to the actual system timezone and emits a native IANA switch only for an explicitly chosen override. It does not perform external IP-geolocation requests.

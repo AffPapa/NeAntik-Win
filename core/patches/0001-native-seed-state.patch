@@ -1,0 +1,409 @@
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -85,8 +85,9 @@
+ #include "pdf/buildflags.h"
+ #include "printing/buildflags/buildflags.h"
+ #include "services/tracing/public/cpp/stack_sampling/tracing_sampler_profiler.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/resource/resource_bundle.h"
+ #include "ui/base/resource/scoped_startup_resource_bundle.h"
+ #include "ui/base/ui_base_switches.h"
+@@ -1119,8 +1120,32 @@
+           std::move(tracing_factory), unwinder_type);
+ }
+ 
+ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
++  // Validate before any browser navigation or sandboxed child accesses persona.
++  const base::CommandLine& neantik_command =
++      *base::CommandLine::ForCurrentProcess();
++  std::string neantik_error;
++  blink::neantik::ParseFingerprintConfig(neantik_command, &neantik_error);
++  if (!neantik_error.empty()) {
++    LOG(ERROR) << neantik_error;
++    return 78;
++  }
++  if (neantik_command.HasSwitch(blink::neantik::kCoreInfoSwitch)) {
++    // File handshake works with a Windows GUI subsystem binary without console.
++    const std::string info =
++        "{\"engine_id\":\"neantik-chromium\",\"schema\":1,\"version\":\"" +
++        std::string(version_info::GetVersionNumber()) +
++        "\",\"capabilities\":{\"stable_seed\":true,"
++        "\"hardware_concurrency\":false,\"device_memory\":false,"
++        "\"canvas\":false},\"compiled_stage\":1}";
++    if (!base::WriteFile(neantik_command.GetSwitchValuePath(
++                            blink::neantik::kCoreInfoSwitch), info)) {
++      return 74;
++    }
++    return 0;
++  }
++
+ #if BUILDFLAG(IS_CHROMEOS)
+   ash::BootTimesRecorder::Get()->SaveChromeMainStats();
+ #endif
+ 
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -203,8 +203,9 @@
+ #include "skia/ext/switches.h"
+ #include "storage/browser/quota/quota_manager.h"
+ #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "third_party/blink/public/common/page/launching_process_state.h"
+ #include "third_party/blink/public/common/storage_key/storage_key.h"
+ #include "third_party/blink/public/common/switches.h"
+ #include "third_party/blink/public/common/tokens/tokens.h"
+@@ -4039,8 +4040,17 @@
+ #endif
+   };
+   renderer_cmd->CopySwitchesFrom(browser_cmd, kSwitchNames);
+ 
++  // Every renderer (including out-of-process frames and worker renderers) gets
++  // validated immutable persona input before any JavaScript context exists.
++  static const char* const kNeAntikSwitches[] = {
++      blink::neantik::kSeedSwitch,
++      blink::neantik::kHardwareConcurrencySwitch,
++      blink::neantik::kDeviceMemorySwitch,
++  };
++  renderer_cmd->CopySwitchesFrom(browser_cmd, kNeAntikSwitches);
++
+   // Propagate WebNN switches needed by backends that run in the renderer.
+   renderer_cmd->CopySwitchesFrom(
+       browser_cmd, switches::GetWebNNSwitchesForRendererProcess());
+ 
+--- a/third_party/blink/common/BUILD.gn
++++ b/third_party/blink/common/BUILD.gn
+@@ -154,8 +154,9 @@
+     "fenced_frame/fenced_frame_utils.cc",
+     "fenced_frame/redacted_fenced_frame_config.cc",
+     "fenced_frame/redacted_fenced_frame_config_mojom_traits.cc",
+     "fetch/fetch_api_request_body_mojom_traits.cc",
++    "fingerprinting/neantik_fingerprint.cc",
+     "frame/delegated_capability_request_token.cc",
+     "frame/frame_ad_evidence.cc",
+     "frame/frame_ad_evidence_mojom_traits.cc",
+     "frame/frame_owner_element_type_mojom_traits.cc",
+@@ -385,8 +386,9 @@
+     "client_hints/client_hints_unittest.cc",
+     "client_hints/enabled_client_hints_unittest.cc",
+     "custom_handlers/protocol_handler_utils_unittest.cc",
+     "device_memory/approximated_device_memory_unittest.cc",
++    "fingerprinting/neantik_fingerprint_unittest.cc",
+     "frame/delegated_capability_request_token_unittest.cc",
+     "frame/user_activation_state_unittest.cc",
+     "indexeddb/indexed_db_default_mojom_traits_unittest.cc",
+     "indexeddb/indexeddb_key_unittest.cc",
+--- /dev/null
++++ b/third_party/blink/common/fingerprinting/neantik_fingerprint.cc
+@@ -0,0 +1,115 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++
++#include <array>
++#include <string_view>
++#include <utility>
++
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/strings/string_util.h"
++
++namespace blink::neantik {
++namespace {
++
++bool IsDecimal(std::string_view value) {
++  if (value.empty() || value.size() > 20) {
++    return false;
++  }
++  for (char c : value) {
++    if (c < '0' || c > '9') {
++      return false;
++    }
++  }
++  return true;
++}
++
++}  // namespace
++
++std::optional<FingerprintConfig> ParseFingerprintConfig(
++    const base::CommandLine& command_line,
++    std::string* error) {
++  CHECK(error);
++  error->clear();
++  for (const auto& [name, ignored_value] : command_line.GetSwitches()) {
++    if (base::StartsWith(name, "neantik-", base::CompareCase::SENSITIVE) &&
++        name != kSeedSwitch && name != kHardwareConcurrencySwitch &&
++        name != kDeviceMemorySwitch && name != kCoreInfoSwitch) {
++      *error = "Unknown NeAntik switch";
++      return std::nullopt;
++    }
++  }
++  if (command_line.HasSwitch(kCoreInfoSwitch) &&
++      command_line.GetSwitchValuePath(kCoreInfoSwitch).empty()) {
++    *error = "NeAntik core-info requires an output path";
++    return std::nullopt;
++  }
++  if (!command_line.HasSwitch(kSeedSwitch)) {
++    if (command_line.HasSwitch(kHardwareConcurrencySwitch) ||
++        command_line.HasSwitch(kDeviceMemorySwitch)) {
++      *error = "NeAntik hardware overrides require a fingerprint seed";
++    }
++    return std::nullopt;
++  }
++  FingerprintConfig config;
++  const std::string seed = command_line.GetSwitchValueASCII(kSeedSwitch);
++  if (!IsDecimal(seed) || !base::StringToUint64(seed, &config.seed) ||
++      config.seed == 0) {
++    *error = "NeAntik fingerprint seed must be a nonzero uint64 decimal";
++    return std::nullopt;
++  }
++  if (command_line.HasSwitch(kHardwareConcurrencySwitch)) {
++    const std::string cpu =
++        command_line.GetSwitchValueASCII(kHardwareConcurrencySwitch);
++    if (!IsDecimal(cpu) ||
++        !base::StringToUint(cpu, &config.hardware_concurrency) ||
++        config.hardware_concurrency < 1 || config.hardware_concurrency > 64) {
++      *error = "NeAntik hardware concurrency must be in [1,64]";
++      return std::nullopt;
++    }
++  }
++  if (command_line.HasSwitch(kDeviceMemorySwitch)) {
++    const std::string memory =
++        command_line.GetSwitchValueASCII(kDeviceMemorySwitch);
++    constexpr std::array<std::pair<std::string_view, float>, 8> kValues = {{
++        {"0.25", 0.25f}, {"0.5", 0.5f}, {"1", 1.0f}, {"2", 2.0f},
++        {"4", 4.0f}, {"8", 8.0f}, {"16", 16.0f}, {"32", 32.0f}}};
++    bool valid = false;
++    for (const auto& [text, value] : kValues) {
++      if (memory == text) {
++        config.device_memory = value;
++        valid = true;
++        break;
++      }
++    }
++    if (!valid) {
++      *error = "NeAntik device memory must be one of 0.25,0.5,1,2,4,8,16,32";
++      return std::nullopt;
++    }
++  }
++  return config;
++}
++
++const FingerprintConfig* GetFingerprintConfig() {
++  static const std::optional<FingerprintConfig> config = [] {
++    std::string error;
++    auto parsed = ParseFingerprintConfig(
++        *base::CommandLine::ForCurrentProcess(), &error);
++    CHECK(error.empty()) << error;
++    return parsed;
++  }();
++  return config.has_value() ? &config.value() : nullptr;
++}
++
++uint64_t MixFingerprintSeed(uint64_t seed, uint64_t domain, uint64_t value) {
++  uint64_t mixed = seed ^ domain ^ (value + UINT64_C(0x9e3779b97f4a7c15));
++  mixed = (mixed ^ (mixed >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
++  mixed = (mixed ^ (mixed >> 27)) * UINT64_C(0x94d049bb133111eb);
++  return mixed ^ (mixed >> 31);
++}
++
++}  // namespace blink::neantik
+--- /dev/null
++++ b/third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc
+@@ -0,0 +1,126 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++
++#include <limits>
++#include <string>
++
++#include "base/command_line.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace blink::neantik {
++namespace {
++
++base::CommandLine Seeded() {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kSeedSwitch, "123456");
++  return command;
++}
++
++TEST(NeAntikFingerprintTest, UnconfiguredIsExplicitlyDisabled) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  std::string error = "stale";
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_TRUE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, DefaultsAreStableAndNotHostDerived) {
++  auto command = Seeded();
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_EQ(config->seed, UINT64_C(123456));
++  EXPECT_EQ(config->hardware_concurrency, 8u);
++  EXPECT_EQ(config->device_memory, 8.0f);
++  EXPECT_TRUE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, MaximumSeedAndExplicitHardware) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kSeedSwitch, "18446744073709551615");
++  command.AppendSwitchASCII(kHardwareConcurrencySwitch, "16");
++  command.AppendSwitchASCII(kDeviceMemorySwitch, "32");
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_EQ(config->seed, std::numeric_limits<uint64_t>::max());
++  EXPECT_EQ(config->hardware_concurrency, 16u);
++  EXPECT_EQ(config->device_memory, 32.0f);
++}
++
++TEST(NeAntikFingerprintTest, RejectsInvalidSeeds) {
++  for (const char* value : {"", "0", "-1", "+1", " 1", "1 ", "1x",
++                            "18446744073709551616"}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    command.AppendSwitchASCII(kSeedSwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_FALSE(error.empty()) << value;
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsUnknownNeAntikFlags) {
++  auto command = Seeded();
++  command.AppendSwitchASCII("neantik-fingerprint-config", "unexpected.json");
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, RejectsOrphanHardwareOverrides) {
++  for (const char* flag : {kHardwareConcurrencySwitch, kDeviceMemorySwitch}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    command.AppendSwitchASCII(flag, "8");
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsInvalidHardwareConcurrency) {
++  for (const char* value : {"", "0", "65", "-1", "3.5", "99999999999999999999"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kHardwareConcurrencySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++}
++
++TEST(NeAntikFingerprintTest, AcceptsOnlyDiscreteMemoryValues) {
++  for (const char* value : {"0.25", "0.5", "1", "2", "4", "8", "16", "32"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kDeviceMemorySwitch, value);
++    std::string error;
++    EXPECT_TRUE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_TRUE(error.empty()) << value;
++  }
++  for (const char* value : {"", "0", "3", "64", "NaN", "inf", "8.0", "-8"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kDeviceMemorySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_FALSE(error.empty()) << value;
++  }
++}
++
++TEST(NeAntikFingerprintTest, CoreInfoRequiresOutputPath) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitch(kCoreInfoSwitch);
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, MixingIsDeterministicAndDomainSeparated) {
++  const uint64_t first = MixFingerprintSeed(123456, 0x43414e564153, 77);
++  EXPECT_EQ(first, MixFingerprintSeed(123456, 0x43414e564153, 77));
++  EXPECT_NE(first, MixFingerprintSeed(987654, 0x43414e564153, 77));
++  EXPECT_NE(first, MixFingerprintSeed(123456, 0x415544494f, 77));
++  EXPECT_NE(first, MixFingerprintSeed(123456, 0x43414e564153, 78));
++}
++
++}  // namespace
++}  // namespace blink::neantik
+--- a/third_party/blink/public/common/BUILD.gn
++++ b/third_party/blink/public/common/BUILD.gn
+@@ -148,8 +148,9 @@
+     "fenced_frame/redacted_fenced_frame_config.h",
+     "fenced_frame/redacted_fenced_frame_config_mojom_traits.h",
+     "fetch/fetch_api_request_headers_map.h",
+     "fetch/fetch_api_request_headers_mojom_traits.h",
++    "fingerprinting/neantik_fingerprint.h",
+     "fingerprinting_protection/noise_token.h",
+     "fingerprinting_protection/noise_token_mojom_traits.h",
+     "frame/delegated_capability_request_token.h",
+     "frame/fenced_frame_sandbox_flags.h",
+--- /dev/null
++++ b/third_party/blink/public/common/fingerprinting/neantik_fingerprint.h
+@@ -0,0 +1,50 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_
++#define THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_
++
++#include <cstdint>
++#include <optional>
++#include <string>
++
++#include "third_party/blink/public/common/common_export.h"
++
++namespace base {
++class CommandLine;
++}
++
++namespace blink::neantik {
++
++inline constexpr char kSeedSwitch[] = "neantik-fingerprint-seed";
++inline constexpr char kHardwareConcurrencySwitch[] = "neantik-hardware-concurrency";
++inline constexpr char kDeviceMemorySwitch[] = "neantik-device-memory";
++inline constexpr char kCoreInfoSwitch[] = "neantik-core-info";
++inline constexpr int kConfigSchema = 1;
++
++struct BLINK_COMMON_EXPORT FingerprintConfig {
++  uint64_t seed = 0;
++  unsigned hardware_concurrency = 8;
++  float device_memory = 8.0f;
++};
++
++// Missing seed returns nullopt with an empty error only when no other persona
++// switches were supplied. A nonempty error is always a startup failure.
++BLINK_COMMON_EXPORT std::optional<FingerprintConfig> ParseFingerprintConfig(
++    const base::CommandLine& command_line,
++    std::string* error);
++
++// Immutable, thread-safe one-time snapshot. Window and all worker accessors use
++// exactly this state. Invalid child state fails closed instead of using host data.
++BLINK_COMMON_EXPORT const FingerprintConfig* GetFingerprintConfig();
++
++// SplitMix64-style domain-separated integer mixing; specified unsigned arithmetic
++// is identical across compilers/processes/threads. Not a cryptographic key.
++BLINK_COMMON_EXPORT uint64_t MixFingerprintSeed(uint64_t seed,
++                                               uint64_t domain,
++                                               uint64_t value);
++
++}  // namespace blink::neantik
++
++#endif  // THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_

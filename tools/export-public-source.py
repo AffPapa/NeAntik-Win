@@ -16,8 +16,9 @@ import stat
 ROOT_FILES = {
     '.gitattributes', '.gitignore', 'nevision_win.py', 'neantik_win.py',
     'test_nevision_win.py', 'test_neantik_win.py', 'browser_engine.py',
-    'test_browser_engine.py', 'release-version.json', 'requirements-build.txt',
-    'requirements-dev.txt', 'requirements.txt', 'build.ps1', 'LICENSE',
+    'test_browser_engine.py', 'current_core.py', 'test_current_core.py',
+    'release-version.json', 'requirements-build.txt',
+    'requirements-dev.txt', 'requirements-engine.txt', 'requirements.txt', 'build.ps1', 'LICENSE',
     'LICENSE.txt', 'LICENSE.md', 'NOTICE', 'NOTICE.txt', 'pyproject.toml',
 }
 TEXT_SUFFIXES = {'.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json',
@@ -51,6 +52,8 @@ def allowed(relative: Path) -> bool:
     if len(parts) == 1:
         return relative.name in ROOT_FILES or suffix == '.md'
     top = parts[0].lower()
+    if relative.as_posix() == 'core/native/LICENSE':
+        return True
     if top == 'docs':
         return not (len(parts) > 1 and parts[1].lower() == 'qa') and suffix in {'.md', '.csv'}
     if top == 'assets':

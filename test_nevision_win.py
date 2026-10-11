@@ -169,7 +169,7 @@ class StorageTests(unittest.TestCase):
         worker.join(2)
 
         self.assertEqual(len(result), 1)
-        self.assertIn("другой операцией NeAntik Win или NeVision Win", result[0])
+        self.assertIn("другой операцией NeAntik Win", result[0])
 
     def test_startup_reconciles_interrupted_delete(self):
         profile_id = self._profile_with_file("Recover delete")

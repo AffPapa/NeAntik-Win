@@ -1,6 +1,20 @@
 # Changelog
 
-All notable changes to NeVision Win are documented here.
+All notable changes to NeAntik Win (previously NeVision Win) are documented here.
+
+## Unreleased — own native Chromium cycle
+
+- Renamed the product to NeAntik Win and published reviewed sources at
+  https://github.com/AffPapa/NeAntik-Win; personal runtime data is excluded.
+- Authored an exact Chromium 155 native patch series for immutable profile seed,
+  CPU/deviceMemory, explicit ICU timezone and opaque sRGB uint8 Canvas readback.
+  Source/patch verification passed; compilation and browser observations are not
+  release evidence until the separate acceptance gates complete.
+- Added native/ordinary profile choice, compact CPU/memory/timezone controls and
+  explicit missing-core errors without falling back to ordinary Chrome.
+- Native backup/restore retains the persona; clean cloning uses a fresh seed.
+  Existing ordinary profiles and legacy backup identifiers remain compatible.
+- This is not a released version. Public download remains NeVision 0.2.1-preview.
 
 ## 0.2.1-preview — 2026-10-11
 

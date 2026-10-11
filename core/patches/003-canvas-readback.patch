@@ -1,0 +1,340 @@
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h
+@@ -0,0 +1,26 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_NEANTIK_CANVAS_READBACK_H_
++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_NEANTIK_CANVAS_READBACK_H_
++
++#include <cstdint>
++#include "base/memory/scoped_refptr.h"
++#include "third_party/blink/renderer/platform/platform_export.h"
++#include "third_party/skia/include/core/SkPixmap.h"
++
++namespace blink {
++class StaticBitmapImage;
++// Only opaque sRGB uint8 RGB values are projected. Alpha, non-opaque pixels,
++// unsupported colour spaces/formats and padding are preserved. Calling twice
++// at the same absolute coordinates is idempotent; the caller owns the pixels.
++PLATFORM_EXPORT void ApplyNeAntikCanvasReadback(const SkPixmap& pixmap,
++                                              int origin_x,
++                                              int origin_y,
++                                              uint64_t seed);
++// Returns a private serialization snapshot; never changes drawing resources.
++// Null indicates readback/allocation failure. Without a persona, no copy occurs.
++PLATFORM_EXPORT scoped_refptr<StaticBitmapImage> NeAntikCanvasExportSnapshot(
++    scoped_refptr<StaticBitmapImage> image);
++}  // namespace blink
++#endif
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc
+@@ -0,0 +1,87 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
++
++#include <utility>
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++#include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
++#include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
++#include "third_party/skia/include/core/SkColorSpace.h"
++#include "third_party/skia/include/core/SkData.h"
++#include "third_party/skia/include/core/SkImage.h"
++#include "ui/gfx/skia_span_util.h"
++
++namespace blink {
++namespace {
++bool Supported(const SkImageInfo& info) {
++  return (info.colorType() == kRGBA_8888_SkColorType ||
++          info.colorType() == kBGRA_8888_SkColorType) &&
++         (!info.colorSpace() || info.colorSpace()->isSRGB());
++}
++constexpr uint64_t kCanvasDomain = 0x43414e5641530001ULL;
++}  // namespace
++
++void ApplyNeAntikCanvasReadback(const SkPixmap& pixmap,
++                               int origin_x,
++                               int origin_y,
++                               uint64_t seed) {
++  if (!pixmap.addr() || !Supported(pixmap.info()) ||
++      (pixmap.alphaType() != kUnpremul_SkAlphaType &&
++       pixmap.alphaType() != kOpaque_SkAlphaType))
++    return;
++  auto bytes = gfx::SkPixmapToWritableSpan(pixmap);
++  const bool rgba = pixmap.colorType() == kRGBA_8888_SkColorType;
++  for (int y = 0; y < pixmap.height(); ++y) {
++    for (int x = 0; x < pixmap.width(); ++x) {
++      const size_t offset = size_t(y) * pixmap.rowBytes() + size_t(x) * 4;
++      // Preserve all partially/fully transparent values, including hidden RGB.
++      if (bytes[offset + 3] != 255)
++        continue;
++      const uint64_t position =
++          (uint64_t(uint32_t(int64_t(origin_y) + y)) << 32) |
++          uint32_t(int64_t(origin_x) + x);
++      const uint64_t bits =
++          neantik::MixFingerprintSeed(seed, kCanvasDomain, position);
++      const size_t channels[3] = {rgba ? 0u : 2u, 1u, rgba ? 2u : 0u};
++      for (size_t channel = 0; channel < 3; ++channel) {
++        uint8_t& value = bytes[offset + channels[channel]];
++        value = (value & 0xfeu) | ((bits >> channel) & 1u);
++      }
++    }
++  }
++}
++
++scoped_refptr<StaticBitmapImage> NeAntikCanvasExportSnapshot(
++    scoped_refptr<StaticBitmapImage> image) {
++  const auto* config = neantik::GetFingerprintConfig();
++  if (!config || !image)
++    return image;
++  PaintImage paint_image = image->PaintImageForCurrentFrame();
++  const SkImageInfo original_info = paint_image.GetSkImageInfo();
++  if (!Supported(original_info))
++    return image;
++  // Convert before projection so getImageData and encoded PNG see identical
++  // straight-alpha sRGB uint8 values. No original canvas backing store is used
++  // as writable memory and no random state is advanced by reading.
++  const SkImageInfo info =
++      original_info.makeColorType(kRGBA_8888_SkColorType)
++          .makeAlphaType(kUnpremul_SkAlphaType);
++  const size_t row_bytes = info.minRowBytes();
++  const size_t byte_size = info.computeByteSize(row_bytes);
++  if (SkImageInfo::ByteSizeOverflowed(byte_size))
++    return nullptr;
++  sk_sp<SkData> data = SkData::MakeUninitialized(byte_size);
++  if (!data)
++    return nullptr;
++  SkPixmap pixmap(info, data->writable_data(), row_bytes);
++  if (!paint_image.readPixels(info, pixmap.writable_addr(), row_bytes, 0, 0))
++    return nullptr;
++  ApplyNeAntikCanvasReadback(pixmap, 0, 0, config->seed);
++  auto sk_image = SkImages::RasterFromData(info, std::move(data), row_bytes);
++  if (!sk_image)
++    return nullptr;
++  return UnacceleratedStaticBitmapImage::Create(
++      std::move(sk_image), image->Orientation(), image->GetHdrMetadata());
++}
++}  // namespace blink
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc
+@@ -0,0 +1,65 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
++#include <array>
++#include "testing/gtest/include/gtest/gtest.h"
++#include "third_party/skia/include/core/SkColorSpace.h"
++namespace blink {
++namespace {
++SkImageInfo Info(int w, int h, SkColorType type = kRGBA_8888_SkColorType) {
++  return SkImageInfo::Make(w, h, type, kUnpremul_SkAlphaType,
++                           SkColorSpace::MakeSRGB());
++}
++TEST(NeAntikCanvasReadbackTest, RepeatReadsAreIdempotentAndSeedsDiffer) {
++  std::array<uint8_t, 64> a;
++  a.fill(255);
++  auto b = a;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), a.data(), 16), 0, 0, 123);
++  const auto first = a;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), a.data(), 16), 0, 0, 123);
++  EXPECT_EQ(a, first);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), b.data(), 16), 0, 0, 456);
++  EXPECT_NE(a, b);
++}
++TEST(NeAntikCanvasReadbackTest, SubregionMatchesWholeCanvasCoordinates) {
++  std::array<uint8_t, 64> whole;
++  whole.fill(255);
++  std::array<uint8_t, 16> region;
++  region.fill(255);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), whole.data(), 16), 0, 0, 123);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(2, 2), region.data(), 8), 1, 1, 123);
++  for (size_t y = 0; y < 2; ++y)
++    for (size_t x = 0; x < 8; ++x)
++      EXPECT_EQ(region[y * 8 + x], whole[(y + 1) * 16 + 4 + x]);
++}
++TEST(NeAntikCanvasReadbackTest, TransparentPixelsAlphaAndPaddingUnchanged) {
++  std::array<uint8_t, 12> pixels = {123, 45, 67, 0, 89, 12, 34, 127, 91, 92, 93, 94};
++  const auto original = pixels;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(2, 1), pixels.data(), 12), -1, -1, 123);
++  EXPECT_EQ(pixels, original);
++}
++TEST(NeAntikCanvasReadbackTest, RgbaAndBgraProjectSameLogicalChannels) {
++  std::array<uint8_t, 4> rgba = {10, 20, 30, 255};
++  std::array<uint8_t, 4> bgra = {30, 20, 10, 255};
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(1, 1), rgba.data(), 4), 7, 9, 123);
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1, kBGRA_8888_SkColorType), bgra.data(), 4), 7, 9, 123);
++  EXPECT_EQ(rgba[0], bgra[2]);
++  EXPECT_EQ(rgba[1], bgra[1]);
++  EXPECT_EQ(rgba[2], bgra[0]);
++  EXPECT_EQ(rgba[3], 255);
++}
++TEST(NeAntikCanvasReadbackTest, Float16AndPremultipliedDataAreUntouched) {
++  std::array<uint8_t, 8> pixels;
++  pixels.fill(255);
++  const auto original = pixels;
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1, kRGBA_F16_SkColorType), pixels.data(), 8), 0, 0, 123);
++  EXPECT_EQ(pixels, original);
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1).makeAlphaType(kPremul_SkAlphaType), pixels.data(), 4), 0, 0, 123);
++  EXPECT_EQ(pixels, original);
++}
++}  // namespace
++}  // namespace blink
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -5,2 +5,4 @@
+ #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+@@ -514,2 +514,7 @@
+             image_data_pixmap.rowBytes(), sx, sy);
++    if (read_pixels_successful &&
++        GetDefaultImageDataColorSpace() == PredefinedColorSpace::kSRGB) {
++      if (const auto* config = neantik::GetFingerprintConfig())
++        ApplyNeAntikCanvasReadback(image_data_pixmap, sx, sy, config->seed);
++    }
+     if (!read_pixels_successful) {
+diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+--- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
++++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+@@ -29,2 +29,3 @@
+ #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+@@ -1423,2 +1423,4 @@
+   scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
++  if (IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(std::move(image_bitmap));
+   if (image_bitmap) {
+@@ -1527,2 +1527,4 @@
+   scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(kBackBuffer);
++  if (IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(std::move(image_bitmap));
+   if (image_bitmap) {
+diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+--- a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
++++ b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+@@ -5,2 +5,3 @@
+ #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+@@ -568,2 +568,4 @@
+   scoped_refptr<StaticBitmapImage> image_bitmap = context_->GetImage();
++  if (context_->IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(std::move(image_bitmap));
+   if (image_bitmap) {
+diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
+--- a/third_party/blink/renderer/platform/BUILD.gn
++++ b/third_party/blink/renderer/platform/BUILD.gn
+@@ -1098,3 +1098,5 @@
+     "graphics/image_data_buffer.cc",
+     "graphics/image_data_buffer.h",
++    "graphics/neantik_canvas_readback.cc",
++    "graphics/neantik_canvas_readback.h",
+     "graphics/image_decoder_wrapper.cc",
+@@ -2201,2 +2201,3 @@
+     "animation/animation_translation_util_test.cc",
++    "graphics/neantik_canvas_readback_test.cc",
+     "animation/compositor_animation_test.cc",
+diff --git a/third_party/blink/web_tests/neantik/canvas-readback.html b/third_party/blink/web_tests/neantik/canvas-readback.html
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/web_tests/neantik/canvas-readback.html
+@@ -0,0 +1,72 @@
++<!doctype html>
++<meta charset="utf-8">
++<title>NeAntik native canvas readback invariants</title>
++<script src="/resources/testharness.js"></script>
++<script src="/resources/testharnessreport.js"></script>
++<script>
++function paint(c) {
++  const ctx = c.getContext('2d', {willReadFrequently: true});
++  ctx.fillStyle = 'rgb(43,87,131)';
++  ctx.fillRect(0, 0, c.width, c.height);
++  ctx.fillStyle = 'rgb(198,146,72)';
++  ctx.fillRect(2, 3, 9, 7);
++  return ctx;
++}
++function canvas() { const c = document.createElement('canvas'); c.width=32; c.height=24; return c; }
++function pixels(ctx) { return Array.from(ctx.getImageData(0,0,32,24).data); }
++test(() => {
++  const ctx=paint(canvas()); const first=pixels(ctx);
++  for(let i=0;i<10;i++) assert_array_equals(pixels(ctx),first);
++  const region=ctx.getImageData(4,5,7,8).data;
++  for(let y=0;y<8;y++) for(let x=0;x<7;x++) for(let channel=0;channel<4;channel++)
++    assert_equals(region[(y*7+x)*4+channel],first[((y+5)*32+x+4)*4+channel]);
++}, 'Repeated native reads and absolute-coordinate subregions agree');
++test(() => {
++  const ctx=paint(canvas()); const first=ctx.getImageData(0,0,32,24);
++  ctx.putImageData(first,0,0);
++  assert_array_equals(pixels(ctx),Array.from(first.data));
++  ctx.clearRect(0,0,32,24);
++  assert_true(pixels(ctx).every(v=>v===0));
++}, 'putImageData of projected pixels is idempotent and clear remains transparent');
++promise_test(async () => {
++  const c=canvas(); const ctx=paint(c); const first=pixels(ctx);
++  const blobs=[await (await fetch(c.toDataURL('image/png'))).blob(),
++               await new Promise(resolve=>c.toBlob(resolve,'image/png'))];
++  for(const blob of blobs) {
++    assert_not_equals(blob,null);
++    const decoded=await createImageBitmap(blob);
++    const target=canvas(); const targetCtx=target.getContext('2d',{willReadFrequently:true});
++    targetCtx.drawImage(decoded,0,0);
++    assert_array_equals(pixels(targetCtx),first);
++    decoded.close();
++  }
++  assert_array_equals(pixels(ctx),first);
++}, 'Decoded PNG exports agree with readback and leave source backing unchanged');
++promise_test(async () => {
++  const off=new OffscreenCanvas(32,24); const ctx=paint(off); const first=pixels(ctx);
++  const decoded=await createImageBitmap(await off.convertToBlob({type:'image/png'}));
++  const c=canvas(); const target=c.getContext('2d',{willReadFrequently:true});
++  target.drawImage(decoded,0,0);
++  assert_array_equals(pixels(target),first); decoded.close();
++  assert_array_equals(first,pixels(paint(canvas())));
++}, 'Offscreen main-thread PNG and ordinary Canvas2D agree');
++promise_test(async () => {
++  const source=paint.toString()+';'+pixels.toString()+`;
++    onmessage=async()=>{try{
++      const off=new OffscreenCanvas(32,24); const ctx=paint(off); const first=pixels(ctx);
++      const bitmap=await createImageBitmap(await off.convertToBlob({type:'image/png'}));
++      const target=new OffscreenCanvas(32,24).getContext('2d',{willReadFrequently:true});
++      target.drawImage(bitmap,0,0); bitmap.close();
++      postMessage({first,decoded:pixels(target),repeated:pixels(ctx)});
++    }catch(error){postMessage({error:String(error)})}}`;
++  const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
++  const worker=new Worker(url);
++  try {
++    const result=await new Promise((resolve,reject)=>{worker.onmessage=e=>resolve(e.data);worker.onerror=reject;worker.postMessage(null)});
++    assert_false('error' in result, result.error);
++    assert_array_equals(result.first,result.repeated);
++    assert_array_equals(result.first,result.decoded);
++    assert_array_equals(result.first,pixels(paint(canvas())));
++  } finally { worker.terminate(); URL.revokeObjectURL(url); }
++}, 'Dedicated worker Offscreen readback/export/repeat agrees with window persona');
++</script>
+diff --git a/third_party/blink/web_tests/neantik/canvas-readback-expected.txt b/third_party/blink/web_tests/neantik/canvas-readback-expected.txt
+new file mode 100644
+--- /dev/null
++++ b/third_party/blink/web_tests/neantik/canvas-readback-expected.txt
+@@ -0,0 +1,7 @@
++This is a testharness.js-based test.
++PASS Repeated native reads and absolute-coordinate subregions agree
++PASS putImageData of projected pixels is idempotent and clear remains transparent
++PASS Decoded PNG exports agree with readback and leave source backing unchanged
++PASS Offscreen main-thread PNG and ordinary Canvas2D agree
++PASS Dedicated worker Offscreen readback/export/repeat agrees with window persona
++Harness: the test ran to completion.

@@ -347,7 +347,18 @@ def main():
     parser.add_argument('--browser',type=Path,required=True)
     parser.add_argument('--verified-archive',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--reassess-only',action='store_true',help='Reassess an existing raw output; never start the browser')
     args=parser.parse_args()
+    if args.reassess_only:
+        report=json.loads(args.output.read_text(encoding='utf-8'))
+        report['previous_status']=report.get('status')
+        report['previous_harness_error']=report.pop('error',None)
+        report['assertions']=assess(report.get('visits',[]))
+        report['status']='passed' if report['assertions'] and all(c['passed'] for c in report['assertions']) else 'failed'
+        report['reassessment_note']='Assessment-only repair for missing result dictionaries. Raw runs unchanged; no additional browser execution.'
+        args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+        print(json.dumps({'status':report['status'],'reassessment_only':True,'visits':len(report.get('visits',[]))}))
+        return 0 if report['status']=='passed' else 1
     report={'created_utc':datetime.now(timezone.utc).isoformat(),'method':'Pinned native headless Chromium, loopback JS read-only fixture; no CDP',
       'core_version':VERSION,'source':SOURCE,'os':platform.platform(),'python':platform.python_version(),
       'limitations':['Headless only; native GUI/extensions require separate tests.',

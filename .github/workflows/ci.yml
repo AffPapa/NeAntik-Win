@@ -33,7 +33,13 @@ jobs:
         run: .\tools\check-public-repo.ps1
 
       - name: Run unit tests
-        run: python -m unittest -v test_nevision_win.py test_browser_engine.py
+        run: python -m unittest -v test_nevision_win.py test_browser_engine.py test_current_core.py
+
+      - name: Verify independent native QA harness
+        run: python -m unittest discover -s tools -p test_current_native_harness_unit.py -v
+
+      - name: Verify pinned-source tooling
+        run: python -m unittest discover -s tools/native-core -p test_*.py -v
 
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v

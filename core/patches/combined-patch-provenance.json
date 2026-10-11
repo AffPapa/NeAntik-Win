@@ -1,0 +1,41 @@
+{
+  "source_commit": "cfaadc5a132d78e1828635aa8405a499f3e14864",
+  "source_version": "155.0.8059.40",
+  "patches": [
+    {
+      "path": "core/patches/0001-native-seed-state.patch",
+      "sha256": "7adbd35a412214642eaf8d68492f47b16dbc77c573fab7aa19d0c8a510544052"
+    },
+    {
+      "path": "core/patches/0002-native-cpu-memory.patch",
+      "sha256": "9008cd970b0f4528754baff1167256ca601b181259af290e6f877fddb862e08d"
+    },
+    {
+      "path": "core/patches/003-canvas-readback.patch",
+      "sha256": "ee46f5acf9a3155dcee16dea5899f780050ed59c74674df264475513e77f0186"
+    }
+  ],
+  "exact_source_sequence_apply_check": "passed",
+  "compilation": "not-run",
+  "runtime_fingerprint_verification": "not-run",
+  "postimage_sha256": {
+    "chrome/app/chrome_main_delegate.cc": "25d3424c2935b2a2b6079d6836014d34e411732b9c24299077857227b6c0efbe",
+    "content/browser/renderer_host/render_process_host_impl.cc": "9c58ec0e79756c2a2e6e8e685e810a2948269fa3cd7579e125cf0bc655ca0432",
+    "third_party/blink/common/BUILD.gn": "d97211b04b87b0daa80efad294a84a0ddfe55c165e99cab33adaa219e545cc7a",
+    "third_party/blink/common/device_memory/approximated_device_memory.cc": "caec7325a921da52c559db21ee88068a983b68fc4427da023fc4efd616698537",
+    "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "f31e9caf69a46c7a65fd7fc17e02e85cc55e1d8c05a2161223325609f3abc41d",
+    "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc": "a42b09accf114fd248a2b4b813afa44ea221430238ee989e11a855a92134ae6f",
+    "third_party/blink/public/common/BUILD.gn": "bc993c4df097d5b5ab8538ee4297c4290c87ed95d67ab28f46fc4e58cd7e7ece",
+    "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h": "e5499fc0d84598bcc688b1f7039ccc1e4ea4535fc8288112ac5b12e07c9c86f2",
+    "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc": "65e9160b071481ab1cfa97c127e8ea1499d0829e804e97d2459e9aa475c9709e",
+    "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc": "1de7dca21c56a86b1f54b4645c82068c2c6681d51824c96da13c0d0a62395647",
+    "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc": "8ee4954b35112cf305d224175facd0b70340aab209ed811a18a841e9851a01f3",
+    "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc": "5f6acb352579616ec415ef34bf5bfa66dd2f0ef5eddab6aecfceee47fa3b8204",
+    "third_party/blink/renderer/platform/BUILD.gn": "9e2697c87596fa8cd371740289faa22389e97c4942e3b683378e0a2fc14790de",
+    "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc": "4ac0769d7ec8a58ac48b58b9c4bf47d51e23afab261d34b377ef9e3654e0465a",
+    "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h": "9518be9001f6717b2c66a598167262e3cb9cddcbae1784839f1592eee4cec7cf",
+    "third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc": "8643ae65c16f7e5a80979c32b06c85e441dcc5ae96bf1a4577433bf517dec98d",
+    "third_party/blink/web_tests/neantik/canvas-readback-expected.txt": "d30e4fbf14e4ed5ac865f866b1bbd6931fa05b93e7e046716c95a907573bc063",
+    "third_party/blink/web_tests/neantik/canvas-readback.html": "4ad71ca0ce22b902d9fd3f344b46338409479347e4069dfb74724e2e0e2ca9fe"
+  }
+}

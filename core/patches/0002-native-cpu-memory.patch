@@ -1,0 +1,60 @@
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -1135,10 +1135,10 @@
+     const std::string info =
+         "{\"engine_id\":\"neantik-chromium\",\"schema\":1,\"version\":\"" +
+         std::string(version_info::GetVersionNumber()) +
+         "\",\"capabilities\":{\"stable_seed\":true,"
+-        "\"hardware_concurrency\":false,\"device_memory\":false,"
+-        "\"canvas\":false},\"compiled_stage\":1}";
++        "\"hardware_concurrency\":true,\"device_memory\":true,"
++        "\"canvas\":false},\"compiled_stage\":2}";
+     if (!base::WriteFile(neantik_command.GetSwitchValuePath(
+                             blink::neantik::kCoreInfoSwitch), info)) {
+       return 74;
+     }
+--- a/third_party/blink/common/device_memory/approximated_device_memory.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory.cc
+@@ -8,8 +8,9 @@
+ #include "base/check_op.h"
+ #include "base/feature_list.h"
+ #include "base/system/sys_info.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ 
+ namespace blink {
+ 
+ // static
+@@ -26,8 +27,13 @@
+ }
+ 
+ // static
+ float ApproximatedDeviceMemory::GetApproximatedDeviceMemory() {
++  // The native NavigatorDeviceMemory accessor and HTTP device-memory hints
++  // share this exact source; no window-only or worker-only memory override.
++  if (const auto* config = neantik::GetFingerprintConfig()) {
++    return config->device_memory;
++  }
+   return approximated_device_memory_gb_;
+ }
+ 
+ // static
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -4,12 +4,16 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
+ 
+ #include "base/system/sys_info.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ 
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
++  if (const auto* config = neantik::GetFingerprintConfig()) {
++    return config->hardware_concurrency;
++  }
+   return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
+ }
+ 
+ }  // namespace blink

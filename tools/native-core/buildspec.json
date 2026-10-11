@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "engine_id": "neantik-chromium",
+  "state": "source-build-preparation-not-a-built-engine",
+  "verified_at": "2026-10-11",
+  "platform": "win",
+  "architecture": "x64",
+  "chromium": {
+    "repository": "https://chromium.googlesource.com/chromium/src.git",
+    "version": "155.0.8059.40",
+    "tag": "refs/tags/155.0.8059.40",
+    "commit": "cfaadc5a132d78e1828635aa8405a499f3e14864",
+    "selection": "Windows stable VersionHistory pinnable=true and fraction>=0.99; never max tag or experimental rollout",
+    "version_history_url": "https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/all/releases?filter=endtime=none&order_by=version%20desc&page_size=100"
+  },
+  "depot_tools": {
+    "repository": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+    "commit": "a03dfbf7f2d1cefa2795d81d59ca4f16c8616a8f",
+    "disable_auto_update": true
+  },
+  "toolchain": {
+    "visual_studio_major": 18,
+    "visual_studio_reference_version": "18.10.3",
+    "visual_studio_build": "12224.181",
+    "build_tools_bootstrapper_url": "https://download.visualstudio.microsoft.com/download/pr/e5f740e0-92f9-49d7-ab3b-5d17b84108fd/283d526008bf3ac56ec2c6aeb3102b8ca68b9af75643c8f5d0ee58060a1886bb/vs_BuildTools.exe",
+    "bootstrapper_sha256": "283d526008bf3ac56ec2c6aeb3102b8ca68b9af75643c8f5d0ee58060a1886bb",
+    "build_tools_workload": "Microsoft.VisualStudio.Workload.VCTools",
+    "components": [
+      "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+      "Microsoft.VisualStudio.Component.VC.ATLMFC"
+    ],
+    "sdk_version": "10.0.28000.2270",
+    "sdk_installer_url": "https://go.microsoft.com/fwlink/?linkid=2370315",
+    "sdk_installer_sha256": "e9f1bde566381355e594e2f90daf4f714eb5c7ef2c45c501ce236afe2abea300",
+    "sdk_installer_product_version": "10.1.28000.2270",
+    "sdk_features": [
+      "OptionId.DesktopCPPx64",
+      "OptionId.WindowsDesktopDebuggers"
+    ],
+    "sdk_debugger_minimum": "10.0.26100.3323",
+    "toolchain_license_url": "https://visualstudio.microsoft.com/license-terms/vs2026-ga-diagnostic-buildtools/",
+    "exact_source_instructions": "https://chromium.googlesource.com/chromium/src/+/refs/tags/155.0.8059.40/docs/windows_build_instructions.md"
+  },
+  "resource_policy": {
+    "minimum_free_gib_before_checkout": 140,
+    "minimum_free_gib_before_build": 40,
+    "os_reserve_gib": 40,
+    "policy_is_estimate_not_upstream_requirement": true,
+    "memory_gib_minimum": 16,
+    "jobs": 6,
+    "default_root": "C:\\NeAntikCoreBuild"
+  },
+  "gn_args": [
+    "is_debug=false",
+    "is_component_build=false",
+    "is_official_build=false",
+    "is_chrome_branded=false",
+    "target_cpu=\"x64\"",
+    "symbol_level=0",
+    "blink_symbol_level=0",
+    "v8_symbol_level=0",
+    "use_remoteexec=false"
+  ],
+  "patch_contract": {
+    "status": "not-built-not-verified",
+    "fingerprint_switch": "--neantik-fingerprint-seed",
+    "config_schema": 1,
+    "patch_series": [
+      {
+        "path": "core/patches/0001-native-seed-state.patch",
+        "sha256": "7adbd35a412214642eaf8d68492f47b16dbc77c573fab7aa19d0c8a510544052"
+      },
+      {
+        "path": "core/patches/0002-native-cpu-memory.patch",
+        "sha256": "9008cd970b0f4528754baff1167256ca601b181259af290e6f877fddb862e08d"
+      },
+      {
+        "path": "core/patches/003-canvas-readback.patch",
+        "sha256": "ee46f5acf9a3155dcee16dea5899f780050ed59c74674df264475513e77f0186"
+      },
+      {
+        "path": "core/patches/004-native-timezone.patch",
+        "sha256": "1b76b402fb768429f8bbe7826d302a55961cd8bbdf7b9e0da811f59deeef19b9"
+      },
+      {
+        "path": "core/patches/0005-omit-branded-updater-test.patch",
+        "sha256": "a06b951c46885981d445423ec166dccfcb53134e7414b7192100924572caa9c2"
+      },
+      {
+        "path": "core/patches/006-core-capability-scope.patch",
+        "sha256": "47849cb8641aaacb1dbe06e77e10066a8a09b17f6b6e7bb9298ef8188c196960"
+      }
+    ],
+    "postimage_sha256": {
+      "chrome/app/chrome_main_delegate.cc": "a526716c395e77a82b9675e39501533281822196b6ba4e935b28780685b8de26",
+      "content/browser/renderer_host/render_process_host_impl.cc": "eb765f4f56307bfa81413af0314b87fbde871a8db2e1d0a06461e570bc67a652",
+      "third_party/blink/common/BUILD.gn": "46a35230a92d38d2baca2fbb94185bdac8cd91036ab5555df53a3e1a8304c6de",
+      "third_party/blink/common/device_memory/approximated_device_memory.cc": "caec7325a921da52c559db21ee88068a983b68fc4427da023fc4efd616698537",
+      "third_party/blink/common/fingerprinting/neantik_fingerprint.cc": "ae3a98566d60edec263a1d74e98e72af4ff1fade3d011c2156271970aece2297",
+      "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc": "277c5cce8a04d69bf768bdb3c675ebbba2685981fc97c109361c4e01fa80361a",
+      "third_party/blink/public/common/BUILD.gn": "bc993c4df097d5b5ab8538ee4297c4290c87ed95d67ab28f46fc4e58cd7e7ece",
+      "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h": "c155acc34525ca2630956fc0831558c380da81f39a72f133a2608e3c3ced4379",
+      "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc": "65e9160b071481ab1cfa97c127e8ea1499d0829e804e97d2459e9aa475c9709e",
+      "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc": "1de7dca21c56a86b1f54b4645c82068c2c6681d51824c96da13c0d0a62395647",
+      "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc": "8ee4954b35112cf305d224175facd0b70340aab209ed811a18a841e9851a01f3",
+      "third_party/blink/renderer/core/timezone/timezone_controller.cc": "41740943175615280a94137d1def6a3464c3a6791dbd2aa3ae0b37e91c9c3135",
+      "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc": "5f6acb352579616ec415ef34bf5bfa66dd2f0ef5eddab6aecfceee47fa3b8204",
+      "third_party/blink/renderer/platform/BUILD.gn": "9e2697c87596fa8cd371740289faa22389e97c4942e3b683378e0a2fc14790de",
+      "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc": "4ac0769d7ec8a58ac48b58b9c4bf47d51e23afab261d34b377ef9e3654e0465a",
+      "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h": "9518be9001f6717b2c66a598167262e3cb9cddcbae1784839f1592eee4cec7cf",
+      "third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc": "8643ae65c16f7e5a80979c32b06c85e441dcc5ae96bf1a4577433bf517dec98d",
+      "third_party/blink/web_tests/http/tests/neantik/resources/timezone-frame.html": "d3eb45df6ed36bedc8410eecaa550141e8015789cf06edcb863fc3b9c9ca68aa",
+      "third_party/blink/web_tests/http/tests/neantik/resources/timezone-service.js": "c3e75f7bd83cd110a16f0c40b62f3ac0b63ce87350d1f03b843e36ab52295de0",
+      "third_party/blink/web_tests/http/tests/neantik/resources/timezone-shared.js": "f34a8e963f8e969c288000141baaff13e2c3739109340a4b071e3714337d5d3b",
+      "third_party/blink/web_tests/http/tests/neantik/resources/timezone-surface.js": "435aecf49f00ddacc42b9570972d23bebebb020d5e7ccd2d6cb23f3b2a02f4c3",
+      "third_party/blink/web_tests/http/tests/neantik/resources/timezone-worker.js": "59abbfab55bea8a8c3c2d49d9cfcf73e67156d7405b1b7ecc7cccb99a0455cba",
+      "third_party/blink/web_tests/http/tests/neantik/timezone-expected.txt": "0d4a16400faea746e1dc2de504bafcb0d0f6625bf623f00ea865ec276e5c7a29",
+      "third_party/blink/web_tests/http/tests/neantik/timezone.html": "20e5e1c19c5434c480ca4b1cd139debc8f8ee150e80fc2bc77897edb11ce3b61",
+      "third_party/blink/web_tests/neantik/canvas-readback-expected.txt": "d30e4fbf14e4ed5ac865f866b1bbd6931fa05b93e7e046716c95a907573bc063",
+      "third_party/blink/web_tests/neantik/canvas-readback.html": "4ad71ca0ce22b902d9fd3f344b46338409479347e4069dfb74724e2e0e2ca9fe",
+      "DEPS": "a4e72f5140a96b13f87ce367634df5546de0596da9ee3406ce074c751c3d1cf4"
+    },
+    "required_test_contexts": [
+      "main-frame",
+      "same-origin-iframe",
+      "cross-origin-iframe",
+      "dedicated-worker",
+      "shared-worker",
+      "service-worker",
+      "server-headers"
+    ],
+    "no_stock_or_150_fallback": true
+  }
+}

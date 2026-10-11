@@ -28,8 +28,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "size_bytes": 2056,
-      "sha256": "c6221389a628f89588f6f3f635e55502e5a47458faab326d9ee4581d8baa1f23"
+      "size_bytes": 2343,
+      "sha256": "9eefad7645f8d75087f369874a5976a8e4977dcd3bf1fe920b44bc5efb926a73"
     },
     {
       "path": ".gitignore",
@@ -43,8 +43,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "size_bytes": 5736,
-      "sha256": "31baf96694f4a603829d32096c53bf112e6ebbfc67e0a55b87151e203ecb6213"
+      "size_bytes": 6654,
+      "sha256": "16c62fdf4ca86deca2273e20f9df3970b58b30768f9066778e17b1dff8afd8a3"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -58,8 +58,8 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 5712,
-      "sha256": "910d5d573eed0420405528136767a7d4fcfd2b55f6393fc19176ed4ed825ccd9"
+      "size_bytes": 6677,
+      "sha256": "b753c244a4cb4c5e77b72740045a16dd3990c4f4a477bcef1541aaa1054d86de"
     },
     {
       "path": "RELEASE_CHECKLIST.md",
@@ -123,8 +123,113 @@
     },
     {
       "path": "build.ps1",
-      "size_bytes": 8581,
-      "sha256": "e319747481bf800b6caa09c91fb35b08807e66e1d6d1b57327c71c1a8be1f589"
+      "size_bytes": 8600,
+      "sha256": "ca4bbedb1d177cf5e758f6545116bf6ae03af61b32edd95556a323f3ef80b39a"
+    },
+    {
+      "path": "core/CANVAS_PATCH_NOTES.md",
+      "size_bytes": 5454,
+      "sha256": "cb7c4cc2bff7164da024bb609f855ee6a987a9fc69874f777cc2a8c0e0b9550c"
+    },
+    {
+      "path": "core/README.md",
+      "size_bytes": 15575,
+      "sha256": "219b099ce4906b806bace4de8e252e7a70388a05a2d2fefd2704b524a85f81e4"
+    },
+    {
+      "path": "core/native/LICENSE",
+      "size_bytes": 1536,
+      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
+    },
+    {
+      "path": "core/native/LICENSE_SCOPE.md",
+      "size_bytes": 918,
+      "sha256": "e410ebd9529923658367ddd3fcfb68feb0e9ff0204ff8e6a8a57aed12cf745fe"
+    },
+    {
+      "path": "core/native/neantik_fingerprint.cc",
+      "size_bytes": 3830,
+      "sha256": "f31e9caf69a46c7a65fd7fc17e02e85cc55e1d8c05a2161223325609f3abc41d"
+    },
+    {
+      "path": "core/native/neantik_fingerprint.h",
+      "size_bytes": 1948,
+      "sha256": "e5499fc0d84598bcc688b1f7039ccc1e4ea4535fc8288112ac5b12e07c9c86f2"
+    },
+    {
+      "path": "core/native/neantik_fingerprint_unittest.cc",
+      "size_bytes": 4563,
+      "sha256": "a42b09accf114fd248a2b4b813afa44ea221430238ee989e11a855a92134ae6f"
+    },
+    {
+      "path": "core/native/timezone-expected.txt",
+      "size_bytes": 366,
+      "sha256": "0d4a16400faea746e1dc2de504bafcb0d0f6625bf623f00ea865ec276e5c7a29"
+    },
+    {
+      "path": "core/native/timezone-surface.js",
+      "size_bytes": 533,
+      "sha256": "435aecf49f00ddacc42b9570972d23bebebb020d5e7ccd2d6cb23f3b2a02f4c3"
+    },
+    {
+      "path": "core/native/timezone.html",
+      "size_bytes": 3316,
+      "sha256": "20e5e1c19c5434c480ca4b1cd139debc8f8ee150e80fc2bc77897edb11ce3b61"
+    },
+    {
+      "path": "core/patches/0001-native-seed-state.patch",
+      "size_bytes": 15871,
+      "sha256": "7adbd35a412214642eaf8d68492f47b16dbc77c573fab7aa19d0c8a510544052"
+    },
+    {
+      "path": "core/patches/0002-native-cpu-memory.patch",
+      "size_bytes": 2240,
+      "sha256": "9008cd970b0f4528754baff1167256ca601b181259af290e6f877fddb862e08d"
+    },
+    {
+      "path": "core/patches/0005-omit-branded-updater-test.patch",
+      "size_bytes": 470,
+      "sha256": "a06b951c46885981d445423ec166dccfcb53134e7414b7192100924572caa9c2"
+    },
+    {
+      "path": "core/patches/003-canvas-readback.patch",
+      "size_bytes": 16944,
+      "sha256": "ee46f5acf9a3155dcee16dea5899f780050ed59c74674df264475513e77f0186"
+    },
+    {
+      "path": "core/patches/004-native-timezone.patch",
+      "size_bytes": 18387,
+      "sha256": "1b76b402fb768429f8bbe7826d302a55961cd8bbdf7b9e0da811f59deeef19b9"
+    },
+    {
+      "path": "core/patches/006-core-capability-scope.patch",
+      "size_bytes": 2617,
+      "sha256": "47849cb8641aaacb1dbe06e77e10066a8a09b17f6b6e7bb9298ef8188c196960"
+    },
+    {
+      "path": "core/patches/capability-chain-provenance.json",
+      "size_bytes": 4990,
+      "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
+    },
+    {
+      "path": "core/patches/combined-patch-provenance.json",
+      "size_bytes": 3243,
+      "sha256": "b3b6701d1bad7cbedf5920de58fac78bee23262b010ccbc160c15a573a89d9b2"
+    },
+    {
+      "path": "core/patches/seed-patch-provenance.json",
+      "size_bytes": 2590,
+      "sha256": "82194f58cfbd891f9b308ea5f1f709c03c70e1fb76a25d01995a7be18999d2de"
+    },
+    {
+      "path": "core/patches/timezone-chain-provenance.json",
+      "size_bytes": 4584,
+      "sha256": "f94e7c07cfc3ffe5ff5b2c94a739a9606bbb5b7dddf7f07ca0da9790f1c2c2bc"
+    },
+    {
+      "path": "current_core.py",
+      "size_bytes": 10144,
+      "sha256": "2e4c1265a187be2f1eb8874416c31e1e7a2305fea068e9a11c2612d106b37ceb"
     },
     {
       "path": "docs/CYCLE_PLAN.md",
@@ -168,8 +273,8 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 151378,
-      "sha256": "0f49a14f6e4674d52bce83c74bd7683f9b00658f8039272670b233981cc8cde4"
+      "size_bytes": 162138,
+      "sha256": "5f17bfa8f1bfa47e5fe180c5f6646c2f2b7d2184b0cbc6c7e7cfaf975daa5962"
     },
     {
       "path": "release-version.json",
@@ -188,13 +293,23 @@
     },
     {
       "path": "test_browser_engine.py",
-      "size_bytes": 12735,
-      "sha256": "aef348baf2b78486ef2bcb081ded6042815a90ce8245ee7e0bb875fb16f1a876"
+      "size_bytes": 12786,
+      "sha256": "0266d342e4e0ccc3ac8bf24d6ae9e0a0a839460fb12f8ceffd9dbb4392a37bb5"
+    },
+    {
+      "path": "test_current_core.py",
+      "size_bytes": 13502,
+      "sha256": "6415089a4fa9b797d4be1fd4b7b7c0370d91c570f0f62f258e9c8e80f847479e"
     },
     {
       "path": "test_nevision_win.py",
-      "size_bytes": 40994,
-      "sha256": "097c21bcc92c98ec63c8c919818897a42367649342a62a35fd7d67ecedee1a4a"
+      "size_bytes": 40974,
+      "sha256": "6871cd53f87c47159f6af5866ee58448b915c324e5ed95f437b3e73bd3498b56"
+    },
+    {
+      "path": "tools/CURRENT_NATIVE_QA.md",
+      "size_bytes": 3587,
+      "sha256": "93d49127267103bd817ced27fde62b95423075c1d4154d64f8f122851262440a"
     },
     {
       "path": "tools/benchmark_runtime.py",
@@ -208,13 +323,23 @@
     },
     {
       "path": "tools/check-public-repo.ps1",
-      "size_bytes": 3615,
-      "sha256": "270416e14bd7f414c66716b75183a88220469c7955283b8b8a1e00edd6b61ec2"
+      "size_bytes": 3670,
+      "sha256": "aaf6e4d46bf50f6be855ed1d45fca56a504a14feb8f651c31bf13635df95451a"
     },
     {
       "path": "tools/export-public-source.py",
-      "size_bytes": 6560,
-      "sha256": "02942b6c46dafc94e1d74cfe54f4297cca3aa15c95a5c113ce85fee903f67327"
+      "size_bytes": 6707,
+      "sha256": "c88ade85f0fafafc54fecfe7508e9d7c69b6a00ffbcf4f67200f270f472d3686"
+    },
+    {
+      "path": "tools/fixtures/current-native-driver.js",
+      "size_bytes": 3764,
+      "sha256": "f073c5597a345285f3156a527397ebb135309f3f4e03164a797b20be9fc1f485"
+    },
+    {
+      "path": "tools/fixtures/current-native-surfaces.js",
+      "size_bytes": 4914,
+      "sha256": "f1a1684f98dba2a03213beb3c8384f95aefd27acf06f557d1a8fa3b629c44cd7"
     },
     {
       "path": "tools/gui_regression.py",
@@ -242,6 +367,76 @@
       "sha256": "d05d471419880a3b05e6d03940e6b072cf385d4d6ff2439c6453dca611fe9122"
     },
     {
+      "path": "tools/native-core/README.md",
+      "size_bytes": 10234,
+      "sha256": "8687e16ae036550a71065a7725e0ed9c52953d75d92446ed98646705a69ca588"
+    },
+    {
+      "path": "tools/native-core/bootstrap-sdk.ps1",
+      "size_bytes": 1645,
+      "sha256": "7667303ec87284fac27868366d70d5c78e2bc5f4e2641b76af4cef015c876cfc"
+    },
+    {
+      "path": "tools/native-core/bootstrap-vs2026.ps1",
+      "size_bytes": 2523,
+      "sha256": "fc86577e28d272de429fd8ca41416ef2b7fd4e8aadc6d10ce4441aefa6145750"
+    },
+    {
+      "path": "tools/native-core/build-current-core.ps1",
+      "size_bytes": 5385,
+      "sha256": "f778d36e22a3c15860d607985262dcd0d4627f6584d0a5507fcd669f83100464"
+    },
+    {
+      "path": "tools/native-core/buildspec.json",
+      "size_bytes": 8014,
+      "sha256": "8675d195829847f5d513bcf38099742ffd12c35e3d7c564df1cebe85f2f9a47c"
+    },
+    {
+      "path": "tools/native-core/generate-capability-scope-patch.py",
+      "size_bytes": 4988,
+      "sha256": "2d73df840b1f9c3c0e7fe73a62fdeb3dd196ea154c973b6a6e088c58da20f924"
+    },
+    {
+      "path": "tools/native-core/generate-seed-patches.py",
+      "size_bytes": 11121,
+      "sha256": "14fb579a5b8d9281a20d41d48a5a887b473f36c5178feaa581a160acea3e0419"
+    },
+    {
+      "path": "tools/native-core/generate-timezone-patch.py",
+      "size_bytes": 11972,
+      "sha256": "790482e1042fba335651cdc171a4422a1b1a3a0fd27f5ebcc2ac271b6f651af6"
+    },
+    {
+      "path": "tools/native-core/inspect-sdk-bootstrap.py",
+      "size_bytes": 1286,
+      "sha256": "a025f3fd72077d1407d0c6d499b1f1e34c48ce5b549c652951866cdf19487b27"
+    },
+    {
+      "path": "tools/native-core/preflight.ps1",
+      "size_bytes": 3572,
+      "sha256": "1d7e800904a3c8155609688d6a2df17b51526c293aa0015fa8f057c6ab3b1943"
+    },
+    {
+      "path": "tools/native-core/test_verify_patch_series.py",
+      "size_bytes": 4509,
+      "sha256": "ee490896a52e1f3887dcfa853b9f43724e470f4c18dee3289833c7c7aad5e7c1"
+    },
+    {
+      "path": "tools/native-core/test_verify_pins.py",
+      "size_bytes": 2845,
+      "sha256": "c4448862f93f8a4808f32c284749a263cea68e069eb57161098e65d95909faaf"
+    },
+    {
+      "path": "tools/native-core/verify-patch-series.py",
+      "size_bytes": 5885,
+      "sha256": "d19b7f5aa675299f2dc4515261ca7e607fba57fce4c29dad2d2b7f31ab3871d1"
+    },
+    {
+      "path": "tools/native-core/verify-pins.py",
+      "size_bytes": 3416,
+      "sha256": "b2a6122034b63f66bb92e68ec014b8409c6493b3bf15c90ff19445225bc95469"
+    },
+    {
       "path": "tools/prepare-build-metadata.py",
       "size_bytes": 4874,
       "sha256": "8936d15627a8a95f8dcbb6d7fed14758f23f4a3c41025294470ed2a666dd4c34"
@@ -267,14 +462,24 @@
       "sha256": "85a184c015377472f81d48da4ce57b2f620b2074b4aceea9b5879fba7c010d1b"
     },
     {
+      "path": "tools/test_current_native_fingerprint.py",
+      "size_bytes": 28211,
+      "sha256": "9b346c67913ca76b298551e56d933488e31bb444845d129ba56f09901d65b243"
+    },
+    {
+      "path": "tools/test_current_native_harness_unit.py",
+      "size_bytes": 5793,
+      "sha256": "d8678cabcba1410ac645c54f12361e1937f6b49e5ca8810ae938b68bd9b23d0d"
+    },
+    {
       "path": "tools/test_native_fingerprint.py",
-      "size_bytes": 20967,
-      "sha256": "885fbf9b9f9f29798d373637349cd8763bbdfbd05edcf4c12fc87bd86184c269"
+      "size_bytes": 21908,
+      "sha256": "49d0ca3b69c9c5cc61593c1c077b89a72c9687251929c327104ef35faa4e24b5"
     },
     {
       "path": "tools/test_public_source_export.py",
-      "size_bytes": 5412,
-      "sha256": "61049af304f97a7c27f526b94abfcbf504c858ec38e67b0f395f0dbad612b768"
+      "size_bytes": 5740,
+      "sha256": "c06a5cb1ddf10feebbc341735b54f36b3c5dd50535949068b1b4a572414b8a20"
     },
     {
       "path": "tools/verify-release-archive.ps1",

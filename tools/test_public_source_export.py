@@ -32,7 +32,9 @@ class PublicExportTests(unittest.TestCase):
 
     def test_source_engine_fixture_included_runtime_and_qa_excluded(self):
         for name in ('browser_engine.py', 'test_browser_engine.py', 'tests/fixtures/fingerprint.html',
-                     'tools/engine.js', '.github/workflows/ci.yml', 'docs/PLAN.md'):
+                     'tools/engine.js', '.github/workflows/ci.yml', 'docs/PLAN.md',
+                     'core/patches/003-canvas.patch', 'core/native/helper.cc',
+                     'core/native/LICENSE', 'current_core.py', 'test_current_core.py'):
             self.write(name, '# synthetic fixture\n')
         for name in ('Data/private.json', 'Engine/config.json', 'build/trace.txt',
                      'release/README.md', '.git/config', 'docs/qa/host.json',
@@ -42,6 +44,9 @@ class PublicExportTests(unittest.TestCase):
         paths = {item['path'] for item in result['files']}
         self.assertIn('browser_engine.py', paths)
         self.assertIn('tests/fixtures/fingerprint.html', paths)
+        self.assertIn('core/patches/003-canvas.patch', paths)
+        self.assertIn('core/native/LICENSE', paths)
+        self.assertIn('current_core.py', paths)
         self.assertNotIn('Engine/config.json', paths)
         self.assertNotIn('docs/qa/host.json', paths)
         self.assertNotIn('assets/private.key', paths)

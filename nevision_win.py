@@ -1,8 +1,9 @@
 """NeAntik Win — local-first Windows browser-profile application.
 
-This application intentionally manages isolated, local browser data directories.
-It does not attempt to impersonate devices, bypass third-party anti-fraud systems,
-or automate accounts. See SECURITY_AND_SCOPE.md for the product boundary.
+Isolated local profiles support an explicitly selected, verified native Chromium
+core with stable identity, or ordinary installed browsers. Native availability
+is checked at launch; missing cores never silently fall back to stock browsers.
+This is not a promise to bypass third-party anti-fraud systems.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
+
+from current_core import ENGINE_DIRECTORY, MANIFEST_NAME, CoreError, CoreResolver, identity_arguments, new_identity, ordinary_identity, serialize_identity, validate_identity
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -457,6 +460,10 @@ class Storage:
                     details TEXT NOT NULL DEFAULT ''
                 );
                 CREATE INDEX IF NOT EXISTS idx_profiles_name ON profiles(name COLLATE NOCASE);
+                CREATE TABLE IF NOT EXISTS profile_fingerprints (
+                    profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+                    config_json TEXT NOT NULL
+                );
                 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
                 """
             )
@@ -502,15 +509,26 @@ class Storage:
         with self.connection() as db:
             rows = db.execute(
                 """
-                SELECT p.*, pr.name AS proxy_name, pr.scheme AS proxy_scheme, pr.host AS proxy_host, pr.port AS proxy_port
+                SELECT p.*, pr.name AS proxy_name, pr.scheme AS proxy_scheme, pr.host AS proxy_host, pr.port AS proxy_port,
+                       fp.config_json AS fingerprint_json
                 FROM profiles p
                 LEFT JOIN proxies pr ON pr.id = p.proxy_id
+                LEFT JOIN profile_fingerprints fp ON fp.profile_id = p.id
                 WHERE p.name LIKE ? OR p.group_name LIKE ? OR p.tags LIKE ?
                 ORDER BY lower(p.group_name), lower(p.name)
                 """,
                 (needle, needle, needle),
             ).fetchall()
-        return [dict(row) for row in rows]
+        profiles = []
+        for row in rows:
+            profile = dict(row)
+            encoded = profile.pop("fingerprint_json")
+            try:
+                profile["fingerprint"] = validate_identity(json.loads(encoded)) if encoded is not None else ordinary_identity()
+            except (CoreError, json.JSONDecodeError) as exc:
+                raise NeVisionError("Fingerprint-настройки профиля повреждены. Восстановите проверенный backup.") from exc
+            profiles.append(profile)
+        return profiles
 
     def get_profile(self, profile_id: str) -> dict[str, Any] | None:
         with self.connection() as db:
@@ -522,12 +540,40 @@ class Storage:
                 """,
                 (profile_id,),
             ).fetchone()
-        return self._row_to_dict(row)
+            fingerprint = db.execute("SELECT config_json FROM profile_fingerprints WHERE profile_id=?", (profile_id,)).fetchone()
+        result = self._row_to_dict(row)
+        if result is not None:
+            try:
+                result["fingerprint"] = validate_identity(json.loads(fingerprint["config_json"])) if fingerprint else ordinary_identity()
+            except (CoreError, json.JSONDecodeError) as exc:
+                raise NeVisionError("Fingerprint-настройки профиля повреждены. Восстановите проверенный backup.") from exc
+        return result
+
+    def _save_fingerprint_in_db(self, db: sqlite3.Connection, profile_id: str, fingerprint: dict[str, Any]) -> None:
+        db.execute("INSERT INTO profile_fingerprints(profile_id, config_json) VALUES (?, ?) ON CONFLICT(profile_id) DO UPDATE SET config_json=excluded.config_json", (profile_id, serialize_identity(fingerprint)))
 
     def save_profile(self, data: dict[str, Any], profile_id: str | None = None) -> str:
+        if profile_id and "fingerprint" in data:
+            with self.profile_operation_lock(profile_id):
+                return self._save_profile(data, profile_id)
+        return self._save_profile(data, profile_id)
+
+    def _save_profile(self, data: dict[str, Any], profile_id: str | None = None) -> str:
         name = str(data.get("name", "")).strip()
         if not name:
             raise NeVisionError("У профиля должно быть имя.")
+        fingerprint = None
+        if "fingerprint" in data:
+            try:
+                fingerprint = validate_identity(data["fingerprint"])
+            except CoreError as exc:
+                raise NeVisionError(str(exc)) from exc
+        if profile_id and fingerprint is not None:
+            original = self.get_profile(profile_id)
+            if original and original["fingerprint"] != fingerprint:
+                self.ensure_profile_closed(profile_id)
+                if original["fingerprint"]["mode"] != fingerprint["mode"] and any(filesystem_path(self.profile_path(profile_id)).iterdir()):
+                    raise NeVisionError("Для смены ядра создайте чистую копию профиля. Существующие браузерные данные остаются в исходном профиле.")
         proxy_id = str(data.get("proxy_id") or "").strip() or None
         payload = (
             name,
@@ -548,6 +594,8 @@ class Storage:
                     """UPDATE profiles SET name=?, group_name=?, tags=?, notes=?, proxy_id=?, updated_at=? WHERE id=?""",
                     (*payload, now, profile_id),
                 )
+                if fingerprint is not None:
+                    self._save_fingerprint_in_db(db, profile_id, fingerprint)
                 self.log_in_db(db, "profile.updated", profile_id, name)
                 return profile_id
         # Create the profile directory before committing its database record.  A
@@ -567,6 +615,7 @@ class Storage:
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (new_id, *payload, now, now),
                 )
+                self._save_fingerprint_in_db(db, new_id, fingerprint or ordinary_identity())
                 self.log_in_db(db, "profile.created", new_id, name)
         except Exception:
             with contextlib.suppress(OSError):
@@ -890,7 +939,8 @@ class Storage:
 
         journal = self.paths.operations / f"{uuid.uuid4().hex}.json"
         partial = self.paths.operations / f".{journal.name}.{uuid.uuid4().hex}.partial"
-        record = {"format": JOURNAL_FORMAT, "created_at": timestamp(), **payload}
+        native_restore = payload.get("operation") == "restore" and isinstance(payload.get("profile"), dict) and payload["profile"].get("fingerprint", {}).get("mode") == "native"
+        record = {**payload, "format": "neantik-operation-v2" if native_restore else JOURNAL_FORMAT, "created_at": timestamp()}
         try:
             with open(filesystem_path(partial), "x", encoding="utf-8") as output:
                 json.dump(record, output, ensure_ascii=False, sort_keys=True)
@@ -918,11 +968,11 @@ class Storage:
             payload = json.loads(journal.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise NeVisionError(f"Не удалось прочитать журнал незавершённой операции: {journal.name}") from exc
-        if not isinstance(payload, dict) or payload.get("format") != JOURNAL_FORMAT:
+        if not isinstance(payload, dict) or payload.get("format") not in (JOURNAL_FORMAT, "neantik-operation-v2"):
             raise NeVisionError(f"Журнал незавершённой операции имеет неверный формат: {journal.name}")
         return payload
 
-    def _journal_restore_profile(self, payload: dict[str, Any]) -> dict[str, str]:
+    def _journal_restore_profile(self, payload: dict[str, Any]) -> dict[str, Any]:
         profile = payload.get("profile")
         if not isinstance(profile, dict):
             raise NeVisionError("Журнал восстановления не содержит профиль.")
@@ -933,9 +983,15 @@ class Storage:
         name = str(profile["name"]).strip()
         if not name:
             raise NeVisionError("Журнал восстановления содержит профиль без имени.")
-        return {"id": profile_id, **{field: str(profile[field]) for field in fields}}
+        try:
+            fingerprint = validate_identity(profile.get("fingerprint", ordinary_identity()))
+        except CoreError as exc:
+            raise NeVisionError("Журнал восстановления содержит неверный fingerprint.") from exc
+        if (payload.get("format") == "neantik-operation-v2") != (fingerprint["mode"] == "native"):
+            raise NeVisionError("Формат журнала не соответствует fingerprint-профилю.")
+        return {"id": profile_id, **{field: str(profile[field]) for field in fields}, "fingerprint": fingerprint}
 
-    def _insert_recovered_profile(self, profile: dict[str, str], details: str) -> None:
+    def _insert_recovered_profile(self, profile: dict[str, Any], details: str) -> None:
         with self.connection() as db:
             existing = db.execute("SELECT id FROM profiles WHERE id = ?", (profile["id"],)).fetchone()
             if existing:
@@ -954,6 +1010,7 @@ class Storage:
                     profile["updated_at"],
                 ),
             )
+            self._save_fingerprint_in_db(db, profile["id"], profile.get("fingerprint", ordinary_identity()))
             self.log_in_db(db, "profile.restore_recovered", profile["id"], details)
 
     def _recover_delete_operation(self, payload: dict[str, Any]) -> None:
@@ -1078,6 +1135,9 @@ class Storage:
             "browser_session_data_included": True,
             "encrypted": False,
         }
+        if profile["fingerprint"]["mode"] == "native":
+            manifest["format"] = "neantik-profile-backup-v2"
+            manifest["profile"]["fingerprint"] = profile["fingerprint"]
         try:
             with zipfile.ZipFile(filesystem_path(partial), "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zip_out:
                 zip_out.writestr("nevision-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
@@ -1165,11 +1225,17 @@ class Storage:
                     raise NeVisionError("Manifest backup повреждён.") from exc
                 if not isinstance(manifest, dict):
                     raise NeVisionError("Manifest backup имеет неверный формат.")
-                if manifest.get("format") != "nevision-profile-backup-v1":
-                    raise NeVisionError("Это не backup NeAntik Win / NeVision Win v1.")
+                if manifest.get("format") not in ("nevision-profile-backup-v1", "neantik-profile-backup-v2"):
+                    raise NeVisionError("Неподдерживаемый формат backup NeAntik.")
                 original = manifest.get("profile", {})
                 if not isinstance(original, dict):
                     raise NeVisionError("Manifest backup имеет неверный профиль.")
+                try:
+                    fingerprint = validate_identity(original.get("fingerprint", ordinary_identity()))
+                except CoreError as exc:
+                    raise NeVisionError("Manifest backup содержит неверный fingerprint.") from exc
+                if (manifest["format"] == "neantik-profile-backup-v2") != (fingerprint["mode"] == "native"):
+                    raise NeVisionError("Формат backup не соответствует fingerprint-профилю.")
                 members = self._validated_backup_members(archive)
                 profile_name = name_override.strip() or str(original.get("name", "Восстановленный профиль"))
                 data = {
@@ -1178,6 +1244,7 @@ class Storage:
                     "tags": original.get("tags", ""),
                     "notes": original.get("notes", ""),
                     "proxy_id": None,
+                    "fingerprint": fingerprint,
                 }
                 staging = filesystem_path(self.paths.profiles / f".restore-{uuid.uuid4().hex}.partial")
                 staging.mkdir(parents=True, exist_ok=False)
@@ -1209,6 +1276,7 @@ class Storage:
                 "notes": str(data["notes"] or "").strip(),
                 "created_at": now,
                 "updated_at": now,
+                "fingerprint": data["fingerprint"],
             }
             journal = self._create_operation_journal(
                 {"operation": "restore", "profile": restored_profile, "staging_dir": staging.name}
@@ -1234,6 +1302,7 @@ class Storage:
                             restored_profile["updated_at"],
                         ),
                     )
+                    self._save_fingerprint_in_db(db, new_id, restored_profile["fingerprint"])
                     self.log_in_db(db, "profile.restored", new_id, archive_path.name)
             except Exception as exc:
                 try:
@@ -1307,6 +1376,7 @@ class BrowserLauncher:
 
     def __init__(self, storage: Storage):
         self.storage = storage
+        self.native_core = CoreResolver(storage.paths.root)
 
     def available_browsers(self) -> list[tuple[str, Path]]:
         discovered: list[tuple[str, Path]] = []
@@ -1349,7 +1419,11 @@ class BrowserLauncher:
         if profile.get("proxy_id") != current_profile.get("proxy_id"):
             raise NeVisionError("Назначенный proxy отсутствует или изменён. Обновите список и проверьте настройки перед запуском.")
         profile = current_profile
-        executable = self.resolve_browser()
+        fingerprint = profile["fingerprint"]
+        try:
+            executable = self.native_core.resolve() if fingerprint["mode"] == "native" else self.resolve_browser()
+        except CoreError as exc:
+            raise NeVisionError(str(exc)) from exc
         self.storage.ensure_profile_closed(profile_id)
         profile_dir = self.storage.profile_path(profile_id)
         profile_dir.mkdir(parents=True, exist_ok=True)
@@ -1358,6 +1432,7 @@ class BrowserLauncher:
             f"--user-data-dir={profile_dir}",
             "--no-first-run",
             "--no-default-browser-check",
+            *identity_arguments(fingerprint),
         ]
         if profile.get("proxy_id"):
             proxy = self.storage.get_proxy(str(profile["proxy_id"]))
@@ -1694,10 +1769,20 @@ class BaseDialog(tk.Toplevel):
 
 class ProfileDialog(BaseDialog):
     def __init__(self, app: "NeVisionApp", profile: dict[str, Any] | None = None):
-        super().__init__(app, "Новый профиль" if not profile else "Изменить профиль", "560x570")
+        super().__init__(app, "Новый профиль" if not profile else "Изменить профиль", "560x650")
         self.profile = profile
-        body = ttk.Frame(self, style="Panel.TFrame", padding=24)
-        body.pack(fill="both", expand=True)
+        self.identity = profile.get("fingerprint", ordinary_identity()) if profile else new_identity()
+        viewport = ttk.Frame(self, style="Panel.TFrame")
+        viewport.pack(fill="both", expand=True)
+        canvas = tk.Canvas(viewport, bg=app.colors["panel"], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(viewport, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        body = ttk.Frame(canvas, style="Panel.TFrame", padding=24)
+        window = canvas.create_window((0, 0), window=body, anchor="nw")
+        body.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
         ttk.Label(body, text="Профиль браузера", style="DialogTitle.TLabel").pack(anchor="w", pady=(0, 16))
         self.name = self.labeled_entry(body, "Название *", profile.get("name", "") if profile else "")
         self.group = self.labeled_entry(body, "Папка / группа", profile.get("group_name", "") if profile else "")
@@ -1712,10 +1797,36 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=list(self.proxy_map), style="Input.TCombobox", state="readonly")
         self.proxy.set(selected_label)
         self.proxy.pack(fill="x", pady=(0, 14))
+        ttk.Label(body, text="Режим браузера", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+        self.mode = ttk.Combobox(body, values=("Native fingerprint · ядро NeAntik", "Обычный Chrome / Edge"), state="readonly", style="Input.TCombobox")
+        self.mode.current(0 if self.identity["mode"] == "native" else 1)
+        self.mode.pack(fill="x", pady=(0, 10))
+        current_hardware = (self.identity.get("hardware_concurrency", 8), self.identity.get("device_memory", "8"))
+        self.hardware_presets = {"4 потока · 4 GB": (4, "4"), "8 потоков · 8 GB": (8, "8"), "16 потоков · 16 GB": (16, "16")}
+        hardware_label = next((label for label, values in self.hardware_presets.items() if values == current_hardware), f"{current_hardware[0]} потоков · {current_hardware[1]} GB")
+        self.hardware_presets[hardware_label] = current_hardware
+        self.hardware = ttk.Combobox(body, values=list(self.hardware_presets), state="readonly", style="Input.TCombobox")
+        self.hardware.set(hardware_label)
+        self.hardware.pack(fill="x", pady=(0, 7))
+        ttk.Label(body, text="Часовой пояс", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+        self.timezone_presets = {"Системный (без подмены)": "system", "UTC": "UTC", "Europe/Berlin": "Europe/Berlin", "Europe/London": "Europe/London", "America/New_York": "America/New_York", "Asia/Bangkok": "Asia/Bangkok"}
+        current_timezone = self.identity.get("timezone", "system")
+        timezone_label = next((label for label, value in self.timezone_presets.items() if value == current_timezone), current_timezone)
+        self.timezone_presets[timezone_label] = current_timezone
+        self.timezone = ttk.Combobox(body, values=list(self.timezone_presets), state="readonly", style="Input.TCombobox")
+        self.timezone.set(timezone_label)
+        self.timezone.pack(fill="x", pady=(0, 7))
+        def mode_changed(_event: Any = None) -> None:
+            state = "readonly" if self.mode.current() == 0 else "disabled"
+            self.hardware.configure(state=state)
+            self.timezone.configure(state=state)
+        self.mode.bind("<<ComboboxSelected>>", mode_changed)
+        mode_changed()
+        ttk.Label(body, text="Native требует собственного ядра NeAntik. Старые профили сохраняют обычный режим.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
             body,
-            height=5,
+            height=3,
             bg=app.colors["input"],
             fg=app.colors["text"],
             insertbackground=app.colors["text"],
@@ -1727,11 +1838,17 @@ class ProfileDialog(BaseDialog):
         )
         self.notes.insert("1.0", profile.get("notes", "") if profile else "")
         self.notes.pack(fill="both", expand=True)
-        self.footer(body, self.save, "Сохранить")
+        self.footer(self, self.save, "Сохранить")
         self.name.focus_set()
 
     def save(self) -> None:
         try:
+            if self.mode.current() == 0:
+                cpu, memory = self.hardware_presets[self.hardware.get()]
+                identity = dict(self.identity) if self.identity["mode"] == "native" else new_identity()
+                identity.update(hardware_concurrency=cpu, device_memory=memory, timezone=self.timezone_presets[self.timezone.get()])
+            else:
+                identity = ordinary_identity()
             profile_id = self.app.storage.save_profile(
                 {
                     "name": self.name.get(),
@@ -1739,6 +1856,7 @@ class ProfileDialog(BaseDialog):
                     "tags": self.tags.get(),
                     "notes": self.notes.get("1.0", "end-1c"),
                     "proxy_id": self.proxy_map.get(self.proxy.get(), ""),
+                    "fingerprint": identity,
                 },
                 self.profile.get("id") if self.profile else None,
             )
@@ -2271,12 +2389,16 @@ class NeVisionApp:
         heading = tk.Frame(top, bg=self.colors["panel"])
         heading.pack(side="left", fill="x", expand=True, padx=(13, 0))
         tk.Label(heading, text=profile["name"], bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 20, "bold"), wraplength=380, justify="left").pack(anchor="w")
-        sub = "  ·  ".join(part for part in [profile.get("group_name"), profile.get("tags")] if part) or "Локальный профиль браузера"
+        identity = profile.get("fingerprint", ordinary_identity())
+        native = identity["mode"] == "native"
+        identity_label = f"Native · {identity['hardware_concurrency']} CPU · {identity['device_memory']} GB · {identity.get('timezone', 'system')}" if native else "Обычный браузер · без подмены"
+        sub = "  ·  ".join(part for part in [identity_label, profile.get("group_name"), profile.get("tags")] if part)
         tk.Label(heading, text=sub, bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 0))
         is_running = self._is_profile_active(str(profile["id"]))
         chip_bg = self.colors["lime_surface"] if is_running else self.colors["panel_2"]
         chip_fg = self.colors["lime"] if is_running else self.colors["muted"]
-        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else "ГОТОВ")
+        core_present = (self.paths.root / ENGINE_DIRECTORY / MANIFEST_NAME).is_file() if native else True
+        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else ("НЕТ NATIVE-ЯДРА" if native and not core_present else "ПРОВЕРКА ПРИ ЗАПУСКЕ" if native else "ГОТОВ"))
         status_chip = tk.Frame(top, bg=chip_bg, padx=10, pady=6)
         status_chip.pack(side="right", padx=(10, 8), pady=5)
         tk.Label(status_chip, text=state, bg=chip_bg, fg=chip_fg, font=("Segoe UI", 8, "bold")).pack()
@@ -2396,7 +2518,8 @@ class NeVisionApp:
             profile_id = str(profile["id"])
             visible_ids.add(profile_id)
             running = self._is_profile_active(profile_id)
-            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "ГОТОВ")
+            native = profile.get("fingerprint", ordinary_identity())["mode"] == "native"
+            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "NATIVE" if native else "ГОТОВ")
             tags = ("running",) if running else ()
             values = (profile["name"], profile.get("group_name") or "—", status)
             if profile_id in existing_ids:
@@ -2469,7 +2592,7 @@ class NeVisionApp:
         if self._is_profile_active(str(profile["id"])):
             messagebox.showinfo(APP_NAME, "Профиль уже открыт. Расширения доступны через меню браузера → Расширения. Для нового запуска закройте все окна этого профиля.", parent=self.root)
             return
-        if not self.launcher.available_browsers():
+        if profile["fingerprint"]["mode"] == "ordinary" and not self.launcher.available_browsers():
             messagebox.showinfo(APP_NAME, "Chrome или Edge не найден. Установите браузер с официального сайта или выберите уже установленный EXE в Настройках. NeVision не скачивает браузер автоматически.", parent=self.root)
             SettingsDialog(self)
             return
@@ -2506,6 +2629,7 @@ class NeVisionApp:
                     "tags": profile.get("tags", ""),
                     "notes": f"Создано как чистая копия профиля «{profile['name']}».\n\n{profile.get('notes', '')}".strip(),
                     "proxy_id": profile.get("proxy_id") or None,
+                    "fingerprint": new_identity(cpu=profile["fingerprint"]["hardware_concurrency"], memory=profile["fingerprint"]["device_memory"], timezone=profile["fingerprint"].get("timezone", "system")) if profile["fingerprint"]["mode"] == "native" else ordinary_identity(),
                 }
             )
             self.storage.log("profile.settings_cloned", new_id, f"source={profile['id']}")
@@ -2779,6 +2903,13 @@ def self_test() -> int:
         assert filesystem_path(storage.profile_path(restored_id) / long_relative).read_bytes() == b"synthetic long-path self-test"
         assert len(storage.list_profiles()) == 2
         assert len(storage.list_events()) >= 4
+        identity = new_identity()
+        native_id = storage.save_profile({"name": "Native identity self-test", "fingerprint": identity})
+        native_backup = storage.backup_profile(native_id)
+        native_restored = storage.restore_profile(native_backup, "Native identity restored")
+        assert storage.get_profile(native_restored)["fingerprint"] == identity
+        storage.save_profile({"name": "Native metadata updated"}, native_id)
+        assert storage.get_profile(native_id)["fingerprint"] == identity
         print(f"{APP_NAME} self-test: PASS")
         return 0
     except Exception as exc:
