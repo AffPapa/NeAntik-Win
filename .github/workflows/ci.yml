@@ -41,6 +41,10 @@ jobs:
       - name: Verify pinned-source tooling
         run: python -m unittest discover -s tools/native-core -p test_*.py -v
 
+      - name: Verify owned build process exit handling
+        shell: pwsh
+        run: .\tools\native-core\test-owned-process-exit.ps1
+
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v
 
