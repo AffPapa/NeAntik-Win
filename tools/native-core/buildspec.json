@@ -105,6 +105,10 @@
       {
         "path": "core/patches/010-define-core-info-file-path.patch",
         "sha256": "46f27ce7bf90f085ad0b877ba7dc95de8aaf8b0b100b5ad0b16841a785f0ad7c"
+      },
+      {
+        "path": "core/patches/011-canvas-safe-channel-index.patch",
+        "sha256": "53396317633d6632f561e49cbdf80f8bd4afbeb230b384633ed5fd7c38e9dd17"
       }
     ],
     "postimage_sha256": {
@@ -122,7 +126,7 @@
       "third_party/blink/renderer/core/timezone/timezone_controller.cc": "41740943175615280a94137d1def6a3464c3a6791dbd2aa3ae0b37e91c9c3135",
       "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc": "5f6acb352579616ec415ef34bf5bfa66dd2f0ef5eddab6aecfceee47fa3b8204",
       "third_party/blink/renderer/platform/BUILD.gn": "9e2697c87596fa8cd371740289faa22389e97c4942e3b683378e0a2fc14790de",
-      "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc": "4ac0769d7ec8a58ac48b58b9c4bf47d51e23afab261d34b377ef9e3654e0465a",
+      "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc": "c9fd8056cb92cfee78aeb15bbc0ca71715eb810b21a81fa403fa5407bc3cd239",
       "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h": "9518be9001f6717b2c66a598167262e3cb9cddcbae1784839f1592eee4cec7cf",
       "third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc": "8643ae65c16f7e5a80979c32b06c85e441dcc5ae96bf1a4577433bf517dec98d",
       "third_party/blink/web_tests/http/tests/neantik/resources/timezone-frame.html": "d3eb45df6ed36bedc8410eecaa550141e8015789cf06edcb863fc3b9c9ca68aa",
