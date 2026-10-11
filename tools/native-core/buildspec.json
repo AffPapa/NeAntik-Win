@@ -45,14 +45,14 @@
     "minimum_free_gib_before_checkout": 140,
     "minimum_free_gib_before_build": 40,
     "os_reserve_gib": 40,
-    "minimum_free_ram_gib_during_build": 3.5,
+    "minimum_free_ram_gib_during_build": 2.25,
     "minimum_free_commit_gib_during_build": 1.5,
     "critical_free_ram_gib_during_build": 2,
     "critical_free_commit_gib_during_build": 1,
     "low_memory_consecutive_samples": 3,
     "policy_is_estimate_not_upstream_requirement": true,
     "memory_gib_minimum": 16,
-    "jobs": 6,
+    "jobs": 7,
     "default_root": "C:\\NeAntikCoreBuild"
   },
   "gn_args": [
