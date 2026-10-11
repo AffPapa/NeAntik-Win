@@ -96,11 +96,26 @@ class PackagingTests(unittest.TestCase):
         sha = result["manifest_sha256"]
         qa = self.root / "qa.json"
         report = {"format": "neantik-own155-native-qa-v1", "status": "passed",
-                  "verification": {"manifest_sha256": sha, "bundle_reverified_after_visits": True},
+                  "verification": {"manifest_sha256": sha},
+                  "bundle_reverified_after_visits": True,
                   "assertions": [{"passed": True}]}
         qa.write_text(json.dumps(report))
         with patch.object(package.core.CoreResolver, "_probe"):
             self.assertEqual(package.verify_existing(self.destination, sha, qa)["qa_status"], "passed")
+        # The actual native harness records post-visit revalidation at top level.
+        # A legacy nested-only field must never authorize a release.
+        report.pop("bundle_reverified_after_visits")
+        report["verification"]["bundle_reverified_after_visits"] = True
+        qa.write_text(json.dumps(report))
+        with self.assertRaisesRegex(ValueError, "QA report"):
+            package.verify_existing(self.destination, sha, qa)
+        report["verification"].pop("bundle_reverified_after_visits")
+        for invalid in (False, 1, "true", None):
+            report["bundle_reverified_after_visits"] = invalid
+            qa.write_text(json.dumps(report))
+            with self.subTest(flag=invalid), self.assertRaisesRegex(ValueError, "QA report"):
+                package.verify_existing(self.destination, sha, qa)
+        report["bundle_reverified_after_visits"] = True
         report["assertions"][0]["passed"] = False
         qa.write_text(json.dumps(report))
         with self.assertRaisesRegex(ValueError, "QA report"):

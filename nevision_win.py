@@ -2353,10 +2353,10 @@ class NeVisionApp:
         draw_vector_icon(illustration, "profiles", 25, 25, 36, self.colors["violet_soft"])
         illustration.pack(pady=(0, 19))
         tk.Label(empty, text="Ваше рабочее пространство", bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 21, "bold")).pack()
-        tk.Label(empty, text="Создайте локальный профиль или выберите существующий слева.\nКаждый профиль использует отдельную папку данных Chrome или Edge.", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
+        tk.Label(empty, text="Создайте локальный профиль или выберите существующий слева.\nДанные каждого профиля хранятся отдельно. Для Native нужен проверенный комплект ядра NeAntik.", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
         IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42).pack()
-        tk.Label(empty, text="Стоковый браузер · локальные данные · без cloud sync", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
-        tk.Label(empty, text="Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\nНужен установленный Chrome или Edge. Python устанавливать не нужно.", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
+        tk.Label(empty, text="Native или обычный профиль · данные локально · без cloud sync", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
+        tk.Label(empty, text="Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\nChrome или Edge используются только для обычных профилей.", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
         IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200).pack(pady=(12, 0))
 
     def _metric_card(self, parent: tk.Misc, icon: str, title: str, value: str, accent: str) -> tk.Frame:
@@ -2867,7 +2867,7 @@ class NeVisionApp:
     def show_about(self) -> None:
         messagebox.showinfo(
             APP_NAME,
-            f"{APP_NAME} {APP_VERSION}\n\nLocal-first менеджер изолированных браузерных профилей для Windows.\n\nВключает локальные профили, Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.\n\nНе реализует подмену личности, обход антифрода или автоматизацию аккаунтов.",
+            f"{APP_NAME} {APP_VERSION}\n\nЛокальные изолированные профили для Windows: Native на собственном проверяемом ядре Chromium или обычные Chrome/Edge.\n\nВключает Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.\n\nNative требует отдельного проверенного комплекта ядра; наличие ядра и поддержка CPU, памяти, часового пояса и ограниченной Canvas-подмены проверяются перед запуском. Это не гарантия прохождения антифрод-проверок. Автоматизация аккаунтов не предусмотрена.",
             parent=self.root,
         )
 

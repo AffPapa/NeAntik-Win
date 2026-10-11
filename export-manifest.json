@@ -207,6 +207,11 @@
       "sha256": "47849cb8641aaacb1dbe06e77e10066a8a09b17f6b6e7bb9298ef8188c196960"
     },
     {
+      "path": "core/patches/007-deterministic-midl-name-hashes.patch",
+      "size_bytes": 5595,
+      "sha256": "56b38129f88f6890ecd71328cc120dca151b322789b1839be5c187603e77faf2"
+    },
+    {
       "path": "core/patches/capability-chain-provenance.json",
       "size_bytes": 4990,
       "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
@@ -215,6 +220,11 @@
       "path": "core/patches/combined-patch-provenance.json",
       "size_bytes": 3243,
       "sha256": "b3b6701d1bad7cbedf5920de58fac78bee23262b010ccbc160c15a573a89d9b2"
+    },
+    {
+      "path": "core/patches/midl-chain-provenance.json",
+      "size_bytes": 5498,
+      "sha256": "6c58b017bd492b49458d7d979a26431dfa6343c3af7b74ca3b669a0099caecee"
     },
     {
       "path": "core/patches/seed-patch-provenance.json",
@@ -273,8 +283,8 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 162138,
-      "sha256": "5f17bfa8f1bfa47e5fe180c5f6646c2f2b7d2184b0cbc6c7e7cfaf975daa5962"
+      "size_bytes": 162545,
+      "sha256": "ab1848597ce2e38bfc8e6927bb128c2bbe70fea15e281f88f7cfe69a2307b41d"
     },
     {
       "path": "release-version.json",
@@ -298,8 +308,8 @@
     },
     {
       "path": "test_current_core.py",
-      "size_bytes": 13502,
-      "sha256": "6415089a4fa9b797d4be1fd4b7b7c0370d91c570f0f62f258e9c8e80f847479e"
+      "size_bytes": 13514,
+      "sha256": "08a13ab052a644695239997350c52461a5b4fc5eb3205def9121bfea0745e93d"
     },
     {
       "path": "test_nevision_win.py",
@@ -368,8 +378,8 @@
     },
     {
       "path": "tools/native-core/README.md",
-      "size_bytes": 13119,
-      "sha256": "8106a014b18b4dc8261961543dd7eb64c860a2582546dc7f102c37e9bdc10c91"
+      "size_bytes": 14204,
+      "sha256": "39ade2964c7662b39025df9228be069b3fc6bb714c6c0e809dd9ba87ea263493"
     },
     {
       "path": "tools/native-core/bootstrap-sdk.ps1",
@@ -388,8 +398,8 @@
     },
     {
       "path": "tools/native-core/buildspec.json",
-      "size_bytes": 8014,
-      "sha256": "8675d195829847f5d513bcf38099742ffd12c35e3d7c564df1cebe85f2f9a47c"
+      "size_bytes": 8294,
+      "sha256": "85e6a6b2f225b25505eaeb7e26e661a3e08acdf4c824e52b0b6ce38f16066962"
     },
     {
       "path": "tools/native-core/generate-capability-scope-patch.py",
@@ -417,9 +427,14 @@
       "sha256": "a025f3fd72077d1407d0c6d499b1f1e34c48ce5b549c652951866cdf19487b27"
     },
     {
+      "path": "tools/native-core/midl-namehash-diagnostic.py",
+      "size_bytes": 5455,
+      "sha256": "b794b24e87bb52af0c004f4a7b215114619a6ab64c633d82e91f75fcb91a8087"
+    },
+    {
       "path": "tools/native-core/package-engine.py",
-      "size_bytes": 13895,
-      "sha256": "8aa713e4b3e3d93e52d8f564aa6a966d7a2da8d9ed68a2ca95ae194a742eddb7"
+      "size_bytes": 13889,
+      "sha256": "6359da3c4a99322eea3baf9277e2bc0739233bc63750a7dd807908033b6c599b"
     },
     {
       "path": "tools/native-core/preflight.ps1",
@@ -432,9 +447,14 @@
       "sha256": "431f4ba3e854ade52085c4068a43cb92f0f0da0808229cd62e91a22524cb6d41"
     },
     {
+      "path": "tools/native-core/test_midl_namehash.py",
+      "size_bytes": 4640,
+      "sha256": "823c5ee9921ff3f6a5172c30affc2353079fb9e96711bc72fed9b1f90f603762"
+    },
+    {
       "path": "tools/native-core/test_package_engine.py",
-      "size_bytes": 6666,
-      "sha256": "d39227cb9668e0e5326a434f3d7004567d1b067911b5d5e1f18ed3a1c0ac0c69"
+      "size_bytes": 7571,
+      "sha256": "b165d5cd970bb19025602058e2512e371f4b0960ffe4d13a9995e440625cb85a"
     },
     {
       "path": "tools/native-core/test_verify_patch_series.py",

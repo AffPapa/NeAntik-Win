@@ -219,7 +219,7 @@ class BundleTests(unittest.TestCase):
                         "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
             (directory / core.MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
             with patch.object(resolver, "_probe") as probe:
-                self.assertEqual(resolver.resolve(), directory / "chrome.exe")
+                self.assertEqual(resolver.resolve(), (directory / "chrome.exe").resolve())
                 resolver.resolve()
                 probe.assert_called_once()
                 (directory / "chrome.dll").write_bytes(b"tampered payload")

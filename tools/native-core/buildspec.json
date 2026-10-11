@@ -89,6 +89,10 @@
       {
         "path": "core/patches/006-core-capability-scope.patch",
         "sha256": "47849cb8641aaacb1dbe06e77e10066a8a09b17f6b6e7bb9298ef8188c196960"
+      },
+      {
+        "path": "core/patches/007-deterministic-midl-name-hashes.patch",
+        "sha256": "56b38129f88f6890ecd71328cc120dca151b322789b1839be5c187603e77faf2"
       }
     ],
     "postimage_sha256": {
@@ -118,7 +122,8 @@
       "third_party/blink/web_tests/http/tests/neantik/timezone.html": "20e5e1c19c5434c480ca4b1cd139debc8f8ee150e80fc2bc77897edb11ce3b61",
       "third_party/blink/web_tests/neantik/canvas-readback-expected.txt": "d30e4fbf14e4ed5ac865f866b1bbd6931fa05b93e7e046716c95a907573bc063",
       "third_party/blink/web_tests/neantik/canvas-readback.html": "4ad71ca0ce22b902d9fd3f344b46338409479347e4069dfb74724e2e0e2ca9fe",
-      "DEPS": "a4e72f5140a96b13f87ce367634df5546de0596da9ee3406ce074c751c3d1cf4"
+      "DEPS": "a4e72f5140a96b13f87ce367634df5546de0596da9ee3406ce074c751c3d1cf4",
+      "build/toolchain/win/midl.py": "aa1e8eee69f10344bf4ab65fcf434b32d7119cada064849ceabe9a8698127d1b"
     },
     "required_test_contexts": [
       "main-frame",

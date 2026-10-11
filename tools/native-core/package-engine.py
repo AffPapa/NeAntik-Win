@@ -191,7 +191,7 @@ def verify_existing(directory: Path, trusted_hash: str, qa_report: Path) -> dict
     report = json.loads(qa_report.read_text(encoding="utf-8"))
     verification = report.get("verification", {})
     assertions = report.get("assertions")
-    if report.get("format") != "neantik-own155-native-qa-v1" or report.get("status") != "passed" or verification.get("manifest_sha256") != trusted_hash or verification.get("bundle_reverified_after_visits") is not True or not isinstance(assertions, list) or not assertions or any(not isinstance(item, dict) or item.get("passed") is not True for item in assertions):
+    if report.get("format") != "neantik-own155-native-qa-v1" or report.get("status") != "passed" or verification.get("manifest_sha256") != trusted_hash or report.get("bundle_reverified_after_visits") is not True or not isinstance(assertions, list) or not assertions or any(not isinstance(item, dict) or item.get("passed") is not True for item in assertions):
         raise ValueError("Independent own155 QA report does not attest this exact bundle")
     executable = core.CoreResolver(directory.parent.parent).resolve()
     return {"state": "existing-core-verified", "manifest_sha256": trusted_hash,
