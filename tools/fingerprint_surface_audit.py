@@ -254,7 +254,7 @@ class AuditHandler(BaseHTTPRequestHandler):
             self.reply(400, b"Invalid report")
 
 
-def audit_profile(chrome: Path, root: Path) -> dict:
+def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = ()) -> dict:
     profile = root / "Profile"
     if not initialize_privacy_defaults(profile):
         raise RuntimeError("Could not initialize a fresh profile")
@@ -274,7 +274,8 @@ def audit_profile(chrome: Path, root: Path) -> dict:
                      "--disable-component-update", "--disable-sync", "--disable-quic",
                      "--metrics-recording-only", f"--proxy-server=http://127.0.0.1:{server.server_port}",
                      "--proxy-bypass-list=127.0.0.1;localhost",
-                     "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", url]
+                     "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+                     *native_flags, url]
         process = spawn_owned_browser(arguments, root, job)
         stdout, stderr = process.communicate(input=b"G", timeout=45)
         if process.returncode != 0:

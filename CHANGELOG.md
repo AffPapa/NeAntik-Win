@@ -18,6 +18,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   local sink received none; their proxy-bound cases attempted zero UDP sends.
   This narrows the discrepancy away from the published CPU/memory patch but
   does not resolve delivery, so the overall result remains inconclusive.
+- Added a disposable Canvas probe and documented a separate native-persona
+  development build. Its seed-based Canvas and timezone behavior is **not** in
+  the 0.8.1 public download and is not enabled in the profile manager.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 

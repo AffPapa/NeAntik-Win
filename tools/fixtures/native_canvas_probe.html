@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<pre id="result">pending</pre>
+<script>
+(() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 24;
+  const context = canvas.getContext('2d', {willReadFrequently: true});
+  context.fillStyle = 'rgb(43,87,131)';
+  context.fillRect(0, 0, 32, 24);
+  context.fillStyle = 'rgb(198,146,72)';
+  context.fillRect(2, 3, 9, 7);
+  const read = () => Array.from(context.getImageData(0, 0, 32, 24).data);
+  const first = read();
+  const second = read();
+  const region = Array.from(context.getImageData(4, 5, 7, 8).data);
+  let regionMatches = true;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 7; x++) for (let channel = 0; channel < 4; channel++) {
+    if (region[(y * 7 + x) * 4 + channel] !== first[((y + 5) * 32 + x + 4) * 4 + channel]) regionMatches = false;
+  }
+  const png1 = canvas.toDataURL('image/png');
+  const png2 = canvas.toDataURL('image/png');
+  const afterExport = read();
+  context.clearRect(0, 0, 32, 24);
+  const clear = read();
+  const hash = values => values.reduce((acc, value) => Math.imul(acc ^ value, 16777619) >>> 0, 2166136261);
+  document.getElementById('result').textContent = JSON.stringify({
+    pixelHash: hash(first), pngHash: hash(Array.from(png1).map(character => character.charCodeAt(0))),
+    repeatMatches: first.every((value, index) => value === second[index]),
+    regionMatches, pngRepeatMatches: png1 === png2,
+    exportPreservesBacking: first.every((value, index) => value === afterExport[index]),
+    clearIsTransparent: clear.every(value => value === 0)
+  });
+})();
+</script></body></html>
