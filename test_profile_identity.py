@@ -150,6 +150,21 @@ class OrdinaryIdentityTests(unittest.TestCase):
             self.assertEqual(storage.get_profile(restored_id)["fingerprint"], identity_value)
             self.assertEqual((storage.profile_path(restored_id) / "smoke.txt").read_text(encoding="utf-8"), "disposable")
 
+    def test_native_backup_cannot_be_downgraded_or_launder_legacy_format(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-native-backup-format-") as temporary:
+            root = Path(temporary)
+            storage = Storage(AppPaths(root))
+            fingerprint = identity.native_preview_identity(123456)
+            for archive_format in ("nevision-profile-backup-v1", "neantik-profile-backup-v2"):
+                archive = root / f"{archive_format}.zip"
+                with zipfile.ZipFile(archive, "w") as packed:
+                    packed.writestr("nevision-manifest.json", json.dumps({
+                        "format": archive_format, "profile": {"name": "Invalid", "fingerprint": fingerprint}}))
+                    packed.writestr("profile/state.txt", "fixture")
+                with self.subTest(archive_format=archive_format), self.assertRaisesRegex(NeVisionError, "Формат backup"):
+                    storage.restore_profile(archive)
+            self.assertEqual(storage.list_profiles(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

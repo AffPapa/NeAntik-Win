@@ -51,6 +51,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Corrected the muted-label theme style found during disposable dark/light GUI
   inspection; explanatory text in the profile form now uses the dialog surface
   instead of the operating system's default light label background.
+- Added archive-level native patch/capability provenance checks and negative
+  fixtures. A public package carrying the experimental core must state its
+  exact native patch hash; malformed capability receipts are rejected.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 

@@ -82,6 +82,14 @@ function New-TestArchive([string]$Mode) {
                 license_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/LICENSE'];
                 credits_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/credits.html'] }
             if ($Mode -like 'chromium-source-privacy*') { $engineReceipt.privacy_patch_sha256 = 'f' * 64 }
+            if ($Mode -like 'chromium-source-privacy-native*') {
+                $engineReceipt.native_persona_patch_sha256 = 'f' * 64
+                $engineReceipt.native_persona_core_info = [ordered]@{ engine_id = 'neantik-chromium'; schema = 1;
+                    version = '155.0.8059.40'; source_commit = 'a' * 40;
+                    capabilities = [ordered]@{ stable_seed = $true; hardware_concurrency = $true; device_memory = $true;
+                        canvas_opaque_srgb_uint8 = $true; timezone = $true } }
+                if ($Mode -eq 'chromium-source-privacy-native-bad-info') { $engineReceipt.native_persona_core_info.capabilities.timezone = $false }
+            }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
         $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
@@ -113,6 +121,10 @@ function New-TestArchive([string]$Mode) {
                 $manifest.fingerprint_modification = $true
                 if ($Mode -eq 'chromium-source-privacy-false') { $manifest.fingerprint_modification = $false }
                 if ($Mode -eq 'chromium-source-privacy-mismatch') { $manifest.engine.privacy_patch_sha256 = '0' * 64 }
+            }
+            if ($Mode -like 'chromium-source-privacy-native*') {
+                $manifest.engine.native_persona_patch_sha256 = 'f' * 64
+                if ($Mode -eq 'chromium-source-privacy-native-mismatch') { $manifest.engine.native_persona_patch_sha256 = '0' * 64 }
             }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
@@ -176,6 +188,13 @@ $script:passed++
 $chromiumSourcePrivacy = New-TestArchive 'chromium-source-privacy'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourcePrivacy
 $script:passed++
+$chromiumNative = New-TestArchive 'chromium-source-privacy-native'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumNative
+$script:passed++
+foreach ($case in @('chromium-source-privacy-native-mismatch', 'chromium-source-privacy-native-bad-info')) {
+    $archive = New-TestArchive $case
+    Expect-Failure "archive $case rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } 'Native persona provenance'
+}
 foreach ($case in @(@('chromium-source-privacy-false', 'disclosed'), @('chromium-source-privacy-mismatch', 'provenance'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]

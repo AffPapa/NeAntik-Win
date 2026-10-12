@@ -134,6 +134,25 @@ try {
             $manifestPrivacyPatch = if ($manifest.engine.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$manifest.engine.privacy_patch_sha256 } else { '' }
             if ($receiptPrivacyPatch -ne $manifestPrivacyPatch -or
                 ($receiptPrivacyPatch -and $receiptPrivacyPatch -notmatch '^[0-9a-f]{64}$')) { throw 'Browser privacy patch provenance is invalid.' }
+            $receiptNativePatch = if ($engineReceipt.PSObject.Properties.Name -contains 'native_persona_patch_sha256') { [string]$engineReceipt.native_persona_patch_sha256 } else { '' }
+            $manifestNativePatch = if ($manifest.engine.PSObject.Properties.Name -contains 'native_persona_patch_sha256') { [string]$manifest.engine.native_persona_patch_sha256 } else { '' }
+            $nativeCoreInfo = if ($engineReceipt.PSObject.Properties.Name -contains 'native_persona_core_info') { $engineReceipt.native_persona_core_info } else { $null }
+            if ($receiptNativePatch) {
+                if ($receiptNativePatch -ne $receiptPrivacyPatch -or $manifestNativePatch -ne $receiptNativePatch -or
+                    $null -eq $nativeCoreInfo -or $nativeCoreInfo.engine_id -ne 'neantik-chromium' -or
+                    ($nativeCoreInfo.schema -isnot [int] -and $nativeCoreInfo.schema -isnot [long]) -or $nativeCoreInfo.schema -ne 1 -or
+                    $nativeCoreInfo.version -ne $engineReceipt.chromium_version -or
+                    $nativeCoreInfo.source_commit -ne $engineReceipt.source_commit -or
+                    $nativeCoreInfo.capabilities.stable_seed -isnot [bool] -or $nativeCoreInfo.capabilities.stable_seed -ne $true -or
+                    $nativeCoreInfo.capabilities.hardware_concurrency -isnot [bool] -or $nativeCoreInfo.capabilities.hardware_concurrency -ne $true -or
+                    $nativeCoreInfo.capabilities.device_memory -isnot [bool] -or $nativeCoreInfo.capabilities.device_memory -ne $true -or
+                    $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -isnot [bool] -or $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $true -or
+                    $nativeCoreInfo.capabilities.timezone -isnot [bool] -or $nativeCoreInfo.capabilities.timezone -ne $true) {
+                    throw 'Native persona provenance or compiled capabilities are invalid.'
+                }
+            } elseif ($manifestNativePatch -or $null -ne $nativeCoreInfo) {
+                throw 'Native persona provenance is incomplete.'
+            }
             $hasApprovedFingerprintPatch = [bool]$receiptPrivacyPatch
             if ($manifest.version -in @('0.8.0-preview', '0.8.1-preview') -and -not $hasApprovedFingerprintPatch) { throw 'This release requires the reviewed native privacy patch.' }
             if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview', '0.8.1-preview')) {
