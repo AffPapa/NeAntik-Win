@@ -53,3 +53,21 @@ document.getElementById("check-ip")?.addEventListener("click", async (event) => 
     button.disabled = false;
   }
 });
+
+document.getElementById("check-headers")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  show("ua-match", "Проверка…");
+  try {
+    const response = await fetch("/api/headers", { cache: "no-store", credentials: "omit" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    show("http-ua", result.userAgent);
+    show("http-language", result.acceptLanguage);
+    show("ua-match", result.userAgent === navigator.userAgent ? "Совпадает в этой проверке" : "Не совпадает — проверьте настройки браузера");
+  } catch {
+    show("ua-match", "Запрос не удался");
+  } finally {
+    button.disabled = false;
+  }
+});

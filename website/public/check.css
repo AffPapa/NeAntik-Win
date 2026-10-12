@@ -21,6 +21,8 @@ dl > div { display: grid; grid-template-columns: minmax(140px, 210px) minmax(0, 
 dt { color: #646879; }
 dd { margin: 0; overflow-wrap: anywhere; font-weight: 620; }
 .hint { color: #666b7d; line-height: 1.55; margin: 20px 0 0; }
+.header-check { margin: 25px 0 17px; }
+.header-check .hint { margin-top: 9px; font-size: 13px; }
 footer { display: flex; justify-content: space-between; gap: 15px; color: #777c8d; font-size: 13px; margin-top: 35px; }
 footer a { color: #7966d9; }
 @media (max-width: 600px) { .shell { padding: 20px 16px 45px; } .eyebrow { margin-top: 44px; } .panel { padding: 18px; } dl > div { grid-template-columns: 1fr; gap: 3px; } .section-head { align-items: flex-start; flex-direction: column; } footer { flex-direction: column; } }

@@ -3,6 +3,29 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.7.0-preview] — 2026-10-12
+
+**Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40; проверено на Windows 11 Pro x64, build 26200. Схема профилей и backup не менялись.
+
+### Изменения
+
+- Для профилей со встроенным Chromium и назначенным proxy: localhost идёт через proxy; прямое фоновое DNS-разрешение и QUIC отключены; WebRTC ограничен непроксированным UDP. Эти ограничения не включаются без proxy и не распространяются на старые профили Chrome/Edge.
+- Новый пустой профиль отключает сетевое предсказание. В реальном Chromium проверены правила для HTTP и SOCKS5, отсутствие прямого fallback при неработающем proxy и блокировка стороннего cookie по сравнению с контрольным профилем.
+- На странице диагностики добавлена проверка согласованности JavaScript User-Agent с HTTP User-Agent по нажатию. Она не сохраняет результат и не доказывает анонимность.
+- Проверены сетевые ограничения локальными стендами. Внешние proxy, STUN/TURN, UDP- и DNS-маршрут на публичных сетях не проверены. Часовой пояс системный; fingerprint не подменяется. Гарантии анонимности нет.
+- Протокол, первичные документы и ограничения опубликованы в [исследовании сетевой приватности](https://github.com/AffPapa/NeAntik-Win/blob/v0.7.0-preview/docs/NETWORK_PRIVACY_2026-10.md).
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.0-preview/NeAntikWin-portable-v0.7.0-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.0-preview/NeAntikWin-portable-v0.7.0-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.0-preview/NeAntikWin-portable-v0.7.0-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.7.0-preview)
+
+SHA-256 portable ZIP: `c1bc6595e566d7fd80ecc9d982cd0087e06911a2c451a57973961027fbc273e4` (262 345 094 байта).
+
+Для обновления закройте браузер, сохраните копию всей старой portable-папки с `Data/`, распакуйте новый ZIP отдельно и перенесите `Data/` под тем же Windows-пользователем. Прежнюю копию оставьте для отката; старый Chromium может не открыть профиль после использования нового.
+
 ## [0.6.0-preview] — 2026-10-12
 
 **Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40; проверено на Windows 11 Pro x64, build 26200. Схема профилей и backup не менялись.

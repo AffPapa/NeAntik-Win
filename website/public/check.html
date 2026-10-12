@@ -15,7 +15,7 @@
     <a class="brand" href="/"><img src="/assets/brand.svg" alt="" width="30" height="30"> NeAntik <span>WIN</span></a>
     <p class="eyebrow">ЛОКАЛЬНАЯ ДИАГНОСТИКА ПРОФИЛЯ</p>
     <h1>Что видит страница</h1>
-    <p class="lead">Эта страница показывает обычные параметры, доступные сайту в открытом профиле. Она не ставит оценку «анонимности» и не отправляет показанные параметры на сервер.</p>
+    <p class="lead">Эта страница показывает обычные параметры, доступные сайту в открытом профиле. Она не ставит оценку «анонимности» и не отправляет полученные через JavaScript параметры на сервер. HTTP-заголовки запрашиваются отдельно по нажатию.</p>
     <div class="notice"><strong>Важно:</strong> хостинг уже получает ваш IP при загрузке страницы. Кнопка ниже только показывает адрес, видимый этому серверу; провайдер хостинга может хранить журналы запросов. DNS, WebRTC, UDP и маршрут всего трафика здесь не проверяются.</div>
 
     <section class="panel" aria-labelledby="network-title">
@@ -28,6 +28,8 @@
       <div class="section-head"><div><span class="step">02 / БРАУЗЕР</span><h2 id="device-title">Доступные параметры</h2></div></div>
       <dl><div><dt>User-Agent</dt><dd id="ua">Загрузка…</dd></div><div><dt>Языки</dt><dd id="languages">Загрузка…</dd></div><div><dt>Часовой пояс</dt><dd id="timezone">Загрузка…</dd></div><div><dt>Экран / масштаб</dt><dd id="screen">Загрузка…</dd></div><div><dt>Процессоры / память</dt><dd id="hardware">Загрузка…</dd></div><div><dt>WebGL renderer</dt><dd id="webgl">Загрузка…</dd></div></dl>
       <p class="hint">Это не полный fingerprint: сайты могут использовать другие API и сетевые сигналы. Разные значения не означают лучшую защиту.</p>
+      <div class="header-check"><button id="check-headers" type="button">Сравнить с HTTP-заголовками</button><p class="hint">По нажатию сервер вернёт User-Agent и Accept-Language уже полученного им запроса. Значения не сохраняются; хостинг может вести обычные журналы.</p></div>
+      <dl><div><dt>HTTP User-Agent</dt><dd id="http-ua">Не запрашивался</dd></div><div><dt>HTTP Accept-Language</dt><dd id="http-language">Не запрашивался</dd></div><div><dt>Согласованность User-Agent</dt><dd id="ua-match">Не проверена</dd></div></dl>
     </section>
 
     <section class="panel" aria-labelledby="permissions-title">

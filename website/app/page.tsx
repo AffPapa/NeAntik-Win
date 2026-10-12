@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.6.0-preview";
+const releaseVersion = "0.7.0-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,18 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "12 октября 2026",
+    status: "Строгий маршрут proxy · измеримые проверки",
+    compatibility: "Windows x64 · встроенный Chromium 155 · существующие профили не меняются · схема профилей 1",
+    changes: [
+      { type: "security", label: "Proxy", text: "Профиль со встроенным Chromium и proxy маршрутизирует localhost через proxy, блокирует прямое фоновое DNS-разрешение и QUIC; без proxy эти параметры не включаются." },
+      { type: "security", label: "WebRTC", text: "Ограничен непроксированный UDP. В локальном тесте без STUN не появились host ICE-кандидаты; внешние STUN-серверы и реальные proxy ещё не проверены." },
+      { type: "added", label: "Проверки", text: "В реальном Chromium измерено: новый профиль не отправляет сторонний cookie, контрольный — отправляет. Диагностика по нажатию сравнивает JS и HTTP User-Agent." },
+      { type: "security", label: "Границы", text: "Подмены device/browser fingerprint и гарантии анонимности нет. Часовой пояс остаётся системным; DNS, UDP и внешние proxy требуют проверки в вашей сети." },
+    ],
+  },
+  {
+    version: "v0.6.0-preview",
     date: "12 октября 2026",
     status: "Приватность нового профиля · диагностика",
     compatibility: "Windows x64 · встроенный Chromium 155 · существующие профили не меняются · схема профилей 1",
@@ -481,7 +493,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div>
             <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Новый профиль получает приватные разрешения по умолчанию, а встроенная кнопка «Диагностика» поможет увидеть параметры браузера. Для профилей с proxy ограничен прямой WebRTC UDP, но весь сетевой маршрут этим не проверяется.</p>
+            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Новый профиль блокирует сторонние cookies и чувствительные разрешения. Профиль с proxy получает строгие сетевые ограничения; кнопка «Диагностика» поможет проверить видимые сайту параметры. Это не проверка всего сетевого маршрута и не гарантия анонимности.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
