@@ -18,20 +18,34 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.4.0-preview";
+const releaseVersion = "0.4.1-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
+const releaseChecksum = `${releaseDownload}.sha256`;
+const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/NeAntikWin-portable-v${releaseVersion}.manifest.json`;
 
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
-    date: "11 октября 2026",
+    date: "12 октября 2026",
+    status: "Portable reliability · usability",
+    compatibility: "Windows x64 · установленный Chrome или Edge · portable ZIP · схема профилей 1",
+    changes: [
+      { type: "fixed", label: "Профили", text: "Профиль закрепляется за Chrome или Edge при первом запуске: смена браузерной семьи не смешивает данные в одном каталоге. Привязка сохраняется в backup." },
+      { type: "fixed", label: "Proxy", text: "Одинаковые подписи proxy больше не сбивают назначение. Повторное копирование пароля обновляет 30-секундный таймер очистки буфера." },
+      { type: "fixed", label: "Интерфейс", text: "Убраны устаревшие подсказки о Native-ядре. Диалоги закрываются по Escape; при смене темы сохраняются поиск и прокрутка." },
+      { type: "security", label: "Публикация", text: "Проверка публичных исходников анализирует точные staged-данные Git. Сборка portable ZIP не включает локальные Data или браузерное ядро." },
+    ],
+  },
+  {
+    version: "v0.4.0-preview",
+    date: "12 октября 2026",
     status: "Profile manager · safer public release",
     compatibility: "Windows x64 · установленный Chrome или Edge · portable ZIP · схема профилей 1",
     changes: [
       { type: "security", label: "Границы продукта", text: "Удалены экспериментальные файлы движка и код изменения fingerprint. Обычные профили Chrome/Edge запускаются без fingerprint- и User-Agent-переопределений." },
-      { type: "fixed", label: "Наследуемые профили", text: "Старые экспериментальные профили нельзя редактировать, клонировать или запускать; исходные данные сохраняются." },
-      { type: "security", label: "Публикация", text: "Публичный экспорт, CI и release verifier отклоняют движок и включённое изменение fingerprint." },
+      { type: "fixed", label: "Наследуемые профили", text: "Профили из старых экспериментальных сборок с неподдерживаемым режимом нельзя редактировать, клонировать или запускать; исходные данные сохраняются." },
+      { type: "security", label: "Публикация", text: "Публичный экспорт и CI исключают экспериментальные компоненты. Архив проверен на отсутствие Engine и включённого изменения fingerprint." },
       { type: "added", label: "Сборка", text: "Чистый portable ZIP собран из опубликованного коммита; приложены manifest, SHA-256 и runtime-лицензии." },
     ],
   },
@@ -235,7 +249,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <p class="eyebrow"><span></span> Windows · local-first · portable</p>
           <h1 id="hero-title">Профили в порядке.<br /><em>Темп — ваш.</em></h1>
           <p class="hero-lead">
-            NeAntik Win — локальный менеджер профилей установленного Chrome и Edge для Windows.
+            NeAntik Win — локальный менеджер профилей для Windows. Текущий portable-выпуск использует установленный Chrome или Edge.
             Данные, proxy-настройки и история работы остаются на вашем компьютере.
           </p>
           <div class="hero-actions">
@@ -248,15 +262,15 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">NeAntik Win не включает собственное Chromium-ядро и не изменяет fingerprint: это portable-менеджер локальных профилей и proxy-настроек.</p>
-          <dl class="hero-facts" aria-label="Ключевые свойства NeVision Win">
+          <p class="download-note">Это локальный менеджер профилей для установленного Chrome и Edge — не отдельный Chromium-браузер и не средство подмены fingerprint.</p>
+          <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
             <div><dt>portable</dt><dd>данные рядом с приложением</dd></div>
           </dl>
         </div>
 
-        <div class="showcase reveal showcase-delay" aria-label="Иллюстрация рабочего пространства NeVision Win">
+        <div class="showcase reveal showcase-delay" aria-label="Иллюстрация рабочего пространства NeAntik Win">
           <img class="showcase-atmosphere" src="/assets/nevision-hero-atmosphere.png" alt="" aria-hidden="true" fetchpriority="high" />
           <div class="showcase-orbit orbit-one" aria-hidden="true"></div>
           <div class="showcase-orbit orbit-two" aria-hidden="true"></div>
@@ -266,12 +280,12 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="app-window" aria-hidden="true">
             <div class="window-bar">
               <div class="window-controls"><i></i><i></i><i></i></div>
-              <div class="window-app-title"><img src="/assets/brand.svg" width="16" height="16" alt="" /> NeVision Win</div>
+              <div class="window-app-title"><img src="/assets/brand.svg" width="16" height="16" alt="" /> NeAntik Win</div>
               <span class="window-build">v${releaseVersion}</span>
             </div>
             <div class="app-body">
               <aside class="app-sidebar">
-                <div class="app-brand"><img src="/assets/brand.svg" width="23" height="23" alt="" /><b>NeVision</b></div>
+                <div class="app-brand"><img src="/assets/brand.svg" width="23" height="23" alt="" /><b>NeAntik</b></div>
                 <div class="new-profile"><svg><use href="/assets/icons.svg#plus"></use></svg><span>Новый профиль</span></div>
                 <p class="app-label">WORKSPACE</p>
                 <ul class="app-navigation">
@@ -390,14 +404,14 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="workflow-copy reveal">
             <p class="eyebrow"><span></span> Понятная локальная архитектура</p>
             <h2 id="workflow-title">Не обещает магию.<br /><em>Показывает устройство.</em></h2>
-            <p>NeVision Win использует установленный Chrome или Edge и запускает его с отдельным каталогом данных для каждого профиля.</p>
+            <p>NeAntik Win использует установленный Chrome или Edge и запускает его с отдельным каталогом данных для каждого профиля.</p>
             <a class="text-link" href="#security">Границы продукта <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-right"></use></svg></a>
           </div>
           <div class="workflow-console reveal reveal-delay-one">
             <div class="console-top"><span>LOCAL STORAGE MAP</span><span><i></i> READY</span></div>
             <div class="console-tree">
-              <div class="tree-item root"><svg><use href="/assets/icons.svg#folder"></use></svg><strong>NeVisionWin portable</strong><em>ваша папка</em></div>
-              <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#app"></use></svg><b>NeVisionWin.exe</b><em>launcher</em></div>
+              <div class="tree-item root"><svg><use href="/assets/icons.svg#folder"></use></svg><strong>NeAntikWin portable</strong><em>ваша папка</em></div>
+              <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#app"></use></svg><b>NeAntikWin.exe</b><em>launcher</em></div>
               <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>_internal/</b><em>локальный runtime</em></div>
               <div class="tree-item"><span class="tree-branch">└─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>Data/</b><em>создаётся при первом запуске</em></div>
               <div class="tree-item nested"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#database"></use></svg><b>nevision.db</b><em>метаданные + DPAPI</em></div>
@@ -428,9 +442,9 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="release-main reveal" id="release">
           <div class="release-stamp"><span>WINDOWS</span><b>v${releaseVersion.split("-")[0]}</b><i>preview</i></div>
           <div>
-            <p class="eyebrow"><span></span> NeAntik Win · x64 · v${releaseVersion}</p>
+            <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Python и установка NeAntik не нужны. Распакуйте ZIP в доступную для записи папку и откройте NeAntikWin.exe. Для профилей нужен уже установленный Google Chrome или Microsoft Edge.</p>
+            <p>Установка не нужна. Скачайте ZIP со страницы GitHub Releases, распакуйте в доступную для записи папку и откройте NeAntikWin.exe. Для профилей нужен уже установленный Google Chrome или Microsoft Edge.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
@@ -443,9 +457,10 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="release-side-row"><span>Подпись приложения</span><b>нет цифровой подписи (unsigned preview)</b></div>
           <div class="release-side-row release-hash-row" data-release-hash-row hidden><span>SHA-256 архива</span><code data-release-hash></code></div>
           <div class="release-links">
-            <a class="button button-dark" href="${releaseDownload}" target="_blank" rel="noopener noreferrer">Скачать NeAntik v${releaseVersion} <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg></a>
-            <a class="text-link" href="${releaseDownload}.sha256" target="_blank" rel="noopener noreferrer">SHA-256</a>
-            <a class="text-link" href="https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}.manifest.json" target="_blank" rel="noopener noreferrer">Manifest</a>
+            <a class="button button-dark" href="${releaseDownload}" target="_blank" rel="noopener noreferrer">Скачать NeAntik Win v${releaseVersion} <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg></a>
+            <a class="text-link" href="${releaseChecksum}" target="_blank" rel="noopener noreferrer">SHA-256</a>
+            <a class="text-link" href="${releaseManifest}" target="_blank" rel="noopener noreferrer">Manifest сборки</a>
+            <a class="text-link" href="https://github.com/AffPapa/NeAntik-Win/releases/tag/v${releaseVersion}" target="_blank" rel="noopener noreferrer">Все файлы релиза</a>
             <a class="text-link" href="/CHANGELOG.md">Что изменилось</a>
           </div>
           <p class="download-note">SHA-256 проверяет целостность файла и не заменяет цифровую подпись. Если Windows показывает предупреждение, проверьте источник загрузки и checksum.</p>
@@ -457,16 +472,16 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <p class="eyebrow"><span></span> Ваши данные остаются с вами</p>
           <h2 id="update-title">Как обновиться</h2>
           <ol>
-            <li>Закройте окна профилей и NeVision. Сохраните резервную копию старой portable-папки вместе с Data.</li>
+            <li>Закройте окна профилей и NeAntik Win. Сохраните резервную копию старой portable-папки вместе с Data.</li>
             <li>Распакуйте новый ZIP в отдельную папку. Скопируйте туда свою Data, не удаляя исходную копию.</li>
-            <li>Запустите новый NeVisionWin.exe под тем же Windows-пользователем и проверьте профили перед дальнейшей работой.</li>
+            <li>Запустите новый NeAntikWin.exe под тем же Windows-пользователем и проверьте профили перед дальнейшей работой.</li>
           </ol>
         </div>
         <div class="update-caveats">
           <h3>Перенос и возврат к прошлой версии</h3>
           <p>DPAPI-пароли привязаны к вашему Windows-пользователю и компьютеру. На другом устройстве потребуется повторный ввод; перенос cookies и входов в сайты также зависит от Chromium.</p>
           <p>Для отката используйте сохранённую старую папку. Замена EXE не откатывает формат профиля Chrome или Edge: после обновления браузера старое ядро может не открыть эти данные.</p>
-          <p>NeVision разделяет локальные профили, но не подменяет fingerprint и не гарантирует прохождение проверок сайтов.</p>
+          <p>NeAntik разделяет локальные профили, но не подменяет fingerprint и не гарантирует прохождение проверок сайтов.</p>
           <a class="text-link" href="/RELEASE_POLICY.md">Политика релизов и совместимость <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-right"></use></svg></a>
         </div>
       </section>
@@ -486,13 +501,14 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <button class="change-filter" type="button" data-filter="security" aria-pressed="false">Безопасность</button>
           <a href="/CHANGELOG.md" target="_blank" rel="noopener">Открыть CHANGELOG.md <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a>
         </div>
-        <div class="changelog-list" id="changelog-list" aria-live="polite"><article class="release-card no-js-changelog"><header><div><h3>История версий</h3><span>доступна</span></div></header><p>Полный журнал изменений доступен без JavaScript в отдельном Markdown-файле.</p><a class="text-link" href="/CHANGELOG.md">Открыть CHANGELOG.md <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a></article></div>
+        <p class="sr-only" id="changelog-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="changelog-list" id="changelog-list"><article class="release-card no-js-changelog"><header><div><h3>История версий</h3><span>доступна</span></div></header><p>Полный журнал изменений доступен без JavaScript в отдельном Markdown-файле.</p><a class="text-link" href="/CHANGELOG.md">Открыть CHANGELOG.md <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a></article></div>
       </section>
 
       <section class="final-cta shell" aria-labelledby="cta-title">
         <div class="cta-grid-pattern" aria-hidden="true"></div>
         <div class="final-cta-copy reveal">
-          <p class="eyebrow"><span></span> NeVision Win</p>
+          <p class="eyebrow"><span></span> NeAntik Win</p>
           <h2 id="cta-title">Рабочая среда,<br /><em>которую видно.</em></h2>
         </div>
         <div class="final-cta-actions reveal reveal-delay-one">
@@ -508,7 +524,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <img class="brand-mark" src="/assets/brand.svg" width="32" height="32" alt="" />
         <span class="brand-name">NeAntik <small>WIN</small></span>
       </a>
-      <p>© <span id="year"></span> NeAntik Win. Ранее NeVision. Built local-first.</p>
+      <p>© <span id="year"></span> NeAntik Win. Built local-first.</p>
       <div class="footer-links"><a href="/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a><a href="/RELEASE_POLICY.md" target="_blank" rel="noopener">Release policy</a></div>
     </footer>`;
 
@@ -529,6 +545,7 @@ export default function Home() {
     if (!root) return;
 
     const list = root.querySelector<HTMLElement>("#changelog-list");
+    const changelogStatus = root.querySelector<HTMLElement>("#changelog-status");
     const filters = Array.from(root.querySelectorAll<HTMLButtonElement>(".change-filter"));
     const year = root.querySelector<HTMLElement>("#year");
     const header = root.querySelector<HTMLElement>("[data-header]");
@@ -639,6 +656,7 @@ export default function Home() {
         button.setAttribute("aria-pressed", "true");
         const filter = button.dataset.filter;
         renderChangelog(filter === "added" || filter === "fixed" || filter === "security" ? filter : "all");
+        if (changelogStatus) changelogStatus.textContent = `Фильтр истории изменений: ${button.textContent?.trim() ?? "Все"}.`;
       };
       button.addEventListener("click", listener);
       return [button, listener] as const;
@@ -658,7 +676,11 @@ export default function Home() {
       if (window.matchMedia("(min-width: 761px)").matches) closeNavigation();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeNavigation();
+      if (event.key === "Escape" && navigation?.classList.contains("is-open")) {
+        const focusWasInNavigation = navigation.contains(document.activeElement);
+        closeNavigation();
+        if (focusWasInNavigation) menuButton?.focus();
+      }
     };
     const onPointerDown = (event: PointerEvent) => {
       if (!navigation?.classList.contains("is-open") || !menuButton) return;

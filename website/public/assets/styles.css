@@ -392,3 +392,21 @@ h1 em, h2 em { color: var(--violet); font-style: normal; font-weight: 520; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Keep navigation and release details readable and operable at touch sizes. */
+.site-nav a { display: inline-flex; align-items: center; min-height: 44px; padding-block: 0; font-size: 14px; }
+.version-chip { min-height: 44px; font-size: 12px; }
+.menu-button { width: 44px; height: 44px; }
+.change-filter { min-height: 44px; font-size: 13px; }
+.changelog-controls > a { min-height: 44px; font-size: 12px; }
+.release-side-row span { font-size: 13px; }
+.release-side-row b, .release-hash-row code { font-size: 13px; }
+.hero-facts dd { font-size: 12px; }
+
+@media (max-width: 560px) {
+  .hero-facts dd { font-size: 11px; }
+  .console-top, .console-foot { font-size: 10px; }
+  .tree-item { min-height: 32px; font-size: 10px; }
+  .tree-item.root { font-size: 10px; }
+  .tree-item em { font-size: 9px; }
+}

@@ -3,23 +3,75 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.4.1-preview] — 2026-10-12
+
+**Статус:** portable manager preview, Windows x64. Для запуска профилей нужен установленный Chrome или Edge; движок в ZIP не входит. Приложение не изменяет fingerprint.
+
+### Изменения
+
+- После первого запуска профиль закрепляется за Chrome либо Edge, чтобы данные одного каталога не открывались в другом браузере. Привязка сохраняется в backup; существующие профили закрепляются при первом запуске новой версии.
+- Устранена путаница между proxy с одинаковыми подписями. Повторное копирование сохранённого пароля обновляет таймер очистки обычного буфера обмена.
+- Обновлены первый экран, диалоги, история, клавиатурная навигация и сохранение контекста при смене темы.
+- Публичный исходный код проверяется по staged Git-blob, а не по потенциально отличающемуся рабочему файлу.
+- Публикуется только portable ZIP, SHA-256 и manifest. Перед обновлением сохраните копию `Data/`.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.1-preview/NeAntikWin-portable-v0.4.1-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.1-preview/NeAntikWin-portable-v0.4.1-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.1-preview/NeAntikWin-portable-v0.4.1-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.4.1-preview)
+
 ## [0.4.0-preview] — 2026-10-12
 
-- Продукт переименован в NeAntik Win; исходники: https://github.com/AffPapa/NeAntik-Win.
-- Удалены экспериментальное ядро, патчи, build tooling и код изменения fingerprint.
-- Legacy-профили экспериментального режима сохранены как неподдерживаемые и не запускаются.
-- Экспорт исходников, CI и release verifier не допускают Engine payload или активную подмену fingerprint.
-- Portable ZIP собран из чистого commit `8797c19f14671aa3f29fe6cf2859ab97e865f523`.
-- Сборка использует установленный Chrome или Edge; fingerprint не изменяется.
+**Статус:** portable manager preview, Windows x64. Проверенная ОС: Windows 11 Pro x64 build 26200.
+**Browser core:** установленный Chrome или Edge; движок в архив не входит.
+**Граница:** продукт управляет локальными профилями и не изменяет fingerprint браузера.
 
-### Скачать
+### Изменения
+
+- Удалены экспериментальное ядро, его патчи, сборочные материалы и код изменения fingerprint.
+- Обычный запуск профиля Chrome/Edge не добавляет fingerprint- или User-Agent-переопределения.
+- Старые экспериментальные профили получают статус неподдерживаемых; они не запускаются и не удаляются автоматически.
+- Экспорт исходников, CI и release verifier теперь отклоняют engine payload и включённое изменение fingerprint.
+- Portable ZIP собран из чистого опубликованного коммита; manifest указывает этот commit и clean source state.
+
+### Скачать и проверить
 
 - [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.0-preview/NeAntikWin-portable-v0.4.0-preview.zip)
 - [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.0-preview/NeAntikWin-portable-v0.4.0-preview.zip.sha256)
-- [Релиз и manifest](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.4.0-preview)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.4.0-preview)
+- [Исходники](https://github.com/AffPapa/NeAntik-Win/tree/8797c19f14671aa3f29fe6cf2859ab97e865f523)
 
-SHA-256: `ad036d8ba4c8c29085e9c6b374b84f5fd2f169d13ccbca6149af08a3a038d48c`.
-Unsigned preview; для запуска профилей требуется Chrome или Edge.
+Распакуйте ZIP в новую доступную для записи папку и запускайте NeAntikWin.exe. Для профилей
+нужен установленный Chrome или Edge. Preview не подписан сертификатом кода; SHA-256
+проверяет целостность, но не удостоверяет издателя.
+
+## [0.3.0-preview] — 2026-10-12 (предыдущая версия)
+
+**Статус:** portable manager preview, Windows x64. Проверенная ОС: Windows 11 x64 build 26200.
+**Browser core:** установленный Chrome или Edge; собственное Chromium-ядро не поставляется.
+**Важно:** эта версия не подменяет fingerprint и не является антидетект-браузером.
+
+### Изменения
+
+- Выпущен portable-менеджер NeAntik Win: профили и настройки хранятся локально в папке данных.
+- Сохранены операции с профилями, прокси-настройки, резервное копирование и восстановление.
+- Архив прошёл проверку структуры и встроенный self-test; исходники доступны в GitHub.
+- Код приложения и релиз опубликованы как предварительная unsigned-сборка.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.3.0-preview/NeAntikWin-portable-v0.3.0-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.3.0-preview/NeAntikWin-portable-v0.3.0-preview.zip.sha256)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.3.0-preview)
+- [Исходники](https://github.com/AffPapa/NeAntik-Win)
+
+Распакуйте ZIP в новую доступную для записи папку и запускайте NeAntikWin.exe. Для запуска
+профилей нужен установленный Chrome или Edge. Перед переносом Data сохраните резервную копию.
+Цифровой подписи у preview нет; SHA-256 проверяет целостность, но не заменяет подпись издателя.
+
+## [0.2.1-preview] — 2026-10-11 (предыдущая версия)
 
 ## [0.2.1-preview] — 2026-10-11
 

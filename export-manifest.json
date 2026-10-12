@@ -38,13 +38,13 @@
     },
     {
       "path": "ARCHITECTURE.md",
-      "size_bytes": 7229,
-      "sha256": "20655427fe57ac27013f91adc1c7a04f5a6d409ddef5aef2b6464cf7e81d2558"
+      "size_bytes": 7228,
+      "sha256": "ee195d194f75230c2f8058992156d6f442d674a9be8ad5974d1693eeb57e861c"
     },
     {
       "path": "CHANGELOG.md",
-      "size_bytes": 7807,
-      "sha256": "a8a2f209573e43e8f15f807ca77d49a490377ed04103a4ba24665acdf9cb26a1"
+      "size_bytes": 8986,
+      "sha256": "c1bc77f9d0dc579de69b809a55f09260ef38f98d855f7a063235c4bc3248693e"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -53,13 +53,13 @@
     },
     {
       "path": "PUBLISHING.md",
-      "size_bytes": 3041,
-      "sha256": "738bae793435bbe66b0c55397e000819a9bd36fdc1369296f9c989ceed3dd3c8"
+      "size_bytes": 3079,
+      "sha256": "997bf4042f105553462cc00bb6c4a73a35b59ab355304436f9255799bc9b956f"
     },
     {
       "path": "README.md",
-      "size_bytes": 6196,
-      "sha256": "082a598bd7e3111b55758c52ae09e8aa094127c88d52291cfb2762341e430fc1"
+      "size_bytes": 6314,
+      "sha256": "015284fe0051b24687b72fab58cced42d526a46dda8df471e8c288a22c54711f"
     },
     {
       "path": "RELEASE_CHECKLIST.md",
@@ -79,7 +79,7 @@
     {
       "path": "SECURITY_AND_SCOPE.md",
       "size_bytes": 7238,
-      "sha256": "6d838448d7b4ec2bb3e033015d3f1a5eb1a2fe2ed64c4f561f0acbeaefea7c99"
+      "sha256": "de08dc85859b6042caa7de39eca618b966d2448075f1fcaec10756308012ea27"
     },
     {
       "path": "SUPPORT.md",
@@ -153,8 +153,8 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 160171,
-      "sha256": "1f9aa600513a0bc86eb09168544b763bdd133952b4fefc2530561f5b0476d112"
+      "size_bytes": 165500,
+      "sha256": "33ef472ec18d00c50e8e25ed34d290884eae9583c052bec49abcf797f4b9eded"
     },
     {
       "path": "profile_identity.py",
@@ -164,7 +164,7 @@
     {
       "path": "release-version.json",
       "size_bytes": 89,
-      "sha256": "8694c7c5ad9c8dde8aaecdfcd79f5804ec0fa7cb06f3010d028ebc5505509fcb"
+      "sha256": "2f8e58b620c77047b8137acb4dfc4963a3f8ce8f2ecd22eea0431683080aec40"
     },
     {
       "path": "requirements-build.txt",
@@ -178,8 +178,8 @@
     },
     {
       "path": "test_nevision_win.py",
-      "size_bytes": 40974,
-      "sha256": "6871cd53f87c47159f6af5866ee58448b915c324e5ed95f437b3e73bd3498b56"
+      "size_bytes": 44476,
+      "sha256": "d9042b6cc6fe9048e26161bda037d826eb1177e44b7e218908a34760a181af7f"
     },
     {
       "path": "test_profile_identity.py",
@@ -198,8 +198,8 @@
     },
     {
       "path": "tools/check-public-repo.ps1",
-      "size_bytes": 3748,
-      "sha256": "5cc924f91fd33720743ff5460a7196cc78d171619ba56a5e6fcfc6fb2d9b0069"
+      "size_bytes": 5084,
+      "sha256": "f65cc6970a6c52d45128b8b0c16bb2935591f75d31c866b398cc9cac1d632c19"
     },
     {
       "path": "tools/export-public-source.py",
@@ -208,13 +208,8 @@
     },
     {
       "path": "tools/gui_regression.py",
-      "size_bytes": 5596,
-      "sha256": "876b159062573a2c8272140c1dfcc8bbc9d7c2f8a3a8ca71fac3599697f6a267"
-    },
-    {
-      "path": "tools/install-browser-engine.py",
-      "size_bytes": 829,
-      "sha256": "72ff39de6c0b7b31b9c64b743b172febfa3c33ef2e5043494585407433d5eb49"
+      "size_bytes": 6569,
+      "sha256": "83bb416370fb0b8f59428643b21585b8067cbc79aeed32c9854d9264d0e2c056"
     },
     {
       "path": "tools/licenses/OpenSSL-LICENSE.txt",
@@ -253,8 +248,8 @@
     },
     {
       "path": "tools/test-release-tools.ps1",
-      "size_bytes": 10309,
-      "sha256": "4f34509932aaed5fe1b3001dcdb7a1105a219e038c63c8cac25e8dfde3ff4d2a"
+      "size_bytes": 11605,
+      "sha256": "379cb8c0fbc30b6f765d167a4893ad8ce63ced7f3ffd447d75f15a332923ac41"
     },
     {
       "path": "tools/test_public_source_export.py",
@@ -268,18 +263,18 @@
     },
     {
       "path": "website/CHANGELOG.md",
-      "size_bytes": 21337,
-      "sha256": "19b4d6754608b666f55af762110e44fbb39a67eaf91da7e798ea1b807a302296"
+      "size_bytes": 26296,
+      "sha256": "007fcbdaccc5b27ee448debfd34bb41f1293f4f1034b64df2135f8e06dbd2bcc"
     },
     {
       "path": "website/README.md",
-      "size_bytes": 1107,
-      "sha256": "47fad4edffc438ee1ad151a3255b9f49ebeecbaff0407d62a8c47585e80bd429"
+      "size_bytes": 5688,
+      "sha256": "dcb28551ecd42b9991a3098f346838f82318d085dbd5c8e0021ce28080832bf2"
     },
     {
       "path": "website/RELEASE_POLICY.md",
-      "size_bytes": 3710,
-      "sha256": "6851db2bc89694d679ececfa92affc161254abfa1f5e99ad8cbcfe8fc67136cb"
+      "size_bytes": 3462,
+      "sha256": "46ed98858e308e139bb4586d469509c10888c2bce932b10e484cd4c9282dbec4"
     },
     {
       "path": "website/app/CHANGELOG.md/route.ts",
@@ -303,8 +298,8 @@
     },
     {
       "path": "website/app/page.tsx",
-      "size_bytes": 46779,
-      "sha256": "a511c688d941e68cc6af4aa169693cc1eba4768b9b1bba7be995e2a3e5bb90e9"
+      "size_bytes": 49316,
+      "sha256": "a95c81e886b8243abf75084286a989c0cf49b2c25737142715ec609b780ee104"
     },
     {
       "path": "website/next-env.d.ts",
@@ -353,13 +348,13 @@
     },
     {
       "path": "website/public/assets/styles.css",
-      "size_bytes": 50412,
-      "sha256": "6143a28102cc372eaf13a4fe2ad883c3eeceeadec19bfa40e39a36e9ba48483b"
+      "size_bytes": 51211,
+      "sha256": "e09bda51d5df6608c0a8aa9a5ae451a490154d94e5eb155db5f33c5edbdb4c52"
     },
     {
       "path": "website/public/release.json",
-      "size_bytes": 189414,
-      "sha256": "5be507a8d97ee2c9d9044d3b097d7bd6cd2b52f38f2bc07856c27fe257e898bf"
+      "size_bytes": 1001,
+      "sha256": "a79a40a4424c64fe3d5c5e683aea581ec6adef216594b22c79b4456bd54418f1"
     },
     {
       "path": "website/public/robots.txt",
