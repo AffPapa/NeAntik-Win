@@ -93,6 +93,9 @@ class GuiTests(unittest.TestCase):
             self.app.root.update()
             self.assertEqual(self.app.selected_id, self.profile)
             self.assertEqual(self.app.active_theme, theme)
+            style = nv.ttk.Style(self.app.root)
+            self.assertEqual(style.lookup("Muted.TLabel", "background"), self.app.colors["panel"])
+            self.assertEqual(style.lookup("Muted.TLabel", "foreground"), self.app.colors["muted"])
         self.app.search_var.set("no matching profile")
         self.pump(.25)
         self.assertEqual(self.app.profile_tree.get_children(), ())
@@ -132,6 +135,30 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(dialog.proxy_ids[dialog.proxy.current()], first)
         dialog.save()
         self.assertEqual(self.storage.get_profile(self.profile)["proxy_id"], first)
+
+    def test_native_preview_is_opt_in_and_clone_gets_fresh_seed(self):
+        with patch.object(self.app.launcher, "native_persona_capabilities", return_value={"stable_seed": True}):
+            ordinary_dialog = nv.ProfileDialog(self.app)
+            self.app.root.update()
+            self.assertIsNotNone(ordinary_dialog.mode_choice)
+            ordinary_dialog.name.insert(0, "Ordinary")
+            ordinary_dialog.save()
+            ordinary = next(item for item in self.storage.list_profiles() if item["name"] == "Ordinary")
+            self.assertEqual(ordinary["fingerprint"]["mode"], "ordinary")
+
+            preview_dialog = nv.ProfileDialog(self.app)
+            self.app.root.update()
+            preview_dialog.name.insert(0, "Preview")
+            preview_dialog.mode_choice.current(1)
+            preview_dialog.save()
+            preview = next(item for item in self.storage.list_profiles() if item["name"] == "Preview")
+            self.assertEqual(preview["fingerprint"]["mode"], nv.NATIVE_PREVIEW)
+            self.app.refresh_profiles(preview["id"])
+            self.app.clone_selected()
+            clone = self.storage.get_profile(self.app.selected_id)
+            self.assertEqual(clone["fingerprint"]["mode"], nv.NATIVE_PREVIEW)
+            self.assertNotEqual(clone["fingerprint"]["seed"], preview["fingerprint"]["seed"])
+            self.assertEqual(list((self.paths.profiles / clone["id"]).iterdir()), [])
 
     def test_escape_closes_settings_dialog(self):
         dialog = nv.SettingsDialog(self.app)

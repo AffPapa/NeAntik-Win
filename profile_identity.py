@@ -1,10 +1,13 @@
-"""Ordinary-browser profile mode; no fingerprint-modification interface."""
+"""Versioned browser identity metadata with legacy-mode isolation."""
 from __future__ import annotations
 
 import json
+import secrets
 from typing import Any, Mapping
 
 LEGACY_UNAVAILABLE = "legacy-native-unavailable"
+NATIVE_PREVIEW = "native-persona-preview"
+UINT64_MAX = (1 << 64) - 1
 
 
 class CoreError(ValueError):
@@ -15,15 +18,33 @@ def ordinary_identity() -> dict[str, Any]:
     return {"schema": 1, "mode": "ordinary"}
 
 
+def native_preview_identity(seed: int | None = None) -> dict[str, Any]:
+    """Create a distinct stable local identity; not an anonymity promise."""
+    if seed is None:
+        seed = secrets.randbelow(UINT64_MAX) + 1
+    if type(seed) is not int or not 1 <= seed <= UINT64_MAX:
+        raise CoreError("Seed экспериментального профиля должен быть ненулевым uint64.")
+    return {"schema": 2, "mode": NATIVE_PREVIEW, "seed": str(seed)}
+
+
 def validate_identity(value: Mapping[str, Any]) -> dict[str, Any]:
-    if not isinstance(value, Mapping) or type(value.get("schema")) is not int or value["schema"] != 1:
+    if not isinstance(value, Mapping) or type(value.get("schema")) is not int:
         raise CoreError("Неподдерживаемая схема профиля.")
-    if value.get("mode") == "ordinary" and set(value) == {"schema", "mode"}:
+    if value["schema"] == 1 and value.get("mode") == "ordinary" and set(value) == {"schema", "mode"}:
         return ordinary_identity()
-    if value.get("mode") in {"native", LEGACY_UNAVAILABLE}:
+    if value["schema"] == 1 and value.get("mode") in {"native", LEGACY_UNAVAILABLE}:
         # Keep a non-runnable marker for experimental records, without retaining
         # or propagating their former spoofing configuration.
         return {"schema": 1, "mode": LEGACY_UNAVAILABLE}
+    if value["schema"] == 2 and value.get("mode") == NATIVE_PREVIEW and set(value) == {"schema", "mode", "seed"}:
+        raw = value["seed"]
+        if (not isinstance(raw, str) or not raw.isascii() or not raw.isdecimal() or
+                raw.startswith("0") or len(raw) > 20):
+            raise CoreError("Seed экспериментального профиля повреждён.")
+        try:
+            return native_preview_identity(int(raw))
+        except (ValueError, CoreError) as exc:
+            raise CoreError("Seed экспериментального профиля повреждён.") from exc
     raise CoreError("Профиль содержит неподдерживаемые параметры браузера.")
 
 
@@ -32,6 +53,11 @@ def serialize_identity(value: Mapping[str, Any]) -> str:
 
 
 def identity_arguments(value: Mapping[str, Any]) -> list[str]:
-    if validate_identity(value)["mode"] != "ordinary":
-        raise CoreError("Запуск старого экспериментального профиля отключён; используйте обычный профиль Chrome или Edge.")
-    return []
+    identity = validate_identity(value)
+    if identity["mode"] == "ordinary":
+        return []
+    if identity["mode"] == NATIVE_PREVIEW:
+        return [f"--neantik-fingerprint-seed={identity['seed']}",
+                "--neantik-hardware-concurrency=4", "--neantik-device-memory=8",
+                "--neantik-timezone=UTC"]
+    raise CoreError("Запуск старого экспериментального профиля отключён; используйте обычный профиль Chrome или Edge.")

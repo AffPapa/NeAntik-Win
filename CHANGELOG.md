@@ -20,7 +20,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   does not resolve delivery, so the overall result remains inconclusive.
 - Added a disposable Canvas probe and documented a separate native-persona
   development build. Its seed-based Canvas and timezone behavior is **not** in
-  the 0.8.1 public download and is not enabled in the profile manager.
+  the 0.8.1 public download. The unreleased manager source has an opt-in mode
+  that requires an exact staged native-core receipt; the public manager has no
+  such mode.
 - Exported the complete experimental Chromium patch with an exact upstream
   commit and deterministic verifier. This is source for review, not a release
   of the experimental browser core.
@@ -40,6 +42,15 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   OffscreenCanvas and dedicated-worker OffscreenCanvas behind a loopback load
   barrier. The staged prototype passes; the 0.8.1 release correctly fails the
   seed-difference negative control.
+- Added versioned experimental profile identity, a fresh seed for clean clones,
+  preservation through v3 backup/restore, and a fail-closed launcher that will
+  not run these profiles in stock Chrome or Edge. GUI and unit regressions cover
+  opt-in selection and missing-core refusal. This remains unreleased source;
+  stable per-profile seeds may increase linkability and are not an anonymity
+  claim.
+- Corrected the muted-label theme style found during disposable dark/light GUI
+  inspection; explanatory text in the profile form now uses the dialog surface
+  instead of the operating system's default light label background.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 

@@ -34,7 +34,9 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
-from profile_identity import CoreError, identity_arguments, ordinary_identity, serialize_identity, validate_identity
+from profile_identity import (CoreError, LEGACY_UNAVAILABLE, NATIVE_PREVIEW,
+                              identity_arguments, native_preview_identity,
+                              ordinary_identity, serialize_identity, validate_identity)
 from privacy_defaults import initialize_privacy_defaults
 
 import tkinter as tk
@@ -70,8 +72,11 @@ MAX_BACKUP_MANIFEST_BYTES = 1 * 1024 * 1024
 CHROMIUM_LOCK_MARKERS = ("SingletonLock", "SingletonCookie", "SingletonSocket")
 WINDOWS_CHROMIUM_LOCKFILE = "lockfile"
 JOURNAL_FORMAT = "nevision-operation-v1"
+NATIVE_JOURNAL_FORMAT = "neantik-operation-v3"
+NATIVE_BACKUP_FORMAT = "neantik-profile-backup-v3"
 SCHEMA_VERSION = "1"
 DB_BUSY_TIMEOUT_MS = 8_000
+NATIVE_PREVIEW_PATCH_SHA256 = "7ec3200a9ce0c0c8bb0cab8e7070a7be39a6b5e08704d92c45d1dd4c4f35d133"
 
 THEME_SYSTEM = "system"
 THEME_LIGHT = "light"
@@ -1021,8 +1026,8 @@ class Storage:
 
         journal = self.paths.operations / f"{uuid.uuid4().hex}.json"
         partial = self.paths.operations / f".{journal.name}.{uuid.uuid4().hex}.partial"
-        native_restore = payload.get("operation") == "restore" and isinstance(payload.get("profile"), dict) and payload["profile"].get("fingerprint", {}).get("mode") == "native"
-        record = {**payload, "format": "neantik-operation-v2" if native_restore else JOURNAL_FORMAT, "created_at": timestamp()}
+        native_restore = payload.get("operation") == "restore" and isinstance(payload.get("profile"), dict) and payload["profile"].get("fingerprint", {}).get("mode") == NATIVE_PREVIEW
+        record = {**payload, "format": NATIVE_JOURNAL_FORMAT if native_restore else JOURNAL_FORMAT, "created_at": timestamp()}
         try:
             with open(filesystem_path(partial), "x", encoding="utf-8") as output:
                 json.dump(record, output, ensure_ascii=False, sort_keys=True)
@@ -1050,7 +1055,7 @@ class Storage:
             payload = json.loads(journal.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise NeVisionError(f"Не удалось прочитать журнал незавершённой операции: {journal.name}") from exc
-        if not isinstance(payload, dict) or payload.get("format") not in (JOURNAL_FORMAT, "neantik-operation-v2"):
+        if not isinstance(payload, dict) or payload.get("format") not in (JOURNAL_FORMAT, "neantik-operation-v2", NATIVE_JOURNAL_FORMAT):
             raise NeVisionError(f"Журнал незавершённой операции имеет неверный формат: {journal.name}")
         return payload
 
@@ -1069,7 +1074,7 @@ class Storage:
             fingerprint = validate_identity(profile.get("fingerprint", ordinary_identity()))
         except CoreError as exc:
             raise NeVisionError("Журнал восстановления содержит неверный fingerprint.") from exc
-        if (payload.get("format") == "neantik-operation-v2") != (fingerprint["mode"] == "native"):
+        if (payload.get("format") == NATIVE_JOURNAL_FORMAT) != (fingerprint["mode"] == NATIVE_PREVIEW) or payload.get("format") == "neantik-operation-v2":
             raise NeVisionError("Формат журнала не соответствует fingerprint-профилю.")
         return {"id": profile_id, **{field: str(profile[field]) for field in fields},
                 "browser_family": validated_browser_family(profile.get("browser_family", "")), "fingerprint": fingerprint}
@@ -1219,8 +1224,8 @@ class Storage:
             "browser_session_data_included": True,
             "encrypted": False,
         }
-        if profile["fingerprint"]["mode"] == "native":
-            manifest["format"] = "neantik-profile-backup-v2"
+        if profile["fingerprint"]["mode"] == NATIVE_PREVIEW:
+            manifest["format"] = NATIVE_BACKUP_FORMAT
             manifest["profile"]["fingerprint"] = profile["fingerprint"]
         try:
             with zipfile.ZipFile(filesystem_path(partial), "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zip_out:
@@ -1309,7 +1314,7 @@ class Storage:
                     raise NeVisionError("Manifest backup повреждён.") from exc
                 if not isinstance(manifest, dict):
                     raise NeVisionError("Manifest backup имеет неверный формат.")
-                if manifest.get("format") not in ("nevision-profile-backup-v1", "neantik-profile-backup-v2"):
+                if manifest.get("format") not in ("nevision-profile-backup-v1", "neantik-profile-backup-v2", NATIVE_BACKUP_FORMAT):
                     raise NeVisionError("Неподдерживаемый формат backup NeAntik.")
                 original = manifest.get("profile", {})
                 if not isinstance(original, dict):
@@ -1318,7 +1323,8 @@ class Storage:
                     fingerprint = validate_identity(original.get("fingerprint", ordinary_identity()))
                 except CoreError as exc:
                     raise NeVisionError("Manifest backup содержит неверный fingerprint.") from exc
-                if (manifest["format"] == "neantik-profile-backup-v2") != (fingerprint["mode"] == "native"):
+                if ((manifest["format"] == NATIVE_BACKUP_FORMAT) != (fingerprint["mode"] == NATIVE_PREVIEW) or
+                        manifest["format"] == "neantik-profile-backup-v2"):
                     raise NeVisionError("Формат backup не соответствует fingerprint-профилю.")
                 members = self._validated_backup_members(archive)
                 profile_name = name_override.strip() or str(original.get("name", "Восстановленный профиль"))
@@ -1521,6 +1527,30 @@ class BrowserLauncher:
         except (OSError, ValueError, TypeError, AttributeError):
             return False
 
+    def native_persona_capabilities(self) -> dict[str, bool] | None:
+        """Trust only a staged bundled core with the exact preview patch receipt."""
+        engine = self.bundled_browser()
+        if engine is None:
+            return None
+        try:
+            receipt = json.loads((engine.parent / "ENGINE_PROVENANCE.json").read_text(encoding="utf-8"))
+            info = receipt.get("native_persona_core_info")
+            capabilities = info.get("capabilities") if isinstance(info, dict) else None
+            required = ("stable_seed", "hardware_concurrency", "device_memory",
+                        "canvas_opaque_srgb_uint8", "timezone")
+            if (receipt.get("format") != "neantik-chromium-source-build-v1" or
+                    receipt.get("privacy_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
+                    receipt.get("native_persona_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
+                    not isinstance(info, dict) or info.get("engine_id") != "neantik-chromium" or
+                    info.get("schema") != 1 or info.get("version") != receipt.get("chromium_version") or
+                    info.get("source_commit") != receipt.get("source_commit") or
+                    not isinstance(capabilities, dict) or
+                    not all(capabilities.get(key) is True for key in required)):
+                return None
+            return {key: bool(value) for key, value in capabilities.items()}
+        except (OSError, ValueError, TypeError, AttributeError):
+            return None
+
     def browser_family(self, path: Path) -> str:
         bundled = self.bundled_browser()
         if bundled is not None and path.resolve() == bundled.resolve():
@@ -1575,14 +1605,23 @@ class BrowserLauncher:
             raise NeVisionError("Назначенный proxy отсутствует или изменён. Обновите список и проверьте настройки перед запуском.")
         profile = current_profile
         fingerprint = profile["fingerprint"]
-        if fingerprint["mode"] != "ordinary":
+        if fingerprint["mode"] == LEGACY_UNAVAILABLE:
             raise NeVisionError("Этот старый экспериментальный профиль не поддерживается текущим выпуском. Данные профиля сохранены.")
-        executable = self.resolve_browser()
-        family = self.browser_family(executable)
+        native_preview = fingerprint["mode"] == NATIVE_PREVIEW
+        if native_preview:
+            executable = self.bundled_browser()
+            if executable is None or self.native_persona_capabilities() is None:
+                raise NeVisionError("Для экспериментального профиля требуется проверенное встроенное ядро NeAntik. Обычный Chrome/Edge не подходит; данные профиля сохранены.")
+            family = "chromium"
+        else:
+            executable = self.resolve_browser()
+            family = self.browser_family(executable)
         pinned_family = validated_browser_family(profile.get("browser_family", ""))
+        if native_preview and pinned_family not in {"", "chromium"}:
+            raise NeVisionError("Экспериментальный профиль закреплён за другим браузером. Создайте чистый профиль; данные сохранены.")
         # Existing 0.4.x profiles stay on their original browser even after a
         # bundled core becomes the default for new profiles.
-        if family == "chromium" and pinned_family in {"chrome", "edge"} and not self.storage.get_setting("browser_path"):
+        if not native_preview and family == "chromium" and pinned_family in {"chrome", "edge"} and not self.storage.get_setting("browser_path"):
             for _, candidate in self.available_browsers():
                 if self.browser_family(candidate) == pinned_family:
                     executable, family = candidate, pinned_family
@@ -2018,7 +2057,7 @@ class ProfileDialog(BaseDialog):
         super().__init__(app, "Новый профиль" if not profile else "Изменить профиль", "560x650")
         self.profile = profile
         self.identity = profile.get("fingerprint", ordinary_identity()) if profile else ordinary_identity()
-        if self.identity["mode"] != "ordinary":
+        if self.identity["mode"] == LEGACY_UNAVAILABLE:
             messagebox.showerror(APP_NAME, "Этот профиль был создан для удалённого экспериментального ядра. Его данные сохранены, но этот выпуск не может редактировать или запускать такой профиль.", parent=self)
             self.destroy()
             return
@@ -2050,6 +2089,18 @@ class ProfileDialog(BaseDialog):
                         if app.launcher.bundled_browser() else
                         "Обычный Chrome или Edge · без подмены отпечатка устройства.")
         ttk.Label(body, text=browser_hint, style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        self.mode_choice: ttk.Combobox | None = None
+        if not profile and app.launcher.native_persona_capabilities() is not None:
+            ttk.Label(body, text="Режим браузера", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+            self.mode_choice = ttk.Combobox(body, values=("Обычный профиль", "Экспериментальный fingerprint"),
+                                            style="Input.TCombobox", state="readonly")
+            self.mode_choice.current(0)
+            self.mode_choice.pack(fill="x", pady=(0, 7))
+            ttk.Label(body, text="Экспериментальный режим: отдельный постоянный Canvas-seed и общие CPU/RAM/UTC. Это не гарантия анонимности; необычный Canvas может повысить узнаваемость профиля.",
+                      style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 12))
+        elif self.identity["mode"] == NATIVE_PREVIEW:
+            ttk.Label(body, text="Экспериментальный fingerprint-профиль. Его режим и seed сохраняются при редактировании; для другой идентичности создайте чистую копию.",
+                      style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 12))
         if not profile and app.launcher.bundled_browser():
             ttk.Label(body, text="Новый профиль: сторонние cookies, геолокация, уведомления, камера и микрофон блокируются по умолчанию. При необходимости измените разрешения в Chromium.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
@@ -2072,7 +2123,9 @@ class ProfileDialog(BaseDialog):
 
     def save(self) -> None:
         try:
-            identity = ordinary_identity()
+            identity = (self.identity if self.profile else
+                        native_preview_identity() if self.mode_choice is not None and self.mode_choice.current() == 1
+                        else ordinary_identity())
             profile_id = self.app.storage.save_profile(
                 {
                     "name": self.name.get(),
@@ -2471,6 +2524,7 @@ class NeVisionApp:
         style.configure("DialogTitle.TLabel", background=self.colors["panel"], foreground=self.colors["text"], font=("Segoe UI", 17, "bold"))
         style.configure("Subtitle.TLabel", background=self.colors["panel"], foreground=self.colors["muted"], font=("Segoe UI", 9))
         style.configure("Label.TLabel", background=self.colors["panel"], foreground=self.colors["text"], font=("Segoe UI", 9, "bold"))
+        style.configure("Muted.TLabel", background=self.colors["panel"], foreground=self.colors["muted"], font=("Segoe UI", 9))
         style.configure("Hint.TLabel", background=self.colors["panel"], foreground=self.colors["muted"], font=("Segoe UI", 9))
         style.configure("Status.TLabel", background=self.colors["header"], foreground=self.colors["muted"], font=("Consolas", 8))
         style.configure("Accent.TButton", background=self.colors["accent"], foreground=self.colors["ink"], borderwidth=0, padding=(12, 8), font=("Segoe UI", 9, "bold"))
@@ -2673,17 +2727,24 @@ class NeVisionApp:
         heading.pack(side="left", fill="x", expand=True, padx=(13, 0))
         tk.Label(heading, text=profile["name"], bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 20, "bold"), wraplength=380, justify="left").pack(anchor="w")
         identity = profile.get("fingerprint", ordinary_identity())
-        unsupported = identity["mode"] != "ordinary"
+        unsupported = identity["mode"] == LEGACY_UNAVAILABLE
+        missing_native_core = identity["mode"] == NATIVE_PREVIEW and self.launcher.native_persona_capabilities() is None
         family = profile.get("browser_family") or ""
+        if identity["mode"] == NATIVE_PREVIEW and not family:
+            family = "chromium"
         browser_label = {"chromium": "Встроенный Chromium", "chrome": "Google Chrome", "edge": "Microsoft Edge"}.get(family, "Браузер ещё не закреплён")
-        privacy_label = "уменьшена детализация CPU/RAM" if family == "chromium" and self.launcher.has_native_privacy_baseline() else "без подмены fingerprint"
-        identity_label = "Старый неподдерживаемый профиль" if unsupported else f"{browser_label} · {privacy_label}"
+        privacy_label = ("экспериментальный fingerprint · не гарантия анонимности" if identity["mode"] == NATIVE_PREVIEW else
+                         "уменьшена детализация CPU/RAM" if family == "chromium" and self.launcher.has_native_privacy_baseline() else
+                         "без подмены fingerprint")
+        identity_label = ("Старый неподдерживаемый профиль" if unsupported else
+                          "Требуется проверенное native-ядро" if missing_native_core else
+                          f"{browser_label} · {privacy_label}")
         sub = "  ·  ".join(part for part in [identity_label, profile.get("group_name"), profile.get("tags")] if part)
         tk.Label(heading, text=sub, bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 0))
         is_running = self._is_profile_active(str(profile["id"]))
         chip_bg = self.colors["lime_surface"] if is_running else self.colors["panel_2"]
         chip_fg = self.colors["lime"] if is_running else self.colors["muted"]
-        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else ("НЕ ПОДДЕРЖИВАЕТСЯ" if unsupported else "ГОТОВ"))
+        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else ("НЕ ПОДДЕРЖИВАЕТСЯ" if unsupported else "НЕТ ЯДРА" if missing_native_core else "ГОТОВ"))
         status_chip = tk.Frame(top, bg=chip_bg, padx=10, pady=6)
         status_chip.pack(side="right", padx=(10, 8), pady=5)
         tk.Label(status_chip, text=state, bg=chip_bg, fg=chip_fg, font=("Segoe UI", 8, "bold")).pack()
@@ -2812,12 +2873,15 @@ class NeVisionApp:
             return
         visible_ids: set[str] = set()
         existing_ids = set(self.profile_tree.get_children())
+        native_core_available = self.launcher.native_persona_capabilities() is not None
         for index, profile in enumerate(rows):
             profile_id = str(profile["id"])
             visible_ids.add(profile_id)
             running = self._is_profile_active(profile_id)
-            unsupported = profile.get("fingerprint", ordinary_identity())["mode"] != "ordinary"
-            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "НЕ ПОДДЕРЖ." if unsupported else "ГОТОВ")
+            mode = profile.get("fingerprint", ordinary_identity())["mode"]
+            unsupported = mode == LEGACY_UNAVAILABLE
+            missing_native_core = mode == NATIVE_PREVIEW and not native_core_available
+            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "НЕ ПОДДЕРЖ." if unsupported else "НЕТ ЯДРА" if missing_native_core else "ГОТОВ")
             tags = ("running",) if running else ()
             values = (profile["name"], profile.get("group_name") or "—", status)
             if profile_id in existing_ids:
@@ -2903,6 +2967,9 @@ class NeVisionApp:
                 if not (self.paths.root / "Engine" / "Chromium").exists():
                     SettingsDialog(self)
                 return
+        elif profile["fingerprint"]["mode"] == NATIVE_PREVIEW and self.launcher.native_persona_capabilities() is None:
+            messagebox.showerror(APP_NAME, "Для этого профиля нужно проверенное встроенное native-ядро. Данные сохранены; обычный Chrome или Edge их не откроет.", parent=self.root)
+            return
         if profile.get("proxy_id"):
             proxy = self.storage.get_proxy(str(profile["proxy_id"]))
             if proxy and proxy["scheme"] in {"http", "https"} and (proxy.get("username") or proxy.get("password_protected")):
@@ -2930,7 +2997,7 @@ class NeVisionApp:
         profile = self.selected_profile()
         if not profile:
             return
-        if profile["fingerprint"]["mode"] != "ordinary":
+        if profile["fingerprint"]["mode"] == LEGACY_UNAVAILABLE:
             messagebox.showerror(APP_NAME, "Этот старый экспериментальный профиль нельзя клонировать в выпуске без native-ядра. Данные профиля сохранены.", parent=self.root)
             return
         copy_name = f"Копия · {profile['name']}"
@@ -2942,7 +3009,7 @@ class NeVisionApp:
                     "tags": profile.get("tags", ""),
                     "notes": f"Создано как чистая копия профиля «{profile['name']}».\n\n{profile.get('notes', '')}".strip(),
                     "proxy_id": profile.get("proxy_id") or None,
-                    "fingerprint": ordinary_identity(),
+                    "fingerprint": native_preview_identity() if profile["fingerprint"]["mode"] == NATIVE_PREVIEW else ordinary_identity(),
                 }
             )
             self.storage.log("profile.settings_cloned", new_id, f"source={profile['id']}")

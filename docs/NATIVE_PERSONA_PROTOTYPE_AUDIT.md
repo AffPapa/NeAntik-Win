@@ -1,9 +1,10 @@
 # Experimental native persona: evidence and release gates
 
 Status: **development checkout only**, 2026-10-13. These changes are not in
-the downloadable 0.8.1-preview core, and the manager does not offer a native
-persona mode. Do not describe the current release as providing per-profile
-Canvas or timezone changes.
+the downloadable 0.8.1-preview core. The unreleased manager source now has an
+opt-in preview profile mode gated on an exact staged-core receipt and compiled
+capability report; the downloadable manager does not offer it. Do not describe
+the current release as providing per-profile Canvas or timezone changes.
 
 The complete [experimental Chromium patch](chromium-native-persona-prototype.patch)
 is now public for review. It is based on upstream commit
@@ -24,7 +25,12 @@ SHA-256 and exact public patch bytes. A development-core staging run recorded
 the compiled `--neantik-core-info` handshake and matched the built `chrome.dll`
 hash; the staged core passed the disposable Canvas probe and the six-context
 CPU/memory/timezone audit. This is **not** a clean-from-scratch rebuild or a
-portable release. The manager still cannot create or launch native personas.
+portable release. In development source only, the manager can create and launch
+an opt-in preview persona with a matching staged core; it rejects stock cores
+instead of silently ignoring the native switches. The profile seed is stored
+in the local database, passed in the browser command line and included in an
+unencrypted v3 backup. It is a stable identifier, **not** a secret or an
+anonymity guarantee. A clean clone gets a new seed; restore preserves it.
 
 ## What was measured on one Windows 11 x64 computer
 
