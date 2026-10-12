@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 from nevision_win import (
     AppPaths,
     BrowserLauncher,
+    PRIVACY_CHECK_URL,
     DARK_COLORS,
     LIGHT_COLORS,
     NeVisionError,
@@ -618,6 +619,15 @@ class PortableCoreRegressionTests(unittest.TestCase):
             self.assertNotIn("--webrtc-ip-handling-policy=disable_non_proxied_udp", spawn.call_args.args[0])
             sandbox_acl.assert_called_once_with(engine)
             self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "chromium")
+            preferences = self.storage.profile_path(profile_id) / "Default" / "Preferences"
+            created = json.loads(preferences.read_text(encoding="utf-8"))
+            self.assertEqual(created["profile"]["cookie_controls_mode"], 1)
+            self.assertEqual(created["profile"]["default_content_setting_values"]["geolocation"], 2)
+
+            preferences.write_text('{"profile":{"cookie_controls_mode":0}}', encoding="utf-8")
+            with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access"), patch("nevision_win.subprocess.Popen", return_value=process):
+                launcher.launch(self.storage.get_profile(profile_id))
+            self.assertEqual(preferences.read_text(encoding="utf-8"), '{"profile":{"cookie_controls_mode":0}}')
 
     def test_bundled_proxy_restricts_non_proxied_webrtc_udp(self):
         engine = self.root / "Engine" / "Chromium"
@@ -631,10 +641,11 @@ class PortableCoreRegressionTests(unittest.TestCase):
         process.poll.return_value = None
         with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
             with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
-                launcher.launch(self.storage.get_profile(profile_id))
+                launcher.launch(self.storage.get_profile(profile_id), diagnostics=True)
         arguments = spawn.call_args.args[0]
         self.assertIn("--proxy-server=http://127.0.0.1:8080", arguments)
         self.assertIn("--webrtc-ip-handling-policy=disable_non_proxied_udp", arguments)
+        self.assertIn(PRIVACY_CHECK_URL, arguments)
 
     def test_bundled_acl_grant_is_limited_to_engine_and_cached(self):
         engine = self.root / "Engine" / "Chromium"

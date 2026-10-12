@@ -2,6 +2,26 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.6.0-preview — safer new profiles and visible diagnostics (2026-10-12)
+
+- New bundled-Chromium profiles start with third-party cookies blocked and
+  geolocation, notifications, camera and microphone denied. These are
+  Chromium's own preferences, created once before first launch; existing
+  profiles and later user changes are not overwritten. Sites needing those
+  permissions may require the user to allow them in Chromium.
+- A profile's Diagnostics action opens a public check page in that browser
+  profile. It shows browser-visible UA, language, timezone, screen,
+  hardware/WebGL and permission states; on request, it shows the IP seen by
+  our site. The page does not score anonymity, run STUN or send a fingerprint
+  report. Hosting sees the request IP and may keep ordinary access logs.
+- Added tests of real Chromium permission behavior and actual BrowserLauncher
+  wiring in disposable profiles. Research now compares ten competing profile
+  browsers, their vendor claims and lower-confidence independent reviews.
+- This does **not** provide a coherent spoofed fingerprint, Tor routing or a
+  guarantee against IP/DNS/WebRTC leaks. Proxy route checks, Windows 10 and
+  cross-PC portability remain limited or unverified. Chromium core remains
+  155.0.8059.40. Keep the old complete portable folder for rollback.
+
 ## 0.5.1-preview — smaller portable build and clearer controls (2026-10-12)
 
 - Bundled Chromium now carries `en-US`, Russian and Thai UI locale packs instead

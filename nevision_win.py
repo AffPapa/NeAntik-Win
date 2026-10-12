@@ -33,6 +33,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 from profile_identity import CoreError, identity_arguments, ordinary_identity, serialize_identity, validate_identity
+from privacy_defaults import initialize_privacy_defaults
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -51,6 +52,7 @@ except ImportError:  # pragma: no cover - non-Windows source checks
 APP_NAME = "NeAntik Win"
 APP_VERSION = json.loads((Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "release-version.json").read_text(encoding="utf-8"))["version"]
 SITE_URL = "https://nevision-win.mail782861.chatgpt.site"
+PRIVACY_CHECK_URL = SITE_URL + "/check.html"
 DB_NAME = "nevision.db"
 PROFILE_DIR_NAME = "Profiles"
 BACKUP_DIR_NAME = "Backups"
@@ -1527,12 +1529,12 @@ class BrowserLauncher:
             raise NeVisionError("Не найден встроенный Chromium, Chrome или Microsoft Edge. Проверьте целостность portable-папки либо выберите браузер в Настройках.")
         return browsers[0][1]
 
-    def launch(self, profile: dict[str, Any], extensions: bool = False) -> subprocess.Popen[bytes]:
+    def launch(self, profile: dict[str, Any], extensions: bool = False, diagnostics: bool = False) -> subprocess.Popen[bytes]:
         profile_id = str(profile["id"])
         with self.storage.profile_operation_lock(profile_id):
-            return self._launch_locked(profile, profile_id, extensions)
+            return self._launch_locked(profile, profile_id, extensions, diagnostics)
 
-    def _launch_locked(self, profile: dict[str, Any], profile_id: str, extensions: bool = False) -> subprocess.Popen[bytes]:
+    def _launch_locked(self, profile: dict[str, Any], profile_id: str, extensions: bool = False, diagnostics: bool = False) -> subprocess.Popen[bytes]:
         current_profile = self.storage.get_profile(profile_id)
         if current_profile is None:
             raise NeVisionError("Профиль больше не существует. Обновите список перед запуском.")
@@ -1593,11 +1595,18 @@ class BrowserLauncher:
                 raise NeVisionError("Назначенный proxy отсутствует. Выберите другой proxy перед запуском.")
         if extensions:
             arguments.append("edge://extensions/" if executable.name.lower() == "msedge.exe" else "chrome://extensions/")
+        if diagnostics:
+            arguments.append(PRIVACY_CHECK_URL)
         if family == "chromium":
             self.ensure_bundled_sandbox_access(executable.parent)
         # Pin before spawning so even a storage write failure cannot leave a
         # newly launched browser attached to an unguarded profile.
         self.storage.pin_browser_family(profile_id, family)
+        if family == "chromium":
+            try:
+                initialize_privacy_defaults(browser_data_dir)
+            except (OSError, ValueError) as exc:
+                raise NeVisionError("Не удалось безопасно создать настройки приватности нового профиля Chromium. Проверьте доступ к Data и отсутствие ссылок/junction.") from exc
         try:
             process = subprocess.Popen(arguments, cwd=str(profile_dir), creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         except OSError as exc:
@@ -2006,6 +2015,8 @@ class ProfileDialog(BaseDialog):
         self.proxy.pack(fill="x", pady=(0, 14))
         browser_hint = "Встроенный Chromium по умолчанию · без подмены отпечатка устройства." if app.launcher.bundled_browser() else "Обычный Chrome или Edge · без подмены отпечатка устройства."
         ttk.Label(body, text=browser_hint, style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        if not profile and app.launcher.bundled_browser():
+            ttk.Label(body, text="Новый профиль: сторонние cookies, геолокация, уведомления, камера и микрофон блокируются по умолчанию. При необходимости измените разрешения в Chromium.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
             body,
@@ -2466,6 +2477,8 @@ class NeVisionApp:
         profile_menu.add_command(label="Создать чистую копию", command=self.clone_selected)
         profile_menu.add_command(label="Создать backup", command=self.backup_selected)
         profile_menu.add_command(label="Проверить профиль", command=self.health_selected)
+        profile_menu.add_command(label="Папка профиля", command=self.open_profile_folder)
+        profile_menu.add_command(label="Расширения", command=self.open_extensions)
         menu.add_cascade(label="Профиль", menu=profile_menu)
         vault_menu = tk.Menu(menu, **menu_options)
         vault_menu.add_command(label="Открыть Proxy vault", command=self.open_proxy_vault)
@@ -2647,7 +2660,7 @@ class NeVisionApp:
             ("Резервная копия", "backup", self.backup_selected, "Создать ZIP с данными профиля. В нём могут быть cookies и сессии — храните его приватно."),
             ("Чистая копия", "clone", self.clone_selected, "Создать новый профиль с теми же настройками, но без cookies, истории и сессий."),
             ("Проверить", "health", self.health_selected, "Проверить состояние локальных файлов и привязку браузера."),
-            ("Папка", "folder", self.open_profile_folder, "Открыть каталог данных этого профиля в Проводнике."),
+            ("Диагностика", "health", self.open_privacy_diagnostics, "Открыть проверку IP и видимых сайту параметров именно в этом профиле. Наш сайт увидит ваш IP; DNS и WebRTC не проверяются."),
             ("Расширения", "profiles", self.open_extensions, "Открыть страницу расширений в браузере этого профиля."),
         )
         for index, (label, icon, command, hint) in enumerate(actions):
@@ -2831,13 +2844,18 @@ class NeVisionApp:
             return
         ProfileDialog(self, profile)
 
-    def launch_selected(self, extensions: bool = False) -> None:
+    def launch_selected(self, extensions: bool = False, diagnostics: bool = False) -> None:
         profile = self.selected_profile()
         if not profile:
             return
         if not self._allow_profile_mutation(profile):
             return
         if self._is_profile_active(str(profile["id"])):
+            if diagnostics:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(PRIVACY_CHECK_URL)
+                messagebox.showinfo(APP_NAME, "Профиль уже открыт. Ссылка проверки скопирована: вставьте её в адресную строку именно этого профиля. Наш сайт увидит IP при открытии страницы.", parent=self.root)
+                return
             messagebox.showinfo(APP_NAME, "Профиль уже открыт. Расширения доступны через меню браузера → Расширения. Для нового запуска закройте все окна этого профиля.", parent=self.root)
             return
         if profile["fingerprint"]["mode"] == "ordinary":
@@ -2863,10 +2881,13 @@ class NeVisionApp:
             self.set_status("Запуск не выполнен")
             messagebox.showerror(APP_NAME, str(error), parent=self.root)
 
-        self._run_in_background(f"launch:{profile['id']}", lambda: self.launcher.launch(profile, extensions=extensions), completed, failed)
+        self._run_in_background(f"launch:{profile['id']}", lambda: self.launcher.launch(profile, extensions=extensions, diagnostics=diagnostics), completed, failed)
 
     def open_extensions(self) -> None:
         self.launch_selected(extensions=True)
+
+    def open_privacy_diagnostics(self) -> None:
+        self.launch_selected(diagnostics=True)
 
     def clone_selected(self) -> None:
         profile = self.selected_profile()

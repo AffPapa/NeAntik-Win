@@ -14,6 +14,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 ```powershell
 python -m unittest -v test_nevision_win.py
 python -m unittest -v test_profile_identity.py
+python -m unittest -v test_privacy_defaults.py
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
@@ -45,7 +46,7 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Verify Chromium source commit, build-only patch SHA-256, version, `LICENSE`,
   `credits.html` and exact runtime allowlist. A bundled archive must contain
   no PDBs, build intermediates, tests or user `Data/`.
-- For 0.5.1, verify only en-US/ru/th Chromium UI packs are present, record the
+- For 0.6.0, verify only en-US/ru/th Chromium UI packs are present, record the
   old/new ZIP size, and test English fallback before claiming a size win.
 
 ## 4. Test the exact packaged ZIP
@@ -60,6 +61,8 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Verify Ctrl+N, Ctrl+F, Enter, Escape and F5; system light/dark themes; scrolling, resizing, focus and readable error states.
 - Test native Extensions action closed/open; do not install untrusted extensions.
 - Test invalid/missing proxy rejection, unsupported SOCKS5 auth rejection, IPv6 formatting and clear TCP-only diagnostics. Do not claim untested authenticated proxy success.
+- In a fresh bundled profile, verify real Chromium denies geolocation, notifications, camera and microphone and retains initial Preferences. Confirm a subsequent launch does not overwrite user changes; old profiles remain untouched.
+- Open the diagnostic page in the selected profile and verify it explains that its host sees the request IP; no STUN or automatic fingerprint upload. Record external IP as a one-site observation, not a leak-free claim.
 - Exercise clipboard cleanup without overwriting newer clipboard content; keep Windows history limitation explicit.
 - Test backup/restore of a closed synthetic profile; show sensitive-data warning, validate manifest and new profile/no assigned proxy. Reject hostile/colliding archives without partial restored profiles.
 - Verify safe close during queued work; second manager instance and externally opened profile behavior; restart/recovery after controlled interruption.

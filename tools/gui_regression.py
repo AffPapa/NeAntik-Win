@@ -158,7 +158,7 @@ class GuiTests(unittest.TestCase):
             for child in widget.winfo_children():
                 yield from walk(child)
         buttons = {widget.text: widget for widget in walk(self.app.root) if isinstance(widget, nv.IconButton)}
-        for label in ("Резервная копия", "Чистая копия", "TCP-проверка proxy", "Удалить профиль"):
+        for label in ("Резервная копия", "Чистая копия", "Диагностика", "TCP-проверка proxy", "Удалить профиль"):
             self.assertIsNotNone(buttons[label].hint)
             self.assertGreater(len(buttons[label].hint.text), 20)
         hint = buttons["Чистая копия"].hint
@@ -166,6 +166,13 @@ class GuiTests(unittest.TestCase):
         self.assertIsNotNone(hint.popup)
         hint._hide()
         self.assertIsNone(hint.popup)
+
+    def test_diagnostics_for_open_profile_copies_link_without_relaunch(self):
+        self.app.refresh_profiles(self.profile)
+        with patch.object(self.app, "_is_profile_active", return_value=True), patch.object(self.app.launcher, "launch") as launch, patch("nevision_win.messagebox.showinfo"):
+            self.app.open_privacy_diagnostics()
+        self.assertEqual(self.app.root.clipboard_get(), nv.PRIVACY_CHECK_URL)
+        launch.assert_not_called()
 
     def test_profile_browser_label_matches_pinned_engine(self):
         self.storage.pin_browser_family(self.profile, "chromium")
