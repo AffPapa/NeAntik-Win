@@ -2,7 +2,8 @@
 
 This edition prefers bundled unbranded Chromium for new local profiles and can
 continue to launch profiles pinned to an installed Chrome or Edge browser.
-It bundles upstream unbranded Chromium without spoofing device or browser identities.
+The reviewed native Chromium variant conservatively reduces two exposed
+resource signals; this is not an anonymity guarantee.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import ipaddress
 import json
 import os
 import queue
+import re
 import shutil
 import socket
 import sqlite3
@@ -1507,6 +1509,18 @@ class BrowserLauncher:
             return engine
         return None
 
+    def has_native_privacy_baseline(self) -> bool:
+        """Describe only a bundled core whose receipt declares a native patch."""
+        engine = self.bundled_browser()
+        if engine is None:
+            return False
+        try:
+            receipt = json.loads((engine.parent / "ENGINE_PROVENANCE.json").read_text(encoding="utf-8"))
+            return (receipt.get("format") == "neantik-chromium-source-build-v1"
+                    and bool(re.fullmatch(r"[0-9a-f]{64}", receipt.get("privacy_patch_sha256", ""))))
+        except (OSError, ValueError, TypeError, AttributeError):
+            return False
+
     def browser_family(self, path: Path) -> str:
         bundled = self.bundled_browser()
         if bundled is not None and path.resolve() == bundled.resolve():
@@ -2030,7 +2044,11 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=proxy_labels, style="Input.TCombobox", state="readonly")
         self.proxy.current(selected_index)
         self.proxy.pack(fill="x", pady=(0, 14))
-        browser_hint = "Встроенный Chromium по умолчанию · без подмены отпечатка устройства." if app.launcher.bundled_browser() else "Обычный Chrome или Edge · без подмены отпечатка устройства."
+        browser_hint = ("Встроенный Chromium · уменьшена детализация CPU/RAM; остальные сигналы и IP не скрыты."
+                        if app.launcher.has_native_privacy_baseline() else
+                        "Встроенный Chromium по умолчанию · без подмены отпечатка устройства."
+                        if app.launcher.bundled_browser() else
+                        "Обычный Chrome или Edge · без подмены отпечатка устройства.")
         ttk.Label(body, text=browser_hint, style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         if not profile and app.launcher.bundled_browser():
             ttk.Label(body, text="Новый профиль: сторонние cookies, геолокация, уведомления, камера и микрофон блокируются по умолчанию. При необходимости измените разрешения в Chromium.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
@@ -2618,7 +2636,8 @@ class NeVisionApp:
         tk.Label(empty, text=f"Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно. {browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
         IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42,
                    tooltip="Новый профиль создаётся локально и запускается во встроенном Chromium.").pack()
-        tk.Label(empty, text="Данные локально · без cloud sync · без подмены fingerprint", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
+        privacy_note = "Данные локально · без облака · уменьшена детализация CPU/RAM" if self.launcher.has_native_privacy_baseline() else "Данные локально · без cloud sync · без подмены fingerprint"
+        tk.Label(empty, text=privacy_note, bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
         tk.Label(empty, text=f"Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\n{browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
         IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200,
                    tooltip="Открыть сайт с последней portable-версией и инструкцией обновления.").pack(pady=(12, 0))
@@ -2657,7 +2676,8 @@ class NeVisionApp:
         unsupported = identity["mode"] != "ordinary"
         family = profile.get("browser_family") or ""
         browser_label = {"chromium": "Встроенный Chromium", "chrome": "Google Chrome", "edge": "Microsoft Edge"}.get(family, "Браузер ещё не закреплён")
-        identity_label = "Старый неподдерживаемый профиль" if unsupported else f"{browser_label} · без подмены fingerprint"
+        privacy_label = "уменьшена детализация CPU/RAM" if family == "chromium" and self.launcher.has_native_privacy_baseline() else "без подмены fingerprint"
+        identity_label = "Старый неподдерживаемый профиль" if unsupported else f"{browser_label} · {privacy_label}"
         sub = "  ·  ".join(part for part in [identity_label, profile.get("group_name"), profile.get("tags")] if part)
         tk.Label(heading, text=sub, bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 0))
         is_running = self._is_profile_active(str(profile["id"]))
@@ -3174,7 +3194,9 @@ class NeVisionApp:
             messagebox.showinfo(APP_NAME, "Changelog доступен в репозитории проекта.", parent=self.root)
 
     def show_about(self) -> None:
-        scope = ("В этот portable-выпуск входит Chromium; установленный Chrome не требуется. Подмены fingerprint нет."
+        scope = ("В этот portable-выпуск входит Chromium; установленный Chrome не требуется. В ядре уменьшена детализация CPU/RAM, но анонимность не гарантируется."
+                 if self.launcher.has_native_privacy_baseline() else
+                 "В этот portable-выпуск входит Chromium; установленный Chrome не требуется. Подмены fingerprint нет."
                  if self.launcher.bundled_browser() else
                  "Этот portable-выпуск использует установленный Chrome или Edge. Собственного ядра и подмены fingerprint нет.")
         messagebox.showinfo(

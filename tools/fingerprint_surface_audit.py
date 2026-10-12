@@ -59,7 +59,8 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     target.onmessage = (event) => { clearTimeout(timeout); target.terminate(); resolve(event.data); };
     target.onerror = (error) => { clearTimeout(timeout); target.terminate(); reject(error); };
   });
-  const result = {token, main, iframe, worker};
+  const httpHints = await fetch('/hints?token=' + token, {cache: 'no-store'}).then(r => r.json());
+  const result = {token, main, iframe, worker, httpHints};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -87,6 +88,7 @@ class AuditServer(ThreadingHTTPServer):
         self.ready = threading.Event()
         self.external_attempts = 0
         self.headers_seen: dict[str, str | None] = {}
+        self.hints_seen: dict[str, str | None] = {}
 
 
 class AuditHandler(BaseHTTPRequestHandler):
@@ -95,11 +97,14 @@ class AuditHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *args: object) -> None:
         pass
 
-    def reply(self, status: int, content: bytes, mime: str = "text/plain") -> None:
+    def reply(self, status: int, content: bytes, mime: str = "text/plain",
+              extra_headers: dict[str, str] | None = None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", mime)
         self.send_header("Content-Length", str(len(content)))
         self.send_header("Cache-Control", "no-store")
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         try:
             self.wfile.write(content)
@@ -127,7 +132,15 @@ class AuditHandler(BaseHTTPRequestHandler):
                 "acceptLanguage": self.headers.get("Accept-Language"),
                 "secChUa": self.headers.get("Sec-CH-UA"),
             }
-            self.reply(200, PAGE.replace("__TOKEN__", self.server.token).encode(), "text/html; charset=utf-8")
+            self.reply(200, PAGE.replace("__TOKEN__", self.server.token).encode(), "text/html; charset=utf-8",
+                       {"Accept-CH": "Sec-CH-Device-Memory, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version"})
+        elif route == "/hints":
+            self.server.hints_seen = {
+                "deviceMemory": self.headers.get("Sec-CH-Device-Memory"),
+                "uaFullVersionList": self.headers.get("Sec-CH-UA-Full-Version-List"),
+                "uaPlatformVersion": self.headers.get("Sec-CH-UA-Platform-Version"),
+            }
+            self.reply(200, json.dumps(self.server.hints_seen).encode(), "application/json; charset=utf-8")
         elif route == "/frame":
             self.reply(200, b"<!doctype html><html><body>frame</body></html>", "text/html; charset=utf-8")
         elif route == "/worker.js":
@@ -186,8 +199,9 @@ def audit_profile(chrome: Path, root: Path) -> dict:
             raise RuntimeError("Browser DOM and local report differ")
         if result.get("token") != token:
             raise RuntimeError("Report token mismatch")
-        result.pop("token")
-        return {"surfaces": result, "http": server.headers_seen,
+        surfaces = {key: result[key] for key in ("main", "iframe", "worker")}
+        return {"surfaces": surfaces, "http": server.headers_seen,
+                "client_hints": server.hints_seen,
                 "blocked_external_requests": server.external_attempts}
     finally:
         if process is not None and process.poll() is None:
@@ -201,6 +215,27 @@ def audit_profile(chrome: Path, root: Path) -> dict:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
+    keys = ("userAgent", "platform", "language", "languages", "hardwareConcurrency",
+            "deviceMemory", "timezone")
+    consistency = []
+    for report in reports:
+        surfaces = report["surfaces"]
+        hint = report.get("client_hints", {}).get("deviceMemory")
+        memory = surfaces["main"]["deviceMemory"]
+        try:
+            hint_matches = hint is None or (memory is not None and float(hint) == memory)
+        except (TypeError, ValueError):
+            hint_matches = False
+        consistency.append({
+            "main_iframe": surfaces["main"] == surfaces["iframe"],
+            "main_worker_common": all(surfaces["main"].get(key) == surfaces["worker"].get(key) for key in keys),
+            "js_http_user_agent": surfaces["main"]["userAgent"] == report["http"]["userAgent"],
+            "device_memory_hint_when_present": hint_matches,
+        })
+    return consistency
 
 
 def main() -> int:
@@ -217,16 +252,7 @@ def main() -> int:
     for _ in range(2):
         with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
             reports.append(audit_profile(chrome, Path(temporary)))
-    keys = ("userAgent", "platform", "language", "languages", "hardwareConcurrency",
-            "deviceMemory", "timezone")
-    consistency = []
-    for report in reports:
-        surfaces = report["surfaces"]
-        consistency.append({
-            "main_iframe": surfaces["main"] == surfaces["iframe"],
-            "main_worker_common": all(surfaces["main"].get(key) == surfaces["worker"].get(key) for key in keys),
-            "js_http_user_agent": surfaces["main"]["userAgent"] == report["http"]["userAgent"],
-        })
+    consistency = evaluate(reports)
     output = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "two disposable profiles; loopback only; no public leak or anonymity conclusion",
               "profile_surfaces_equal": reports[0]["surfaces"] == reports[1]["surfaces"],

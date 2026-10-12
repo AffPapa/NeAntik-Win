@@ -1,0 +1,58 @@
+diff --git a/third_party/blink/common/device_memory/approximated_device_memory.cc b/third_party/blink/common/device_memory/approximated_device_memory.cc
+index 7fd53ebba0..5ba9b70834 100644
+--- a/third_party/blink/common/device_memory/approximated_device_memory.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory.cc
+@@ -59,7 +59,10 @@ void ApproximatedDeviceMemory::CalculateAndSetApproximatedDeviceMemory() {
+   // Limit the values to reduce fingerprintability.
+   // See: https://crbug.com/454354290 for updated limits.
+   float kMinMemory = 2.0f;
+-  float kMaxMemory = 32.0f;
++  // NeAntik privacy baseline: keep the specification's coarse memory bucket,
++  // but cap high-end Windows devices at a common 8 GiB bucket. This shared
++  // value feeds both JavaScript and Sec-CH-Device-Memory.
++  float kMaxMemory = 8.0f;
+ 
+ #if BUILDFLAG(IS_ANDROID)
+     // Allow smaller lower limits on Android where lower RAM is still common.
+diff --git a/third_party/blink/common/device_memory/approximated_device_memory_unittest.cc b/third_party/blink/common/device_memory/approximated_device_memory_unittest.cc
+index 3118955ce2..21367aa2ab 100644
+--- a/third_party/blink/common/device_memory/approximated_device_memory_unittest.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory_unittest.cc
+@@ -75,11 +75,11 @@ TEST_F(ApproximatedDeviceMemoryTest, GetApproximatedDeviceMemory) {
+   EXPECT_EQ(8, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
+ #else
+   ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(16384);  // 16GB
+-  EXPECT_EQ(16, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
++  EXPECT_EQ(8, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
+   ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(32768);  // 32GB
+-  EXPECT_EQ(32, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
++  EXPECT_EQ(8, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
+   ApproximatedDeviceMemory::SetPhysicalMemoryMBForTesting(64385);  // <64GB
+-  EXPECT_EQ(32, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
++  EXPECT_EQ(8, ApproximatedDeviceMemory::GetApproximatedDeviceMemory());
+ #endif
+ }
+ 
+diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+index f5c0db2d1b..100bf32c75 100644
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -4,12 +4,17 @@
+ 
+ #include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
+ 
++#include <algorithm>
++
+ #include "base/system/sys_info.h"
+ 
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
+-  return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
++  // NeAntik privacy baseline: do not reveal unusually high logical CPU counts.
++  // Never report more cores than the host has, so low-end devices remain safe.
++  return static_cast<unsigned>(
++      std::min(base::SysInfo::NumberOfProcessors(), 4));
+ }
+ 
+ }  // namespace blink

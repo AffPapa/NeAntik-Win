@@ -2,6 +2,24 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.0-preview — limited native fingerprint reduction (2026-10-12)
+
+- Built Chromium 155.0.8059.40 from the pinned source with a published, hashed
+  privacy patch. The bundled core caps reported logical CPU count at 4 and
+  approximated device memory at 8 GiB. JavaScript and Device-Memory Client
+  Hints agree in disposable loopback tests on one Windows 11 machine.
+- Added a source-build receipt, release-manifest linkage, patch allowlist and
+  release-verifier checks so the patched binary cannot be presented as an
+  unmodified upstream build. Existing installed Chrome/Edge profiles are not
+  changed. No per-profile random fingerprint or timezone override is added.
+- Added the detailed [implementation plan](docs/MASTER_IMPLEMENTATION_PLAN.md)
+  and [privacy-patch rationale](docs/CHROMIUM_PRIVACY_BASELINE.md). This is an
+  incremental reduction of two fingerprint surfaces, **not** a guarantee of
+  anonymity or protection from account, network or cross-surface correlation.
+- Profile data format is unchanged. Keep a private copy of the whole old
+  portable folder before upgrading; never reuse an older browser with data
+  already upgraded by a newer Chromium.
+
 ## 0.7.1-preview — open-source license and verifiable release scope (2026-10-12)
 
 - Project-authored source is now published under MPL-2.0. The portable ZIP

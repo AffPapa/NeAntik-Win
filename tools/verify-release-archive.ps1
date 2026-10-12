@@ -54,7 +54,7 @@ try {
     $version = Read-ArchiveText $entries["$root/release-version.json"] | ConvertFrom-Json
     $frozen = Read-ArchiveText $entries["$root/_internal/release-version.json"] | ConvertFrom-Json
     if ($manifest.format -ne 'nevision-release-v1' -or $manifest.version -ne $version.version -or $version.version -ne $frozen.version) { throw 'Inconsistent release manifest or version.' }
-    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
+    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
     $productBase = [System.IO.Path]::GetFileNameWithoutExtension($exeName)
     if ($root -ne "$productBase-portable-v$($version.version)") { throw 'Archive root does not match release version.' }
     $listed = @{}
@@ -83,6 +83,7 @@ try {
         if (-not $entries.ContainsKey("$root/licenses/$license")) { throw "Runtime license is missing: $license" }
     }
     $engineEntries = @($entries.Keys | Where-Object { $_ -match ('^' + [regex]::Escape($root) + '/Engine/') })
+    $hasApprovedFingerprintPatch = $false
     $hasNativeField = $manifest.PSObject.Properties.Name -contains 'native_core_bundled'
     if ($hasNativeField -and $manifest.native_core_bundled -isnot [bool]) { throw 'native_core_bundled must be a boolean.' }
     if ($engineEntries.Count -gt 0) {
@@ -128,7 +129,13 @@ try {
                 $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$') -or
                 (Get-ArchiveHash $entries["${prefix}LICENSE"]) -ne $engineReceipt.license_sha256) { throw 'Source-built Chromium provenance is invalid.' }
-            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview')) {
+            $receiptPrivacyPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$engineReceipt.privacy_patch_sha256 } else { '' }
+            $manifestPrivacyPatch = if ($manifest.engine.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$manifest.engine.privacy_patch_sha256 } else { '' }
+            if ($receiptPrivacyPatch -ne $manifestPrivacyPatch -or
+                ($receiptPrivacyPatch -and $receiptPrivacyPatch -notmatch '^[0-9a-f]{64}$')) { throw 'Browser privacy patch provenance is invalid.' }
+            $hasApprovedFingerprintPatch = [bool]$receiptPrivacyPatch
+            if ($manifest.version -eq '0.8.0-preview' -and -not $hasApprovedFingerprintPatch) { throw 'This release requires the reviewed native privacy patch.' }
+            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @($engineEntries | Where-Object { $_ -match '/locales/[^/]+\.pak$' } | ForEach-Object { ($_ -split '/')[-1] } | Sort-Object) -join ','
@@ -145,7 +152,8 @@ try {
     }
     $hasFingerprintField = $manifest.PSObject.Properties.Name -contains 'fingerprint_modification'
     if ($hasFingerprintField -and $manifest.fingerprint_modification -isnot [bool]) { throw 'fingerprint_modification must be a boolean.' }
-    if ($hasFingerprintField -and $manifest.fingerprint_modification) { throw 'Fingerprint modification is not part of this release.' }
+    if ($hasApprovedFingerprintPatch -and (-not $hasFingerprintField -or -not $manifest.fingerprint_modification)) { throw 'Native privacy patch must be disclosed in release manifest.' }
+    if ($hasFingerprintField -and $manifest.fingerprint_modification -and -not $hasApprovedFingerprintPatch) { throw 'Fingerprint modification has no reviewed browser patch provenance.' }
     # High-confidence patterns supplement the source scan and runtime-path guard.
     # Never print matched values; a clean regex scan is not a proof of no secrets.
     $secretPattern = '\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b|\bAKIA[0-9A-Z]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----'

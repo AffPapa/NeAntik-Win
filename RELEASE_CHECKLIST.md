@@ -92,8 +92,8 @@ Use disposable test data outside the shipping folder. Re-check the final ZIP aft
 
 ## 7. Bundled-browser release gate
 
-- Verify `release-manifest.json` reports `native_core_bundled: true` and `fingerprint_modification: false`; the release tree must contain complete `Engine/Chromium` provenance, licenses and runtime files.
-- Verify new profiles use bundled Chromium and a proxy profile receives only the tested WebRTC IP-handling preference; ordinary identity values are not rewritten.
+- For 0.8.0-preview verify `release-manifest.json` reports `native_core_bundled: true`, `fingerprint_modification: true`, and the same approved privacy-patch SHA-256 as the engine receipt and public patch file; the release tree must contain complete `Engine/Chromium` provenance, licenses and runtime files. Older releases without the patch must continue to report `false`.
+- Verify new profiles use bundled Chromium and a proxy profile receives the tested WebRTC IP-handling preference; the only new identity-value changes are the two documented native CPU/memory caps. Test JavaScript/frame/worker and Device-Memory Client Hint parity in the extracted release, then record untested surfaces explicitly.
 - Test an experimental legacy profile marker: its browser data remains unchanged, and launch/edit/clone actions fail clearly without falling back to stock Chrome/Edge.
 - Test bundled Chromium launch, old Chrome/Edge pinning, data isolation, backup/restore, proxy assignment and update/rollback using disposable data as described above.
 - Reverify the exact portable ZIP after testing, then repeat public-download hash and launch checks.

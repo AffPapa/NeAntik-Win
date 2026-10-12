@@ -16,7 +16,7 @@ $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
 if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
-if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
+if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
     throw 'This NeAntik Win release requires EngineDirectory: publish only the complete Chromium portable build.'
 }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
@@ -95,9 +95,12 @@ if (-not $PackageOnly) {
             if ($engineReceipt.source_commit -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or
                 $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
+            $privacyPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$engineReceipt.privacy_patch_sha256 } else { '' }
+            if ($privacyPatch -and $privacyPatch -notmatch '^[0-9a-f]{64}$') { throw 'Browser privacy patch provenance is invalid.' }
+            if ($releaseVersion -eq '0.8.0-preview' -and -not $privacyPatch) { throw 'This release requires the reviewed native privacy patch.' }
             $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
-            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview')) {
+            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @(Get-ChildItem -LiteralPath (Join-Path $engineSource 'locales') -File -Filter '*.pak' | Select-Object -ExpandProperty Name | Sort-Object) -join ','
@@ -125,8 +128,10 @@ if ($packagedVersion.version -ne $releaseVersion) { throw 'Bundled application v
 $provenance = Get-Content -LiteralPath (Join-Path $releaseRoot 'build-provenance.json') -Raw | ConvertFrom-Json
 $runtime = Get-Content -LiteralPath (Join-Path $releaseRoot 'runtime-components.json') -Raw | ConvertFrom-Json
 $hasEngine = Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine/Chromium/chrome.exe') -PathType Leaf
+$privacyPatch = ''
 if ($hasEngine) {
     $engineReceipt = Get-Content -LiteralPath (Join-Path $releaseRoot 'Engine/Chromium/ENGINE_PROVENANCE.json') -Raw | ConvertFrom-Json
+    if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { $privacyPatch = [string]$engineReceipt.privacy_patch_sha256 }
 } elseif (Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine')) {
     throw 'Incomplete browser engine folder.'
 }
@@ -137,9 +142,9 @@ $manifest = [ordered]@{
     source_commit = $provenance.source_commit; source_state = $provenance.source_state; source_tree_sha256 = $provenance.source_tree_sha256
     operating_systems = @('Windows x64')
     tested_os = 'Windows 11 Pro x64 10.0.26200'; unverified_os = @('Windows 10', 'Windows ARM64')
-    browser_strategy = if ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
+    browser_strategy = if ($privacyPatch) { 'Portable local profile manager with source-built Chromium and conservative native CPU/RAM fingerprint reduction. Other browser fingerprints and network routes are not anonymized.' } elseif ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
     native_core_bundled = [bool]$hasEngine
-    fingerprint_modification = $false
+    fingerprint_modification = [bool]$privacyPatch
     schema_version = '1'; backup_format = 'nevision-profile-backup-v1 (ordinary profiles only)'
     signature_status = [string](Get-AuthenticodeSignature -LiteralPath $exePath).Status
     release_notes = 'CHANGELOG.md'; runtime = $runtime; files = $files
@@ -147,7 +152,7 @@ $manifest = [ordered]@{
 if ($hasEngine) {
     $manifest.engine = [ordered]@{ name = 'Chromium'; version = [string]$engineReceipt.chromium_version; channel = [string]$engineReceipt.channel; source_commit = [string]$engineReceipt.source_commit; provenance_format = [string]$engineReceipt.format }
     if ($engineReceipt.format -eq 'neantik-chromium-snapshot-stage-v1') { $manifest.engine.snapshot_sha256 = [string]$engineReceipt.snapshot_sha256 }
-    else { $manifest.engine.source_tree = [string]$engineReceipt.source_tree; $manifest.engine.build_args_sha256 = [string]$engineReceipt.build_args_sha256; $manifest.engine.build_patch_sha256 = [string]$engineReceipt.build_patch_sha256 }
+    else { $manifest.engine.source_tree = [string]$engineReceipt.source_tree; $manifest.engine.build_args_sha256 = [string]$engineReceipt.build_args_sha256; $manifest.engine.build_patch_sha256 = [string]$engineReceipt.build_patch_sha256; $manifest.engine.privacy_patch_sha256 = $privacyPatch }
 }
 Write-ReleaseJson $manifest (Join-Path $releaseRoot 'release-manifest.json')
 $hashLines = @($files | ForEach-Object { "$($_.sha256)  $($_.path)" })

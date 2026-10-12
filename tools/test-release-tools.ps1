@@ -68,7 +68,7 @@ function New-TestArchive([string]$Mode) {
         foreach ($member in @('chrome.exe', 'chrome.dll', 'icudtl.dat', 'resources.pak', 'LICENSE')) {
             $payload["Engine/Chromium/$member"] = "Synthetic Chromium fixture $member"
         }
-        if ($Mode -eq 'chromium-source') {
+        if ($Mode.StartsWith('chromium-source')) {
             foreach ($member in @('chrome_elf.dll', '155.0.8059.40.manifest', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
                 $payload["Engine/Chromium/$member"] = "Synthetic Chromium fixture $member"
             }
@@ -76,11 +76,12 @@ function New-TestArchive([string]$Mode) {
         $payload['Engine/Chromium/credits.html'] = '<!DOCTYPE html>' + ('C' * 110000)
         $engineReceipt = [ordered]@{ format = 'neantik-chromium-snapshot-stage-v1'; chromium_version = '157.0.8101.0';
             channel = 'continuous-snapshot-not-stable'; source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
-        if ($Mode -eq 'chromium-source') {
+        if ($Mode.StartsWith('chromium-source')) {
             $engineReceipt = [ordered]@{ format = 'neantik-chromium-source-build-v1'; chromium_version = '155.0.8059.40';
                 channel = 'stable'; source_commit = 'a' * 40; source_tree = 'c' * 40; build_args_sha256 = 'd' * 64; build_patch_sha256 = 'e' * 64;
                 license_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/LICENSE'];
                 credits_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/credits.html'] }
+            if ($Mode -like 'chromium-source-privacy*') { $engineReceipt.privacy_patch_sha256 = 'f' * 64 }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
         $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
@@ -103,10 +104,16 @@ function New-TestArchive([string]$Mode) {
         $manifest.native_core_bundled = $true
         $manifest.engine = [ordered]@{ name = 'Chromium'; version = '157.0.8101.0'; channel = 'continuous-snapshot-not-stable';
             source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
-        if ($Mode -eq 'chromium-source') {
+        if ($Mode.StartsWith('chromium-source')) {
             $manifest.engine = [ordered]@{ name = 'Chromium'; version = '155.0.8059.40'; channel = 'stable';
                 source_commit = 'a' * 40; provenance_format = 'neantik-chromium-source-build-v1';
                 source_tree = 'c' * 40; build_args_sha256 = 'd' * 64; build_patch_sha256 = 'e' * 64 }
+            if ($Mode -like 'chromium-source-privacy*') {
+                $manifest.engine.privacy_patch_sha256 = 'f' * 64
+                $manifest.fingerprint_modification = $true
+                if ($Mode -eq 'chromium-source-privacy-false') { $manifest.fingerprint_modification = $false }
+                if ($Mode -eq 'chromium-source-privacy-mismatch') { $manifest.engine.privacy_patch_sha256 = '0' * 64 }
+            }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
     }
@@ -166,6 +173,13 @@ Expect-Failure 'development core cannot be public preview' { & (Join-Path $PSScr
 $chromiumSource = New-TestArchive 'chromium-source'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSource
 $script:passed++
+$chromiumSourcePrivacy = New-TestArchive 'chromium-source-privacy'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourcePrivacy
+$script:passed++
+foreach ($case in @(@('chromium-source-privacy-false', 'disclosed'), @('chromium-source-privacy-mismatch', 'provenance'))) {
+    $archive = New-TestArchive $case[0]
+    Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
+}
 $fakeStableSnapshot = New-TestArchive 'chromium-fake-stable-snapshot'
 Expect-Failure 'snapshot cannot impersonate stable core' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $fakeStableSnapshot } 'Snapshot provenance'
 $launcherOnly = New-TestArchive 'launcher-only'

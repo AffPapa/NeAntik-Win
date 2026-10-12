@@ -443,6 +443,21 @@ class PortableCoreRegressionTests(unittest.TestCase):
                 launcher.launch(profile)
             spawn.assert_not_called()
 
+    def test_native_privacy_label_requires_bundled_receipt(self):
+        launcher = BrowserLauncher(self.storage)
+        self.assertFalse(launcher.has_native_privacy_baseline())
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak"):
+            (engine / name).write_bytes(b"fixture")
+        receipt = engine / "ENGINE_PROVENANCE.json"
+        receipt.write_text(json.dumps({"format": "neantik-chromium-source-build-v1",
+                                       "privacy_patch_sha256": "a" * 64}), encoding="utf-8")
+        self.assertTrue(launcher.has_native_privacy_baseline())
+        receipt.write_text(json.dumps({"format": "neantik-chromium-source-build-v1",
+                                       "privacy_patch_sha256": "invalid"}), encoding="utf-8")
+        self.assertFalse(launcher.has_native_privacy_baseline())
+
     def test_stale_launch_after_deletion_does_not_recreate_or_spawn_profile(self):
         profile_id = self.storage.save_profile({"name": "Deleted elsewhere"})
         stale_profile = self.storage.get_profile(profile_id)
@@ -898,6 +913,7 @@ class InterfaceLogicTests(unittest.TestCase):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
         app.launcher = MagicMock()
+        app.launcher.has_native_privacy_baseline.return_value = False
         with patch("nevision_win.messagebox.showinfo") as show:
             app.launcher.bundled_browser.return_value = Path("C:/portable/Engine/Chromium/chrome.exe")
             app.show_about()

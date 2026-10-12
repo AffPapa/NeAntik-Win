@@ -5,11 +5,13 @@ browser binary is not stored in Git history. Its exact version, upstream source
 commit, build arguments, approved build-only patch SHA-256, license and credits
 are recorded in `Engine/Chromium/ENGINE_PROVENANCE.json` inside each archive.
 
-For the first bundled-core release, the source version is 155.0.8059.40 at
+For the first bundled-core releases, the source version is 155.0.8059.40 at
 Chromium commit `cfaadc5a132d78e1828635aa8405a499f3e14864`. The checkout
 corresponds to the [October 6, 2026 Windows stable announcement](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_086471744.html). The checkout
-must not contain any changes to browser runtime, Blink, V8 or networking code.
-Only the build-compatibility edits documented here are allowed. A version
+must not contain any changes to browser runtime, Blink, V8 or networking code
+for releases through 0.7.1-preview. Beginning with the 0.8.0-preview proposal,
+the separate, reviewable [privacy baseline patch](CHROMIUM_PRIVACY_BASELINE.md)
+is allowed and disclosed; no other runtime changes are allowed. A version
 number and a provenance JSON alone do not prove security or byte-for-byte
 reproducibility; use the official source and verify the build yourself.
 
@@ -80,8 +82,11 @@ Before staging, inspect `git diff HEAD` and calculate the SHA-256 of the raw
 `git diff HEAD --binary -- DEPS build/toolchain/win/midl.py` output. Pass that
 hash as `--approved-build-patch-sha256` to
 `tools/prepare_source_built_chromium.py`, along with `--source-root`,
-`--build-root`, `--commit`, `--version` and a new `--output` directory. The
-staging tool rejects changed tracked files outside those two build inputs,
+`--build-root`, `--commit`, `--version` and a new `--output` directory. For
+0.8.0-preview, additionally pass the exact hash and file of the separate
+[privacy baseline patch](CHROMIUM_PRIVACY_BASELINE.md) as
+`--approved-privacy-patch-sha256` and `--privacy-patch-file`. The staging tool
+rejects changed tracked files outside the approved build and privacy inputs,
 checks the pinned commit and version, curates runtime files, and extracts
 `chrome://credits` from the staged browser. The runtime set includes the
 versioned Windows Side-by-Side manifest and unmodified x64 Visual C++

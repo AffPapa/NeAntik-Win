@@ -1,0 +1,49 @@
+"""Pure regression checks for the private loopback fingerprint audit."""
+
+from copy import deepcopy
+from pathlib import Path
+import sys
+import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
+from fingerprint_surface_audit import evaluate  # noqa: E402
+
+
+def report():
+    common = {"userAgent": "Chromium test", "platform": "Win32", "language": "en-US",
+              "languages": ["en-US"], "hardwareConcurrency": 4, "deviceMemory": 8,
+              "timezone": "Etc/UTC"}
+    return {"surfaces": {"main": {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1},
+                         "iframe": {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1},
+                         "worker": common.copy()},
+            "http": {"userAgent": "Chromium test"},
+            "client_hints": {"deviceMemory": "8"},
+            "blocked_external_requests": 0}
+
+
+class FingerprintAuditEvaluationTests(unittest.TestCase):
+    def test_consistent_contexts_and_client_hint(self):
+        self.assertTrue(all(evaluate([report()])[0].values()))
+
+    def test_mismatched_worker_value_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["worker"]["hardwareConcurrency"] = 16
+        self.assertFalse(evaluate([value])[0]["main_worker_common"])
+
+    def test_mismatched_client_hint_is_rejected(self):
+        value = report()
+        value["client_hints"]["deviceMemory"] = "16"
+        self.assertFalse(evaluate([value])[0]["device_memory_hint_when_present"])
+
+    def test_malformed_client_hint_is_rejected(self):
+        value = report()
+        value["client_hints"]["deviceMemory"] = "unparseable"
+        self.assertFalse(evaluate([value])[0]["device_memory_hint_when_present"])
+
+    def test_unobserved_hint_is_not_claimed_as_a_measurement(self):
+        value = report()
+        value["client_hints"]["deviceMemory"] = None
+        self.assertTrue(evaluate([value])[0]["device_memory_hint_when_present"])
+
+if __name__ == "__main__":
+    unittest.main()

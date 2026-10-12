@@ -1,7 +1,7 @@
 """Stage a locally built Chromium runtime for a portable release.
 
 The source checkout must be at a pinned upstream commit. Only explicitly
-approved build-compatibility patches may differ from that commit.
+approved build-compatibility and privacy-baseline patches may differ from it.
 This tool never changes the source checkout or the build output.
 """
 
@@ -25,6 +25,12 @@ SOURCE_RUNTIME_FILES = {
     "vcruntime140_1.dll", "vccorlib140.dll",
 }
 PORTABLE_LOCALES = {"en-US.pak", "ru.pak", "th.pak"}
+BUILD_PATCH_FILES = {"DEPS", "build/toolchain/win/midl.py"}
+PRIVACY_PATCH_FILES = {
+    "third_party/blink/common/device_memory/approximated_device_memory.cc",
+    "third_party/blink/common/device_memory/approximated_device_memory_unittest.cc",
+    "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+}
 
 
 def git(source: Path, *args: str) -> str:
@@ -67,12 +73,24 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
     if git(source, "diff", "--cached", "--name-only"):
         raise ValueError("Chromium checkout has staged source changes")
     changed = set(filter(None, git(source, "diff", "HEAD", "--name-only").splitlines()))
-    if changed - {"DEPS", "build/toolchain/win/midl.py"}:
+    if changed - (BUILD_PATCH_FILES | PRIVACY_PATCH_FILES):
         raise ValueError(f"Unapproved Chromium source changes: {sorted(changed)}")
-    patch_bytes = subprocess.check_output(["git", "-C", str(source), "diff", "HEAD", "--binary", "--", "DEPS", "build/toolchain/win/midl.py"])
+    patch_bytes = subprocess.check_output(["git", "-C", str(source), "diff", "HEAD", "--binary", "--", *sorted(BUILD_PATCH_FILES)])
     patch_hash = hashlib.sha256(patch_bytes).hexdigest() if patch_bytes else None
     if patch_hash != args.approved_build_patch_sha256:
         raise ValueError("Chromium build-compatibility patch differs from approved SHA-256")
+    privacy_bytes = subprocess.check_output(["git", "-C", str(source), "diff", "HEAD", "--binary", "--", *sorted(PRIVACY_PATCH_FILES)])
+    privacy_hash = hashlib.sha256(privacy_bytes).hexdigest() if privacy_bytes else None
+    if privacy_hash != args.approved_privacy_patch_sha256:
+        raise ValueError("Chromium privacy patch differs from approved SHA-256")
+    if privacy_hash:
+        if not args.privacy_patch_file:
+            raise ValueError("A public privacy patch file is required for modified browser runtime")
+        patch_file = Path(args.privacy_patch_file).resolve(strict=True)
+        subprocess.run(["git", "-C", str(source), "apply", "--reverse", "--check", str(patch_file)],
+                       check=True, capture_output=True)
+    elif args.privacy_patch_file:
+        raise ValueError("Privacy patch file provided but browser runtime is unchanged")
     version_file = source / "chrome" / "VERSION"
     version_parts = dict(line.split("=", 1) for line in version_file.read_text(encoding="utf-8").splitlines() if "=" in line)
     version = ".".join(version_parts[key] for key in ("MAJOR", "MINOR", "BUILD", "PATCH"))
@@ -129,6 +147,7 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
             "source_commit": args.commit,
             "source_tree": git(source, "rev-parse", "HEAD^{tree}"),
             "build_patch_sha256": patch_hash or "",
+            "privacy_patch_sha256": privacy_hash or "",
             "chromium_version": version,
             "build_args_sha256": sha256(gn_args),
             "runtime_file_count": len(entries),
@@ -150,6 +169,8 @@ def main() -> int:
     parser.add_argument("--version", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--approved-build-patch-sha256", default=None)
+    parser.add_argument("--approved-privacy-patch-sha256", default=None)
+    parser.add_argument("--privacy-patch-file", default=None)
     try:
         print(json.dumps(stage(parser.parse_args()), ensure_ascii=False))
         return 0

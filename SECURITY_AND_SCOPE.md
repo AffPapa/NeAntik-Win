@@ -1,10 +1,10 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.7.1-preview portable Chromium edition.
+Applies to NeAntik Win 0.8.0-preview portable Chromium edition.
 
 ## Product boundary
 
-This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. NeAntik does not spoof device or browser identity values. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
+This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source and a published native privacy patch. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. The patch caps exposed logical CPU count and approximated device memory; it does not create a coherent per-profile identity or establish anonymity. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, and disable network prediction/preloading. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. Existing profiles, installed Chrome and Edge do not receive them retroactively.
 
@@ -36,21 +36,21 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.7.1-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior, not comprehensive JavaScript fingerprint measurement.
+This matrix describes the **0.8.0-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
 
-| Surface | 0.7.1-preview behavior | Evidence / limitation |
+| Surface | 0.8.0-preview behavior | Evidence / limitation |
 |---|---|---|
-| Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build-only patch are recorded; no TLS fingerprint suite |
-| JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |
-| Language, timezone, CPU/memory, screen and viewport | Not overridden; inherited from Windows/browser configuration. Browser UI packs are en-US, ru and th, with English fallback | No persona configuration; cross-frame and worker consistency were not separately measured |
+| Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build/privacy patch hashes are recorded; no TLS fingerprint suite |
+| JavaScript `navigator` values, UA and Client Hints | Bundled Chromium caps `navigator.hardwareConcurrency` at 4 and device memory at 8 GiB; UA and other hints remain browser-supplied | Loopback comparison saw CPU 16→4 and memory/Device-Memory CH 32→8 on one Windows machine; no external cohort or anti-correlation proof |
+| Language, timezone, screen and viewport | Inherited from Windows/browser configuration. Browser UI packs are en-US, ru and th, with English fallback | No persona configuration or proxy-based timezone; screen/viewport are not standardized |
 | Canvas, WebGL/WebGPU, audio, fonts and layout metrics | Not modified by the manager | No surface-level fingerprint probes or equality guarantees |
-| Frames, dedicated/shared/service workers | No injected JavaScript or worker patching | These contexts were not independently tested for this release |
+| Frames and workers | Native Blink accessors used by tested main frame, iframe and dedicated worker; no injected JavaScript | Shared/service workers and cross-origin cases remain unverified |
 | Cookies, history and web storage | Stored by the selected browser inside each profile's separate user-data directory; new bundled profiles start with third-party cookies blocked and network prediction disabled | In two disposable HTTPS sites, an allow-control profile sent the third-party cookie and the new default profile did not; arbitrary websites and exceptions are not exhaustively tested |
 | Geolocation, notifications, camera and microphone | New bundled profiles start with Chromium default permission set to Block; existing profiles and later user settings are untouched | Real Chromium `Permissions.query` returns `denied` for the four defaults in a disposable test; site-specific changes remain possible |
 | Proxy routing, DNS and WebRTC | Bundled Chromium with proxy blocks implicit loopback bypass/background DNS, disables QUIC and restricts non-proxied WebRTC UDP | Real loopback HTTP/SOCKS tests and no-STUN ICE test pass; public IP, external DNS/UDP, authenticated CONNECT, IPv6 and full leak resistance are not certified |
 | Extensions | Uses the browser's native extension manager and browser policy | No automatic installation or extension permission audit |
 
-Do not infer fingerprint spoofing, coherent cross-surface personas, anonymity, or successful anti-fraud testing from profile isolation or proxy assignment. Those are distinct capabilities and are absent from this downloadable edition.
+Do not infer coherent cross-surface personas, anonymity, or successful anti-fraud testing from two capped hardware signals, profile isolation or proxy assignment. Other fingerprint surfaces and external network leaks remain unverified.
 
 ## Backup, recovery and concurrency safeguards
 

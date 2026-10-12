@@ -28,6 +28,9 @@ class SourceBuildStageTests(unittest.TestCase):
         (self.source / "chrome" / "VERSION").write_text("MAJOR=155\nMINOR=0\nBUILD=8059\nPATCH=40\n", encoding="utf-8")
         (self.source / "LICENSE").write_text("Chromium license fixture", encoding="utf-8")
         (self.source / "DEPS").write_text("original dependencies\n", encoding="utf-8")
+        self.privacy_source = self.source / sorted(staging.PRIVACY_PATCH_FILES)[0]
+        self.privacy_source.parent.mkdir(parents=True)
+        self.privacy_source.write_text("original browser value\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q", str(self.source)], check=True)
         subprocess.run(["git", "-C", str(self.source), "add", "."], check=True)
         subprocess.run(["git", "-C", str(self.source), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"], check=True)
@@ -43,16 +46,20 @@ class SourceBuildStageTests(unittest.TestCase):
         (self.build / "locales" / "de.pak").write_bytes(b"unused fixture")
         (self.build / "locales" / "en-US.pak.info").write_bytes(b"build metadata, not runtime")
 
-    def args(self, approved: str | None = None) -> argparse.Namespace:
+    def args(self, approved: str | None = None, privacy: str | None = None,
+             patch_file: Path | None = None) -> argparse.Namespace:
         return argparse.Namespace(source_root=str(self.source), build_root=str(self.build),
                                   output=str(self.root / "staged"), commit=self.commit,
-                                  version="155.0.8059.40", approved_build_patch_sha256=approved)
+                                  version="155.0.8059.40", approved_build_patch_sha256=approved,
+                                  approved_privacy_patch_sha256=privacy,
+                                  privacy_patch_file=str(patch_file) if patch_file else None)
 
     @patch.object(staging, "extract_credits", return_value=b"<!DOCTYPE html>" + b"C" * 110_000)
     def test_clean_source_stages_runtime_and_credits(self, _extract) -> None:
         receipt = staging.stage(self.args())
         self.assertEqual(receipt["channel"], "stable")
         self.assertEqual(receipt["build_patch_sha256"], "")
+        self.assertEqual(receipt["privacy_patch_sha256"], "")
         self.assertEqual(receipt["source_commit"], self.commit)
         self.assertTrue((self.root / "staged" / "chrome.exe").is_file())
         self.assertTrue((self.root / "staged" / "155.0.8059.40.manifest").is_file())
@@ -70,6 +77,19 @@ class SourceBuildStageTests(unittest.TestCase):
         patch_bytes = subprocess.check_output(["git", "-C", str(self.source), "diff", "HEAD", "--binary", "--", "DEPS", "build/toolchain/win/midl.py"])
         receipt = staging.stage(self.args(hashlib.sha256(patch_bytes).hexdigest()))
         self.assertEqual(receipt["build_patch_sha256"], hashlib.sha256(patch_bytes).hexdigest())
+
+    @patch.object(staging, "extract_credits", return_value=b"<!DOCTYPE html>" + b"C" * 110_000)
+    def test_approved_public_privacy_patch_is_recorded(self, _extract) -> None:
+        self.privacy_source.write_text("standardized browser value\n", encoding="utf-8")
+        patch_bytes = subprocess.check_output(["git", "-C", str(self.source), "diff", "HEAD", "--binary", "--", *sorted(staging.PRIVACY_PATCH_FILES)])
+        patch_file = self.root / "privacy.patch"
+        patch_file.write_bytes(patch_bytes)
+        with self.assertRaisesRegex(ValueError, "privacy patch differs"):
+            staging.stage(self.args())
+        with self.assertRaisesRegex(ValueError, "public privacy patch file"):
+            staging.stage(self.args(privacy=hashlib.sha256(patch_bytes).hexdigest()))
+        receipt = staging.stage(self.args(privacy=hashlib.sha256(patch_bytes).hexdigest(), patch_file=patch_file))
+        self.assertEqual(receipt["privacy_patch_sha256"], hashlib.sha256(patch_bytes).hexdigest())
 
     def test_runtime_source_change_is_rejected(self) -> None:
         (self.source / "chrome" / "VERSION").write_text("MAJOR=156\nMINOR=0\nBUILD=1\nPATCH=0\n", encoding="utf-8")
