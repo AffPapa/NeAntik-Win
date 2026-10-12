@@ -3,6 +3,33 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.7.1-preview] — 2026-10-12
+
+**Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40;
+схема профилей и формат backup не менялись.
+
+### Изменения
+
+- Собственный исходный код NeAntik Win открыт под MPL-2.0. Лицензия включена
+  в portable ZIP и проверяется валидатором архива; сторонние лицензии остаются
+  отдельными. Лицензия на код не передаёт права на название и логотип.
+- Опубликованы [миссия, модель угроз и план разработки](https://github.com/AffPapa/NeAntik-Win/blob/v0.7.1-preview/docs/PROJECT_VISION_AND_ROADMAP.md).
+- Поведение Chromium и сетевых настроек не менялось. Подмены fingerprint и
+  доказанной полной анонимности нет; независимый аудит ещё не проведён.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.1-preview/NeAntikWin-portable-v0.7.1-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.1-preview/NeAntikWin-portable-v0.7.1-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.1-preview/NeAntikWin-portable-v0.7.1-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.7.1-preview)
+
+SHA-256 portable ZIP: `f212a51da2e4920b349439d613093f7fede1a316c518dc5a8fea3cb40d7f41b4` (262 350 101 байт).
+
+Для обновления сохраните приватную копию всей старой portable-папки с `Data/`,
+распакуйте новый ZIP отдельно и перенесите `Data/` под тем же пользователем
+Windows. Старая папка нужна для отката.
+
 ## [0.7.0-preview] — 2026-10-12
 
 **Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40; проверено на Windows 11 Pro x64, build 26200. Схема профилей и backup не менялись.

@@ -1,8 +1,8 @@
 {
   "format": "neantik-release-v1",
-  "version": "0.7.0-preview",
+  "version": "0.7.1-preview",
   "channel": "preview",
-  "built_at_utc": "2026-10-12T15:19:29.1599849Z",
+  "built_at_utc": "2026-10-12T16:08:51.0114515Z",
   "architecture": "x64",
   "tested_os": "Windows 11 Pro x64 10.0.26200",
   "unverified_os": ["Windows 10", "Windows ARM64"],
@@ -11,12 +11,12 @@
   "engine_version": "155.0.8059.40",
   "fingerprint_modification": false,
   "signature_status": "NotSigned",
-  "source": "https://github.com/AffPapa/NeAntik-Win/tree/4f696aee20b80804bdb8ac7a93376c7cdfd56683",
-  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.7.0-preview",
+  "source": "https://github.com/AffPapa/NeAntik-Win/tree/178d57a71ffb40838d2cf197469ef31a39c10467",
+  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.7.1-preview",
   "archive": {
-    "filename": "NeAntikWin-portable-v0.7.0-preview.zip",
-    "size_bytes": 262345094,
-    "sha256": "c1bc6595e566d7fd80ecc9d982cd0087e06911a2c451a57973961027fbc273e4",
-    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.0-preview/NeAntikWin-portable-v0.7.0-preview.zip"
+    "filename": "NeAntikWin-portable-v0.7.1-preview.zip",
+    "size_bytes": 262350101,
+    "sha256": "f212a51da2e4920b349439d613093f7fede1a316c518dc5a8fea3cb40d7f41b4",
+    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.1-preview/NeAntikWin-portable-v0.7.1-preview.zip"
   }
 }

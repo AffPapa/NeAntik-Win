@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.7.0-preview";
+const releaseVersion = "0.7.1-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,17 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "12 октября 2026",
+    status: "Открытый код · проверяемая поставка",
+    compatibility: "Windows x64 · встроенный Chromium 155 · схема профилей и backup не менялись",
+    changes: [
+      { type: "added", label: "MPL-2.0", text: "Собственный исходный код проекта открыт под MPL-2.0. Текст лицензии теперь внутри portable ZIP; лицензии Chromium и других компонентов сохраняются отдельно." },
+      { type: "security", label: "Проверка", text: "Релизный валидатор отклоняет ZIP без лицензии проекта. Опубликованы план развития, модель угроз и критерии проверки заявлений о приватности." },
+      { type: "security", label: "Границы", text: "Поведение Chromium и сети не менялось: подмены fingerprint и гарантии анонимности нет. Открытый код не заменяет аудит." },
+    ],
+  },
+  {
+    version: "v0.7.0-preview",
     date: "12 октября 2026",
     status: "Строгий маршрут proxy · измеримые проверки",
     compatibility: "Windows x64 · встроенный Chromium 155 · существующие профили не меняются · схема профилей 1",
@@ -310,7 +321,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Новые профили запускаются со строгими разрешениями и блокировкой сторонних cookies. Подмены отпечатка устройства и гарантии анонимности нет. <a href="/check.html">Открыть диагностику профиля</a>.</p>
+          <p class="download-note">Новые профили запускаются со строгими разрешениями и блокировкой сторонних cookies. Код открыт под MPL-2.0. Подмены отпечатка и гарантии анонимности нет. <a href="/check.html">Диагностика</a> · <a href="https://github.com/AffPapa/NeAntik-Win/blob/main/docs/PROJECT_VISION_AND_ROADMAP.md">План проекта</a>.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -576,7 +587,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <span class="brand-name">NeAntik <small>WIN</small></span>
       </a>
       <p>© <span id="year"></span> NeAntik Win. Built local-first.</p>
-      <div class="footer-links"><a href="/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a><a href="/RELEASE_POLICY.md" target="_blank" rel="noopener">Release policy</a></div>
+      <div class="footer-links"><a href="/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a><a href="/RELEASE_POLICY.md" target="_blank" rel="noopener">Release policy</a><a href="https://github.com/AffPapa/NeAntik-Win/blob/main/LICENSE" target="_blank" rel="noopener">MPL-2.0</a></div>
     </footer>`;
 
 function escapeHtml(value: string) {
