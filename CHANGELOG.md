@@ -14,6 +14,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   explicit missing-core errors without falling back to ordinary Chrome.
 - Native backup/restore retains the persona; clean cloning uses a fresh seed.
   Existing ordinary profiles and legacy backup identifiers remain compatible.
+- The first native-core check grants Windows AppContainer package groups
+  read/execute (not write) access to the verified bundled engine, required by
+  Chromium's network sandbox after ordinary ZIP extraction.
 - WebRTC QA checks owned endpoints and proxy scenarios. This host's NetLog shows
   OS-accepted STUN sends but its local listener received none; no packet capture
   verified delivery outside the OS. Worker Device-Memory Client Hints are not

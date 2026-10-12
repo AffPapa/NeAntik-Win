@@ -25,7 +25,10 @@ separate disposable copy used for browser runs. Windows Chromium can create an
 early-startup `debug.log` beside its executable during malformed-input tests.
 The source bundle is reverified after visits; the disposable copy may contain
 that test side effect. The executable and every manifest member in both roots
-are checked before visits.
+are checked before visits. On first native launch the app grants Windows'
+AppContainer package groups read/execute access (not write access) to the
+verified engine directory; without those inherited ACLs, Chromium's network
+sandbox can reject the executable after ordinary ZIP extraction.
 The manifest must exactly cover the engine tree; path traversal, alternate data
 streams, symlinks/junctions, case collisions, unknown engine identity, and missing
 files fail closed. The actual `--neantik-core-info` probe must report the pinned

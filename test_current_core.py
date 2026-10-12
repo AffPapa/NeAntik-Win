@@ -209,6 +209,21 @@ class ProfileFormTests(unittest.TestCase):
 
 
 class BundleTests(unittest.TestCase):
+    def test_sandbox_access_grants_only_read_execute_to_package_groups(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            result = SimpleNamespace(returncode=0)
+            with patch.object(core.subprocess, "run", return_value=result) as run:
+                core.CoreResolver._prepare_sandbox_access(directory)
+            argv = run.call_args.args[0]
+            self.assertEqual(argv[1:3], [str(directory), "/grant:r"])
+            self.assertEqual(argv[3:], ["*S-1-15-2-1:(OI)(CI)(RX)", "*S-1-15-2-2:(OI)(CI)(RX)"])
+            self.assertNotIn("/T", argv)
+            run.assert_called_once()
+            with patch.object(core.subprocess, "run", return_value=SimpleNamespace(returncode=5)):
+                with self.assertRaisesRegex(core.CoreError, "не разрешила sandbox"):
+                    core.CoreResolver._prepare_sandbox_access(directory)
+
     def test_runtime_info_requires_exact_commit_and_granular_capabilities(self):
         valid = {"engine_id": core.ENGINE_ID, "version": core.ENGINE_VERSION,
                  "source_commit": core.SOURCE_COMMIT, "schema": 1,
@@ -260,8 +275,10 @@ class BundleTests(unittest.TestCase):
                         "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
             (directory / core.MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
             with patch.object(resolver, "_probe") as probe:
-                self.assertEqual(resolver.resolve(), (directory / "chrome.exe").resolve())
-                resolver.resolve()
+                with patch.object(resolver, "_prepare_sandbox_access") as prepare:
+                    self.assertEqual(resolver.resolve(), (directory / "chrome.exe").resolve())
+                    resolver.resolve()
+                    prepare.assert_called_once_with(directory)
                 probe.assert_called_once()
                 (directory / "chrome.dll").write_bytes(b"tampered payload")
                 with self.assertRaises(core.CoreError):

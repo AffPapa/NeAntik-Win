@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import secrets
@@ -107,6 +108,33 @@ class CoreResolver:
             signature.append((path.relative_to(directory).as_posix(), item.st_size, item.st_mtime_ns, item.st_ctime_ns))
         return tuple(signature)
 
+    @staticmethod
+    def _prepare_sandbox_access(directory: Path) -> None:
+        """Let Windows AppContainer sandboxes read the bundled engine files.
+
+        ZIP extraction inherits the destination folder's ACL. Many user-writable
+        folders do not grant AppContainer read/execute access, which makes
+        Chromium's network sandbox fail closed before a window can open. Grant
+        only read/execute, with inheritance, to the two Windows package groups;
+        never grant write access or touch anything outside this engine folder.
+        """
+        if os.name != "nt":
+            return
+        system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+        icacls = system_root / "System32" / "icacls.exe"
+        if not icacls.is_file():
+            raise CoreError("Не найдена системная icacls.exe для настройки sandbox-доступа к ядру.")
+        try:
+            result = subprocess.run(
+                [str(icacls), str(directory), "/grant:r",
+                 "*S-1-15-2-1:(OI)(CI)(RX)", "*S-1-15-2-2:(OI)(CI)(RX)"],
+                capture_output=True, timeout=30,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except subprocess.TimeoutExpired as exc:
+            raise CoreError("Не удалось завершить настройку sandbox-доступа к ядру.") from exc
+        if result.returncode != 0:
+            raise CoreError("Windows не разрешила sandbox читать файлы ядра. Проверьте права папки portable.")
+
     def resolve(self) -> Path:
         try:
             signature = self._signature_now()
@@ -136,6 +164,7 @@ class CoreResolver:
             if actual != seen:
                 raise CoreError("Состав native-ядра не совпадает с manifest.")
             executable = directory / "chrome.exe"
+            self._prepare_sandbox_access(directory)
             self._probe(executable)
             if signature != self._signature_now():
                 raise CoreError("Файлы ядра изменились во время проверки.")

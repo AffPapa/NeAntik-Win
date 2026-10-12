@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser project, previously named NeVision Win. This source tree includes an authored native Chromium 155 engine and launcher integration. The engine passed its independent runtime QA matrix; the versioned portable application still requires its own packaged release checks before download. See [native core contract](core/README.md), [build instructions](tools/native-core/README.md) and [independent runtime QA](tools/CURRENT_NATIVE_QA.md).
+Local-first portable Windows browser project, previously named NeVision Win. This source tree includes an authored native Chromium 155 engine and launcher integration. On first native launch, the app grants Windows AppContainer package groups read/execute access to the verified engine folder so Chromium's network sandbox can start; it does not grant write access. See [native core contract](core/README.md), [build instructions](tools/native-core/README.md) and [independent runtime QA](tools/CURRENT_NATIVE_QA.md).
 
 ## Download and start
 
