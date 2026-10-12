@@ -268,13 +268,13 @@
     },
     {
       "path": "website/CHANGELOG.md",
-      "size_bytes": 20659,
-      "sha256": "aee1bee192a4cba44064a9635fd6a5ff83a1c35491e00038d71de34a1a635609"
+      "size_bytes": 21337,
+      "sha256": "19b4d6754608b666f55af762110e44fbb39a67eaf91da7e798ea1b807a302296"
     },
     {
       "path": "website/README.md",
-      "size_bytes": 1044,
-      "sha256": "9df7a8e0c453d2a49a01b7074a69c21619c8141cc7b1efb66960882d8478101d"
+      "size_bytes": 1107,
+      "sha256": "47fad4edffc438ee1ad151a3255b9f49ebeecbaff0407d62a8c47585e80bd429"
     },
     {
       "path": "website/RELEASE_POLICY.md",
@@ -298,13 +298,13 @@
     },
     {
       "path": "website/app/layout.tsx",
-      "size_bytes": 1487,
-      "sha256": "2d8689f3f4d33ea8da2ff365195b71b41d2a374e6a1d066351c8b232fdc2e022"
+      "size_bytes": 1511,
+      "sha256": "643b6507ac4fc38bd266c7cecb8a0fbc91d0b098f9714a405bebefd1dc1b0a5b"
     },
     {
       "path": "website/app/page.tsx",
-      "size_bytes": 45425,
-      "sha256": "2acac8584c8ef1d9053cc6ce95adb8639ea1e1c75a7583e135b076871cb16f37"
+      "size_bytes": 46779,
+      "sha256": "a511c688d941e68cc6af4aa169693cc1eba4768b9b1bba7be995e2a3e5bb90e9"
     },
     {
       "path": "website/next-env.d.ts",
@@ -358,8 +358,8 @@
     },
     {
       "path": "website/public/release.json",
-      "size_bytes": 189135,
-      "sha256": "788af940630ef37ce8ac999b4540824a9ad1c13598c859d9e030015f4a54f0a1"
+      "size_bytes": 189414,
+      "sha256": "5be507a8d97ee2c9d9044d3b097d7bd6cd2b52f38f2bc07856c27fe257e898bf"
     },
     {
       "path": "website/public/robots.txt",

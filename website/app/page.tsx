@@ -18,12 +18,25 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.2.1-preview";
-const releaseArchive = `NeVisionWin-portable-v${releaseVersion}.zip`;
+const releaseVersion = "0.4.0-preview";
+const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
+const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "11 октября 2026",
+    status: "Profile manager · safer public release",
+    compatibility: "Windows x64 · установленный Chrome или Edge · portable ZIP · схема профилей 1",
+    changes: [
+      { type: "security", label: "Границы продукта", text: "Удалены экспериментальные файлы движка и код изменения fingerprint. Обычные профили Chrome/Edge запускаются без fingerprint- и User-Agent-переопределений." },
+      { type: "fixed", label: "Наследуемые профили", text: "Старые экспериментальные профили нельзя редактировать, клонировать или запускать; исходные данные сохраняются." },
+      { type: "security", label: "Публикация", text: "Публичный экспорт, CI и release verifier отклоняют движок и включённое изменение fingerprint." },
+      { type: "added", label: "Сборка", text: "Чистый portable ZIP собран из опубликованного коммита; приложены manifest, SHA-256 и runtime-лицензии." },
+    ],
+  },
+  {
+    version: "v0.2.1-preview",
     date: "11 октября 2026",
     status: "Удобство и надёжность",
     compatibility: "Схема данных 1 и backup nevision-profile-backup-v1 сохранены · нужен установленный Chrome или Edge",
@@ -222,7 +235,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <p class="eyebrow"><span></span> Windows · local-first · portable</p>
           <h1 id="hero-title">Профили в порядке.<br /><em>Темп — ваш.</em></h1>
           <p class="hero-lead">
-            NeAntik Win — новое имя NeVision Win. Разрабатываем собственное Chromium-ядро с нативными настройками fingerprint.
+            NeAntik Win — локальный менеджер профилей установленного Chrome и Edge для Windows.
             Данные, proxy-настройки и история работы остаются на вашем компьютере.
           </p>
           <div class="hero-actions">
@@ -235,7 +248,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Новое ядро ещё не прошло сборку и испытания. Ниже доступен прежний NeVision Win v${releaseVersion}: менеджер профилей без подмены fingerprint. Иллюстрации и описание этого выпуска сохранены до проверенного релиза NeAntik.</p>
+          <p class="download-note">NeAntik Win не включает собственное Chromium-ядро и не изменяет fingerprint: это portable-менеджер локальных профилей и proxy-настроек.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeVision Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -407,7 +420,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="boundary-grid">
           <article class="boundary-card reveal"><span class="boundary-icon"><svg><use href="/assets/icons.svg#computer"></use></svg></span><h3>Только ваш компьютер</h3><p>Нет обязательной учётной записи, обязательной телеметрии или удалённой панели для запуска профилей.</p></article>
           <article class="boundary-card reveal reveal-delay-one"><span class="boundary-icon"><svg><use href="/assets/icons.svg#key"></use></svg></span><h3>Секреты привязаны к Windows</h3><p>DPAPI даёт доступ к proxy-паролям только тому же Windows-пользователю на том же устройстве.</p></article>
-          <article class="boundary-card boundary-card-contrast reveal reveal-delay-two"><span class="boundary-icon"><svg><use href="/assets/icons.svg#eye-off"></use></svg></span><h3>Без ложных гарантий</h3><p>NeVision Win не заявляет обход проверок сайтов, антифрода, банов или подмену fingerprint.</p></article>
+          <article class="boundary-card boundary-card-contrast reveal reveal-delay-two"><span class="boundary-icon"><svg><use href="/assets/icons.svg#eye-off"></use></svg></span><h3>Без ложных гарантий</h3><p>NeAntik Win не заявляет обход проверок сайтов, антифрода, банов или подмену fingerprint.</p></article>
         </div>
       </section>
 
@@ -415,9 +428,9 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="release-main reveal" id="release">
           <div class="release-stamp"><span>WINDOWS</span><b>v${releaseVersion.split("-")[0]}</b><i>preview</i></div>
           <div>
-            <p class="eyebrow"><span></span> Предыдущий выпуск NeVision · x64 · v${releaseVersion}</p>
+            <p class="eyebrow"><span></span> NeAntik Win · x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Python и установка NeVision не нужны. Распакуйте ZIP в доступную для записи папку и откройте NeVisionWin.exe. Для профилей нужен уже установленный Google Chrome или Microsoft Edge.</p>
+            <p>Python и установка NeAntik не нужны. Распакуйте ZIP в доступную для записи папку и откройте NeAntikWin.exe. Для профилей нужен уже установленный Google Chrome или Microsoft Edge.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
@@ -430,9 +443,9 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="release-side-row"><span>Подпись приложения</span><b>нет цифровой подписи (unsigned preview)</b></div>
           <div class="release-side-row release-hash-row" data-release-hash-row hidden><span>SHA-256 архива</span><code data-release-hash></code></div>
           <div class="release-links">
-            <a class="button button-dark" href="/downloads/${releaseArchive}" download>Скачать NeVision v${releaseVersion} <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg></a>
-            <a class="text-link" href="/downloads/${releaseArchive}.sha256">SHA-256</a>
-            <a class="text-link" href="/downloads/NeVisionWin-portable-v${releaseVersion}.manifest.json">Manifest</a>
+            <a class="button button-dark" href="${releaseDownload}" target="_blank" rel="noopener noreferrer">Скачать NeAntik v${releaseVersion} <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg></a>
+            <a class="text-link" href="${releaseDownload}.sha256" target="_blank" rel="noopener noreferrer">SHA-256</a>
+            <a class="text-link" href="https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}.manifest.json" target="_blank" rel="noopener noreferrer">Manifest</a>
             <a class="text-link" href="/CHANGELOG.md">Что изменилось</a>
           </div>
           <p class="download-note">SHA-256 проверяет целостность файла и не заменяет цифровую подпись. Если Windows показывает предупреждение, проверьте источник загрузки и checksum.</p>

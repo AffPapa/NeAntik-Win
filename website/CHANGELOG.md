@@ -3,13 +3,23 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
-## Разработка NeAntik — 2026-10-11 (не выпущено)
+## [0.4.0-preview] — 2026-10-12
 
 - Продукт переименован в NeAntik Win; исходники: https://github.com/AffPapa/NeAntik-Win.
-- Готовятся собственное Chromium-ядро и нативные настройки fingerprint. Сборка и
-  браузерные испытания ещё не завершены; готового антидетект-релиза пока нет.
-- Публичное скачивание ниже остаётся NeVision 0.2.1-preview без подмены fingerprint.
-  Переименование сайта не меняет содержимое этого архива.
+- Удалены экспериментальное ядро, патчи, build tooling и код изменения fingerprint.
+- Legacy-профили экспериментального режима сохранены как неподдерживаемые и не запускаются.
+- Экспорт исходников, CI и release verifier не допускают Engine payload или активную подмену fingerprint.
+- Portable ZIP собран из чистого commit `8797c19f14671aa3f29fe6cf2859ab97e865f523`.
+- Сборка использует установленный Chrome или Edge; fingerprint не изменяется.
+
+### Скачать
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.0-preview/NeAntikWin-portable-v0.4.0-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.0-preview/NeAntikWin-portable-v0.4.0-preview.zip.sha256)
+- [Релиз и manifest](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.4.0-preview)
+
+SHA-256: `ad036d8ba4c8c29085e9c6b374b84f5fd2f169d13ccbca6149af08a3a038d48c`.
+Unsigned preview; для запуска профилей требуется Chrome или Edge.
 
 ## [0.2.1-preview] — 2026-10-11
 

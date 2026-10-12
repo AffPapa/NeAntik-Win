@@ -9,8 +9,9 @@ used for the published build. The public Markdown routes explicitly use UTF-8.
 
 Excluded intentionally: hosting identity, Git metadata, credentials, caches,
 node_modules, build output and downloadable executable archives. Deployment
-needs your own hosting configuration. Download URLs and release.json currently
-describe the older verified NeVision release; they are not a new native release.
+needs your own hosting configuration. Download URLs and release.json describe the
+verified NeAntik 0.4.0-preview profile-manager release. This is not a standalone
+browser and has no custom core or fingerprint modification.
 
 After each verified release update the main page, CHANGELOG.md, release.json and
 download links together. Preserve old versioned archives; do not overwrite their

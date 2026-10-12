@@ -3,11 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "NeAntik Win — локальные профили и собственное ядро",
+    default: "NeAntik Win — локальный менеджер профилей Chrome и Edge",
     template: "%s · NeAntik Win",
   },
   description:
-    "NeAntik Win, ранее NeVision: локальные браузерные профили для Windows. Собственное Chromium-ядро в разработке; доступный прежний выпуск не подменяет fingerprint.",
+    "Portable-менеджер изолированных профилей Chrome и Edge для Windows. Данные и proxy-настройки хранятся локально; собственное ядро и изменение fingerprint не входят в продукт.",
   robots: {
     index: true,
     follow: true,
