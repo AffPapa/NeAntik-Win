@@ -7,8 +7,8 @@ NeVision is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir ex
 `release-version.json` is the single application/build version source and is bundled in the executable distribution.
 
 ```text
-NeVisionWin-portable-<version>/
-  NeVisionWin.exe
+NeAntikWin-portable-v<version>/
+  NeAntikWin.exe
   _internal/
   README.md, CHANGELOG.md, SECURITY_AND_SCOPE.md, ...
   THIRD_PARTY_NOTICES.md, licenses/

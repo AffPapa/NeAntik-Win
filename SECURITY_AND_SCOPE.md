@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.4.0-preview ordinary-browser profile manager edition.
+Applies to NeAntik Win 0.4.1-preview ordinary-browser profile manager edition.
 
 ## Product boundary
 
@@ -28,9 +28,9 @@ The Extensions action opens the native Chrome/Edge extension manager for a close
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.4.0-preview ordinary-browser binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by the installed browser and Windows. The release tests exercise profile/launcher behavior, not JavaScript fingerprint measurement, so inherited values below are not a claim that every API/context was independently instrumented.
+This matrix describes the **0.4.1-preview ordinary-browser binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by the installed browser and Windows. The release tests exercise profile/launcher behavior, not JavaScript fingerprint measurement, so inherited values below are not a claim that every API/context was independently instrumented.
 
-| Surface | 0.4.0-preview behavior | Evidence / limitation |
+| Surface | 0.4.1-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | Uses the installed Chrome or Edge; no engine is bundled or patched | Launcher discovery and process behavior are tested; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |

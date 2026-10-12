@@ -121,5 +121,25 @@ class GuiTests(unittest.TestCase):
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
 
+    def test_duplicate_proxy_choices_do_not_change_assignment(self):
+        payload = {"name": "Same", "scheme": "http", "host": "127.0.0.1", "port": 8080}
+        first = self.storage.save_proxy(payload)
+        second = self.storage.save_proxy(payload)
+        self.assertNotEqual(first, second)
+        self.storage.save_profile({"name": "With proxy", "proxy_id": first}, self.profile)
+        dialog = nv.ProfileDialog(self.app, self.storage.get_profile(self.profile))
+        self.app.root.update()
+        self.assertEqual(dialog.proxy_ids[dialog.proxy.current()], first)
+        dialog.save()
+        self.assertEqual(self.storage.get_profile(self.profile)["proxy_id"], first)
+
+    def test_escape_closes_settings_dialog(self):
+        dialog = nv.SettingsDialog(self.app)
+        self.app.root.update()
+        dialog.path.focus_force()
+        dialog.path.event_generate("<Escape>")
+        self.app.root.update()
+        self.assertFalse(dialog.winfo_exists())
+
 
 if __name__ == "__main__": unittest.main(verbosity=2)

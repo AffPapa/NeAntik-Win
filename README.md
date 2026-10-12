@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.4.0-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. It does not bundle a browser engine, provide a standalone browser, or alter browser fingerprint signals. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.4.1-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. It does not bundle a browser engine, provide a standalone browser, or alter browser fingerprint signals. Each profile is pinned to its browser family on first launch so Chrome and Edge do not reuse the same data directory. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
 
 ## Download and start
 

@@ -20,6 +20,7 @@ from nevision_win import (
     DARK_COLORS,
     LIGHT_COLORS,
     NeVisionError,
+    NeVisionApp,
     SecretVault,
     Storage,
     THEME_DARK,
@@ -32,6 +33,7 @@ from nevision_win import (
     normalize_proxy_host,
     palette_for_theme,
     proxy_endpoint,
+    proxy_choices,
     resolve_theme,
 )
 
@@ -133,7 +135,7 @@ class StorageTests(unittest.TestCase):
             with self.assertRaisesRegex(NeVisionError, "занят запущенным Chromium"):
                 self.storage.delete_profile(profile_id)
             launcher = BrowserLauncher(self.storage)
-            with patch.object(launcher, "resolve_browser", return_value=Path("C:/fake-browser.exe")):
+            with patch.object(launcher, "resolve_browser", return_value=Path("C:/chrome.exe")):
                 with patch("nevision_win.subprocess.Popen") as launch_process:
                     with self.assertRaisesRegex(NeVisionError, "занят запущенным Chromium"):
                         launcher.launch(self.storage.get_profile(profile_id))
@@ -538,11 +540,11 @@ class PortableCoreRegressionTests(unittest.TestCase):
                 self.assertEqual(spawn.call_args.kwargs["cwd"], str(self.storage.profile_path(profile["id"])))
 
     def test_extensions_page_targets_selected_profile_and_browser(self):
-        profile_id = self.storage.save_profile({"name": "Extensions"})
-        profile = self.storage.get_profile(profile_id)
         launcher = BrowserLauncher(self.storage)
         for binary, url in (("chrome.exe", "chrome://extensions/"), ("msedge.exe", "edge://extensions/")):
             with self.subTest(binary=binary):
+                profile_id = self.storage.save_profile({"name": f"Extensions {binary}"})
+                profile = self.storage.get_profile(profile_id)
                 process = MagicMock()
                 process.poll.return_value = None
                 with patch.object(launcher, "resolve_browser", return_value=self.root / binary), patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
@@ -550,6 +552,43 @@ class PortableCoreRegressionTests(unittest.TestCase):
                 arguments = spawn.call_args.args[0]
                 self.assertIn(url, arguments)
                 self.assertIn(f"--user-data-dir={self.storage.profile_path(profile_id)}", arguments)
+
+    def test_first_launch_pins_family_and_rejects_later_browser_switch(self):
+        profile_id = self.storage.save_profile({"name": "Pinned"})
+        launcher = BrowserLauncher(self.storage)
+        process = MagicMock()
+        process.poll.return_value = None
+        with patch.object(launcher, "resolve_browser", return_value=self.root / "chrome.exe"), patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process):
+            launcher.launch(self.storage.get_profile(profile_id))
+        self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "chrome")
+
+        with patch.object(launcher, "resolve_browser", return_value=self.root / "msedge.exe"), patch("nevision_win.subprocess.Popen") as spawn:
+            with self.assertRaisesRegex(NeVisionError, "закреплён за Chrome"):
+                launcher.launch(self.storage.get_profile(profile_id))
+            spawn.assert_not_called()
+
+    def test_backup_restore_preserves_browser_family_pin(self):
+        profile_id = self.storage.save_profile({"name": "Pinned backup"})
+        self.storage.pin_browser_family(profile_id, "edge")
+        archive = self.storage.backup_profile(profile_id)
+        with zipfile.ZipFile(archive) as source:
+            manifest = json.loads(source.read("nevision-manifest.json"))
+        self.assertEqual(manifest["profile"]["browser_family"], "edge")
+        restored_id = self.storage.restore_profile(archive)
+        self.assertEqual(self.storage.get_profile(restored_id)["browser_family"], "edge")
+
+    def test_custom_executable_rejects_unsupported_name(self):
+        arbitrary = self.root / "arbitrary.exe"
+        arbitrary.touch()
+        self.storage.set_setting("browser_path", str(arbitrary))
+        launcher = BrowserLauncher(self.storage)
+        with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
+            self.assertEqual(launcher.available_browsers(), [])
+        profile_id = self.storage.save_profile({"name": "Guarded"})
+        with patch.object(launcher, "resolve_browser", return_value=arbitrary), patch("nevision_win.subprocess.Popen") as spawn:
+            with self.assertRaisesRegex(NeVisionError, "chrome.exe или msedge.exe"):
+                launcher.launch(self.storage.get_profile(profile_id))
+            spawn.assert_not_called()
 
     def test_per_user_chrome_and_edge_are_discovered_without_machine_installs(self):
         local = self.root / "User App Data"
@@ -719,6 +758,29 @@ class ThemeTests(unittest.TestCase):
         self.assertNotEqual(light["panel"], dark["panel"])
         light["panel"] = "mutated"
         self.assertNotEqual(palette_for_theme(THEME_LIGHT)["panel"], "mutated")
+
+
+class InterfaceLogicTests(unittest.TestCase):
+    def test_duplicate_proxy_labels_keep_distinct_ids(self):
+        proxies = [
+            {"id": str(index), "name": "same", "scheme": "http", "host": "127.0.0.1", "port": 8080}
+            for index in range(1, 4)
+        ]
+        labels, ids = proxy_choices(proxies)
+        self.assertEqual(ids, ["", "1", "2", "3"])
+        self.assertEqual(len(set(labels)), len(labels))
+        self.assertEqual(labels[0], "— Без proxy —")
+
+    def test_old_clipboard_timer_cannot_clear_new_copy(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.root.clipboard_get.return_value = "same-password"
+        app._clipboard_secret = "same-password"
+        app._clipboard_generation = 2
+        app._clear_copied_password("same-password", 1)
+        app.root.clipboard_clear.assert_not_called()
+        app._clear_copied_password("same-password", 2)
+        app.root.clipboard_clear.assert_called_once_with()
 
 
 if __name__ == "__main__":

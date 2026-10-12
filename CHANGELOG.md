@@ -2,6 +2,23 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.4.1-preview — portable reliability and usability (2026-10-12)
+
+- Profiles now remember whether their local browser data belongs to Chrome or Edge.
+  Switching to the other family is blocked instead of reusing the same data directory.
+  Existing profiles are pinned on their first launch with this version; backup and
+  restore preserve the family. A clean copy starts unpinned.
+- Custom browser selection accepts only an installed `chrome.exe` or `msedge.exe`.
+- Profiles with visually identical proxy choices retain the correct proxy assignment.
+  Recopying the same proxy password restarts its 30-second clipboard-clear timer.
+- Replaced obsolete Native-core text on the first-run screen. Dialogs close with
+  Escape; history has an explicit Close button; theme changes retain search focus,
+  caret and profile-detail scroll. Native menus expose the main actions.
+- Removed an unused engine installer. The public-source guard now scans the exact
+  staged Git blobs, not potentially different working-tree files.
+- Portable-only preview. Requires installed stock Chrome or Edge; no fingerprint
+  modification or bundled browser engine. Back up `Data/` before upgrading.
+
 ## 0.4.0-preview — ordinary-browser edition (2026-10-12)
 
 - Removed the native fingerprint-profile controls and launch path from the app. New

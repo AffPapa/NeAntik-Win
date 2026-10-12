@@ -288,6 +288,41 @@ def proxy_endpoint(proxy: dict[str, Any]) -> str:
     return f"{proxy['scheme']}://{host}:{int(proxy['port'])}"
 
 
+def browser_family_for_executable(path: Path) -> str:
+    """Accept only the stock Chrome/Edge executable names supported by this build."""
+
+    name = path.name.casefold()
+    if name == "chrome.exe":
+        return "chrome"
+    if name == "msedge.exe":
+        return "edge"
+    raise NeVisionError("Выберите установленный chrome.exe или msedge.exe. Другие браузеры не поддерживаются.")
+
+
+def proxy_choices(proxies: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    """Keep display labels distinct while preserving stable proxy IDs by index."""
+
+    labels = ["— Без proxy —"]
+    ids = [""]
+    for proxy in proxies:
+        label = f"{proxy['name']} · {proxy['scheme']}://{proxy['host']}:{proxy['port']}"
+        if label in labels:
+            base_label = label
+            suffix = 2
+            while label in labels:
+                label = f"{base_label} ({suffix})"
+                suffix += 1
+        labels.append(label)
+        ids.append(str(proxy["id"]))
+    return labels, ids
+
+
+def validated_browser_family(value: Any) -> str:
+    if type(value) is not str or value not in {"", "chrome", "edge"}:
+        raise NeVisionError("Backup или профиль содержит неподдерживаемую привязку браузера.")
+    return value
+
+
 @dataclass(frozen=True)
 class AppPaths:
     root: Path
@@ -444,6 +479,7 @@ class Storage:
                     group_name TEXT NOT NULL DEFAULT '',
                     tags TEXT NOT NULL DEFAULT '',
                     notes TEXT NOT NULL DEFAULT '',
+                    browser_family TEXT NOT NULL DEFAULT '',
                     proxy_id TEXT REFERENCES proxies(id) ON DELETE SET NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -471,6 +507,9 @@ class Storage:
                     f"Неподдерживаемая версия локальной базы данных: {schema['value']}. "
                     "Сохраните копию Data и обновите NeAntik Win."
                 )
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(profiles)")}
+            if "browser_family" not in columns:
+                db.execute("ALTER TABLE profiles ADD COLUMN browser_family TEXT NOT NULL DEFAULT ''")
             if not schema:
                 self.set_setting("schema_version", SCHEMA_VERSION, db)
             self.set_setting("app_version", APP_VERSION, db)
@@ -758,6 +797,21 @@ class Storage:
             db.execute("UPDATE profiles SET last_launch_at=?, updated_at=? WHERE id=?", (now, now, profile_id))
             self.log_in_db(db, "profile.launched", profile_id)
 
+    def pin_browser_family(self, profile_id: str, family: str) -> None:
+        if family not in {"chrome", "edge"}:
+            raise NeVisionError("Неподдерживаемый браузер для профиля.")
+        with self.connection() as db:
+            updated = db.execute(
+                "UPDATE profiles SET browser_family=? WHERE id=? AND browser_family=''",
+                (family, profile_id),
+            )
+            if not updated.rowcount:
+                row = db.execute("SELECT browser_family FROM profiles WHERE id=?", (profile_id,)).fetchone()
+                if row is None:
+                    raise NeVisionError("Профиль больше не существует.")
+                if row["browser_family"] != family:
+                    raise NeVisionError("Профиль закреплён за другим браузером. Верните прежний Chrome/Edge в Настройках или создайте чистую копию профиля.")
+
     def touch_profile_exit(self, profile_id: str, exit_code: int | None) -> None:
         now = timestamp()
         with self.connection() as db:
@@ -993,7 +1047,8 @@ class Storage:
             raise NeVisionError("Журнал восстановления содержит неверный fingerprint.") from exc
         if (payload.get("format") == "neantik-operation-v2") != (fingerprint["mode"] == "native"):
             raise NeVisionError("Формат журнала не соответствует fingerprint-профилю.")
-        return {"id": profile_id, **{field: str(profile[field]) for field in fields}, "fingerprint": fingerprint}
+        return {"id": profile_id, **{field: str(profile[field]) for field in fields},
+                "browser_family": validated_browser_family(profile.get("browser_family", "")), "fingerprint": fingerprint}
 
     def _insert_recovered_profile(self, profile: dict[str, Any], details: str) -> None:
         with self.connection() as db:
@@ -1001,14 +1056,15 @@ class Storage:
             if existing:
                 return
             db.execute(
-                """INSERT INTO profiles(id, name, group_name, tags, notes, proxy_id, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO profiles(id, name, group_name, tags, notes, browser_family, proxy_id, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     profile["id"],
                     profile["name"],
                     profile["group_name"],
                     profile["tags"],
                     profile["notes"],
+                    profile["browser_family"],
                     None,
                     profile["created_at"],
                     profile["updated_at"],
@@ -1134,7 +1190,7 @@ class Storage:
         manifest = {
             "format": "nevision-profile-backup-v1",
             "created_at": timestamp(),
-            "profile": {key: profile.get(key) for key in ("id", "name", "group_name", "tags", "notes")},
+            "profile": {key: profile.get(key) for key in ("id", "name", "group_name", "tags", "notes", "browser_family")},
             "proxy_credentials_included": False,
             "browser_session_data_included": True,
             "encrypted": False,
@@ -1247,6 +1303,7 @@ class Storage:
                     "group_name": original.get("group_name", ""),
                     "tags": original.get("tags", ""),
                     "notes": original.get("notes", ""),
+                    "browser_family": validated_browser_family(original.get("browser_family", "")),
                     "proxy_id": None,
                     "fingerprint": fingerprint,
                 }
@@ -1278,6 +1335,7 @@ class Storage:
                 "group_name": str(data["group_name"] or "").strip(),
                 "tags": str(data["tags"] or "").strip(),
                 "notes": str(data["notes"] or "").strip(),
+                "browser_family": data["browser_family"],
                 "created_at": now,
                 "updated_at": now,
                 "fingerprint": data["fingerprint"],
@@ -1293,14 +1351,15 @@ class Storage:
             try:
                 with self.connection() as db:
                     db.execute(
-                        """INSERT INTO profiles(id, name, group_name, tags, notes, proxy_id, created_at, updated_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        """INSERT INTO profiles(id, name, group_name, tags, notes, browser_family, proxy_id, created_at, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             restored_profile["id"],
                             restored_profile["name"],
                             restored_profile["group_name"],
                             restored_profile["tags"],
                             restored_profile["notes"],
+                            restored_profile["browser_family"],
                             None,
                             restored_profile["created_at"],
                             restored_profile["updated_at"],
@@ -1384,7 +1443,7 @@ class BrowserLauncher:
     def available_browsers(self) -> list[tuple[str, Path]]:
         discovered: list[tuple[str, Path]] = []
         custom = self.storage.get_setting("browser_path")
-        if custom and Path(custom).is_file():
+        if custom and Path(custom).is_file() and Path(custom).name.casefold() in {"chrome.exe", "msedge.exe"}:
             discovered.append(("Выбранный браузер", Path(custom)))
         candidates = list(self.KNOWN_BROWSERS)
         local = os.environ.get("LOCALAPPDATA")
@@ -1400,7 +1459,7 @@ class BrowserLauncher:
                     except OSError:
                         pass
         for name, path in candidates:
-            if path.is_file() and path not in [item[1] for item in discovered]:
+            if path.is_file() and path.name.casefold() in {"chrome.exe", "msedge.exe"} and path not in [item[1] for item in discovered]:
                 discovered.append((name, path))
         return discovered
 
@@ -1426,6 +1485,13 @@ class BrowserLauncher:
         if fingerprint["mode"] != "ordinary":
             raise NeVisionError("Этот старый экспериментальный профиль нельзя запускать в выпуске без native-ядра. Данные профиля сохранены.")
         executable = self.resolve_browser()
+        family = browser_family_for_executable(executable)
+        pinned_family = validated_browser_family(profile.get("browser_family", ""))
+        if pinned_family and pinned_family != family:
+            raise NeVisionError(
+                f"Профиль закреплён за {'Chrome' if pinned_family == 'chrome' else 'Edge'}. "
+                "Выберите этот браузер в Настройках или создайте чистую копию профиля."
+            )
         self.storage.ensure_profile_closed(profile_id)
         profile_dir = self.storage.profile_path(profile_id)
         profile_dir.mkdir(parents=True, exist_ok=True)
@@ -1446,6 +1512,9 @@ class BrowserLauncher:
                 raise NeVisionError("Назначенный proxy отсутствует. Выберите другой proxy перед запуском.")
         if extensions:
             arguments.append("edge://extensions/" if executable.name.lower() == "msedge.exe" else "chrome://extensions/")
+        # Pin before spawning so even a storage write failure cannot leave a
+        # newly launched browser attached to an unguarded profile.
+        self.storage.pin_browser_family(profile_id, family)
         try:
             process = subprocess.Popen(arguments, cwd=str(profile_dir), creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         except OSError as exc:
@@ -1716,6 +1785,7 @@ class BaseDialog(tk.Toplevel):
         self.grab_set()
         self.configure(bg=app.colors["panel"])
         self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.bind("<Escape>", lambda _event: self.destroy())
         self._initial_window_setup_scheduled = False
         self.bind("<Configure>", self._schedule_initial_window_setup, add="+")
 
@@ -1794,14 +1864,11 @@ class ProfileDialog(BaseDialog):
         self.group = self.labeled_entry(body, "Папка / группа", profile.get("group_name", "") if profile else "")
         self.tags = self.labeled_entry(body, "Теги", profile.get("tags", "") if profile else "")
         ttk.Label(body, text="Proxy", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-        self.proxy_map = {"— Без proxy —": ""}
-        for proxy in app.storage.list_proxies():
-            label = f"{proxy['name']} · {proxy['scheme']}://{proxy['host']}:{proxy['port']}"
-            self.proxy_map[label] = proxy["id"]
+        proxy_labels, self.proxy_ids = proxy_choices(app.storage.list_proxies())
         selected_id = profile.get("proxy_id") if profile else ""
-        selected_label = next((label for label, proxy_id in self.proxy_map.items() if proxy_id == selected_id), "— Без proxy —")
-        self.proxy = ttk.Combobox(body, values=list(self.proxy_map), style="Input.TCombobox", state="readonly")
-        self.proxy.set(selected_label)
+        selected_index = next((index for index, proxy_id in enumerate(self.proxy_ids) if proxy_id == selected_id), 0)
+        self.proxy = ttk.Combobox(body, values=proxy_labels, style="Input.TCombobox", state="readonly")
+        self.proxy.current(selected_index)
         self.proxy.pack(fill="x", pady=(0, 14))
         ttk.Label(body, text="Обычный Chrome или Edge · NeAntik не изменяет параметры браузера и fingerprint.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
@@ -1831,7 +1898,7 @@ class ProfileDialog(BaseDialog):
                     "group_name": self.group.get(),
                     "tags": self.tags.get(),
                     "notes": self.notes.get("1.0", "end-1c"),
-                    "proxy_id": self.proxy_map.get(self.proxy.get(), ""),
+                    "proxy_id": self.proxy_ids[self.proxy.current()] if self.proxy.current() >= 0 else "",
                     "fingerprint": identity,
                 },
                 self.profile.get("id") if self.profile else None,
@@ -2003,6 +2070,12 @@ class SettingsDialog(BaseDialog):
         if candidate and not Path(candidate).is_file():
             messagebox.showerror(APP_NAME, "Указанный файл браузера не найден.", parent=self)
             return
+        if candidate:
+            try:
+                browser_family_for_executable(Path(candidate))
+            except NeVisionError as exc:
+                messagebox.showerror(APP_NAME, str(exc), parent=self)
+                return
         preference = THEME_OPTIONS.get(self.theme.get(), THEME_SYSTEM)
         self.app.storage.set_setting("browser_path", candidate)
         self.destroy()
@@ -2017,16 +2090,20 @@ class HistoryDialog(BaseDialog):
         body.pack(fill="both", expand=True)
         title = "История профиля" if profile_id else "Общая история действий"
         ttk.Label(body, text=title, style="DialogTitle.TLabel").pack(anchor="w", pady=(0, 14))
-        tree = ttk.Treeview(body, columns=("time", "action", "profile", "details"), show="headings", style="History.Treeview")
+        ttk.Button(body, text="Закрыть", style="Ghost.TButton", command=self.destroy).pack(side="bottom", anchor="e", pady=(14, 0))
+        list_frame = ttk.Frame(body, style="Panel.TFrame")
+        list_frame.pack(fill="both", expand=True)
+        tree = ttk.Treeview(list_frame, columns=("time", "action", "profile", "details"), show="headings", style="History.Treeview")
         for key, label, width in (("time", "Время", 145), ("action", "Действие", 165), ("profile", "Профиль", 150), ("details", "Детали", 260)):
             tree.heading(key, text=label)
             tree.column(key, width=width, stretch=key == "details")
         for event in app.storage.list_events(profile_id):
             tree.insert("", "end", values=(display_datetime(event["created_at"]), event["action"], event.get("profile_name") or "—", event["details"]))
-        scrollbar = ttk.Scrollbar(body, orient="vertical", command=tree.yview, style="NV.Vertical.TScrollbar")
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=tree.yview, style="NV.Vertical.TScrollbar")
         tree.configure(yscrollcommand=scrollbar.set)
         tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+        tree.focus_set()
 
 
 class NeVisionApp:
@@ -2047,6 +2124,7 @@ class NeVisionApp:
         self._active_profiles: set[str] = set()
         self._unknown_profiles: set[str] = set()
         self._clipboard_secret: str | None = None
+        self._clipboard_generation = 0
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME} {APP_VERSION}")
         self.root.geometry("1240x780")
@@ -2054,6 +2132,7 @@ class NeVisionApp:
         self.root.configure(bg=self.colors["bg"])
         self._configure_window_icon()
         self._configure_style()
+        self._make_menu()
         self.selected_id: str | None = None
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *_: self._schedule_profile_refresh())
@@ -2139,13 +2218,26 @@ class NeVisionApp:
         """Redraw every palette-dependent Canvas while retaining user context."""
 
         selected_id = self.selected_id
+        focus = self.root.focus_get()
+        focused_search = focus is getattr(self, "search_entry", None)
+        focused_tree = focus is getattr(self, "profile_tree", None)
+        search_cursor = self.search_entry.index("insert") if focused_search else 0
+        scroll = self.detail_canvas.yview()[0] if hasattr(self, "detail_canvas") else 0.0
         for widget in self._shell_widgets:
             if widget.winfo_exists():
                 widget.destroy()
         self.root.configure(bg=self.colors["bg"])
         self._configure_style()
+        self._make_menu()
         self._build_layout()
         self.refresh_profiles(select_id=selected_id)
+        if focused_search:
+            self.search_entry.focus_set()
+            self.search_entry.icursor(min(search_cursor, len(self.search_var.get())))
+        elif focused_tree:
+            self.profile_tree.focus_set()
+        if scroll:
+            self.root.after_idle(lambda position=scroll: self.detail_canvas.yview_moveto(position))
 
     def _apply_theme(self, theme: str) -> None:
         self.active_theme = theme
@@ -2329,10 +2421,10 @@ class NeVisionApp:
         draw_vector_icon(illustration, "profiles", 25, 25, 36, self.colors["violet_soft"])
         illustration.pack(pady=(0, 19))
         tk.Label(empty, text="Ваше рабочее пространство", bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 21, "bold")).pack()
-        tk.Label(empty, text="Создайте локальный профиль или выберите существующий слева.\nДанные каждого профиля хранятся отдельно. Для Native нужен проверенный комплект ядра NeAntik.", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
+        tk.Label(empty, text="Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно и запускается в установленном Chrome или Edge.", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
         IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42).pack()
-        tk.Label(empty, text="Native или обычный профиль · данные локально · без cloud sync", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
-        tk.Label(empty, text="Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\nChrome или Edge используются только для обычных профилей.", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
+        tk.Label(empty, text="Данные локально · без cloud sync · без подмены fingerprint", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
+        tk.Label(empty, text="Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\nДля работы нужен установленный Chrome или Edge.", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
         IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200).pack(pady=(12, 0))
 
     def _metric_card(self, parent: tk.Misc, icon: str, title: str, value: str, accent: str) -> tk.Frame:
@@ -2740,11 +2832,15 @@ class NeVisionApp:
         self.root.clipboard_clear()
         self.root.clipboard_append(password)
         self._clipboard_secret = password
-        self.root.after(30_000, lambda value=password: self._clear_copied_password(value))
+        self._clipboard_generation += 1
+        generation = self._clipboard_generation
+        self.root.after(30_000, lambda value=password, token=generation: self._clear_copied_password(value, token))
         self.storage.log("proxy.password_copied", str(profile["id"]), proxy["name"])
         self.set_status("Пароль скопирован; очистка через 30 с. Историю/синхронизацию буфера Windows это не очищает.")
 
-    def _clear_copied_password(self, expected: str | None = None) -> None:
+    def _clear_copied_password(self, expected: str | None = None, generation: int | None = None) -> None:
+        if generation is not None and generation != self._clipboard_generation:
+            return
         value = expected if expected is not None else self._clipboard_secret
         if value is None:
             return

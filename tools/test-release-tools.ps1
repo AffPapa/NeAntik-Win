@@ -142,6 +142,30 @@ foreach ($case in @(@('native-hash', 'Custom browser engines'), @('native-path',
 [System.IO.File]::WriteAllText("$valid.sha256", ('0' * 64) + '  valid.zip')
 Expect-Failure 'bad checksum sidecar rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $valid } 'checksum'
 
+# The staged-only publication guard must inspect index blobs, not working-tree bytes.
+$guardRepo = Join-Path $testRoot 'staged-guard'
+New-Item -ItemType Directory -Path (Join-Path $guardRepo 'tools') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'check-public-repo.ps1') -Destination (Join-Path $guardRepo 'tools/check-public-repo.ps1')
+& git -C $guardRepo init -q
+if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize staged guard test repository.' }
+$fixture = Join-Path $guardRepo 'fixture.txt'
+[System.IO.File]::WriteAllText($fixture, 'safe source')
+& git -C $guardRepo add -- fixture.txt
+if ($LASTEXITCODE -ne 0) { throw 'Cannot stage guard test fixture.' }
+[System.IO.File]::WriteAllText($fixture, 'ghp_' + ('a' * 32))
+try { & (Join-Path $guardRepo 'tools/check-public-repo.ps1') -StagedOnly }
+finally { Set-Location -LiteralPath $projectRoot }
+$script:passed++
+& git -C $guardRepo add -- fixture.txt
+if ($LASTEXITCODE -ne 0) { throw 'Cannot stage secret guard test fixture.' }
+[System.IO.File]::WriteAllText($fixture, 'safe source')
+try {
+    Expect-Failure 'staged secret rejected despite clean working tree' {
+        & (Join-Path $guardRepo 'tools/check-public-repo.ps1') -StagedOnly
+    } 'Possible GitHub token'
+}
+finally { Set-Location -LiteralPath $projectRoot }
+
 # Substitute only the native build command: no PyInstaller build is performed here.
 $pythonExe = (Get-Command python -CommandType Application | Select-Object -First 1).Source
 function python {

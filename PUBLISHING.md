@@ -58,7 +58,8 @@ Never push the current workspace's existing index without reviewing its staged f
 3. Run `.\tools\verify-release-archive.ps1 -ArchivePath <path-to-zip>`.
 4. On GitHub, create a **draft prerelease** for the matching tag, for example
    `v0.1.3-preview`.
-5. Attach only the freshly generated ZIP and its matching `.sha256` file. Never attach an
+5. Attach only the freshly generated ZIP, its matching `.sha256` file and the release
+   `.manifest.json` file. Never attach an
    unpacked `release/` folder, `Data/`, an EXE by itself, a signing certificate or a screenshot
    containing user data.
 6. State clearly that the preview is unsigned until code signing is introduced.

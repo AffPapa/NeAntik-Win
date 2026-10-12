@@ -9,6 +9,34 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 
+function Get-StagedFileBytes([string]$RelativePath) {
+    # Native PowerShell pipelines decode command output as text. Read Git's blob
+    # stream directly so size and secret checks use the exact bytes in the index.
+    $start = [System.Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+    $start.WorkingDirectory = $projectRoot
+    $start.ArgumentList.Add('cat-file')
+    $start.ArgumentList.Add('blob')
+    $start.ArgumentList.Add(":" + $RelativePath.Replace('\', '/'))
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.CreateNoWindow = $true
+    $process = [System.Diagnostics.Process]::Start($start)
+    $buffer = [System.IO.MemoryStream]::new()
+    try {
+        $process.StandardOutput.BaseStream.CopyTo($buffer)
+        $errorText = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) { throw "Cannot read staged file ${RelativePath}: $errorText" }
+        return ,$buffer.ToArray()
+    }
+    finally {
+        $buffer.Dispose()
+        $process.Dispose()
+    }
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.git'))) {
     throw 'Run this guard from the standalone NeVision Win Git repository.'
 }
@@ -44,7 +72,7 @@ $maxBytes = $MaxFileSizeMb * 1MB
 foreach ($relativePath in $candidatePaths) {
     $normalized = $relativePath.Replace('\', '/')
     $fullPath = Join-Path $projectRoot $relativePath
-    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+    if (-not $StagedOnly -and -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
         $failures.Add("Missing candidate file: $normalized")
         continue
     }
@@ -54,15 +82,16 @@ foreach ($relativePath in $candidatePaths) {
         continue
     }
 
-    $file = Get-Item -LiteralPath $fullPath
-    if ($file.Length -gt $maxBytes) {
+    $bytes = if ($StagedOnly) { Get-StagedFileBytes $relativePath } else { [System.IO.File]::ReadAllBytes($fullPath) }
+    if ($bytes.Length -gt $maxBytes) {
         $failures.Add("File exceeds $MaxFileSizeMb MB publication limit: $normalized")
         continue
     }
 
-    $extension = [System.IO.Path]::GetExtension($file.Name).ToLowerInvariant()
-    if ($file.Name -in @('.gitignore', '.gitattributes', '_headers', 'LICENSE') -or $extension -in @('.jsonc', '.webmanifest') -or $textExtensions -contains $extension) {
-        $content = Get-Content -LiteralPath $fullPath -Raw -Encoding UTF8
+    $fileName = [System.IO.Path]::GetFileName($normalized)
+    $extension = [System.IO.Path]::GetExtension($fileName).ToLowerInvariant()
+    if ($fileName -in @('.gitignore', '.gitattributes', '_headers', 'LICENSE') -or $extension -in @('.jsonc', '.webmanifest') -or $textExtensions -contains $extension) {
+        $content = [System.Text.Encoding]::UTF8.GetString($bytes)
         foreach ($rule in $secretPatterns) {
             if ([regex]::IsMatch($content, $rule.Pattern)) {
                 $failures.Add("Possible $($rule.Name) in $normalized")
