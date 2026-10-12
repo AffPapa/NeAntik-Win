@@ -16,6 +16,8 @@ def fixture_cases():
         broken='broken' in label or 'unavailable' in label;unproxied='unproxied' in label
         visits.append({'label':label,'process':{'return_code':0,'active_processes':0},
           'stun_packets':1 if unproxied else 0,'udp_datagrams':1 if unproxied else 0,
+          'stun_send_log_valid':True,'stun_send_events':1 if unproxied else 0,
+          'stun_send_bytes':20 if unproxied else 0,
           'proxy_requests':0 if unproxied else 1,'origin_hits':0 if broken else 3,
           'result':None if broken else {'peerConnectionAvailable':True,'error':None,'iceGatheringState':'complete'},
           'dom_matches_server':not broken,'proxy_unavailable_checked':'unavailable' in label,
@@ -118,10 +120,23 @@ class OwnedWebRtcTests(unittest.TestCase):
         self.assertEqual(socket.inet_ntoa(struct.pack('!I',ip)),'127.0.0.1')
         for bad in (b'',request[:-1],request+b'x',b'xx'+request[2:],request[:4]+b'xxxx'+request[8:]):
             self.assertIsNone(qa.stun_response(bad,('127.0.0.1',23456)))
+    def test_netlog_udp_send_evidence_is_bound_to_exact_owned_endpoint(self):
+        data={'constants':{'logEventTypes':{'UDP_BYTES_SENT':7},
+          'logSourceType':{'UDP_SOCKET':3}},'events':[
+          {'type':7,'source':{'type':3,'id':1},'params':{'address':'192.168.1.120:54321','byte_count':20}},
+          {'type':7,'source':{'type':3,'id':2},'params':{'address':'192.168.1.120:54322','byte_count':20}},
+          {'type':7,'source':{'type':4,'id':3},'params':{'address':'192.168.1.120:54321','byte_count':20}}]}
+        self.assertEqual(qa.owned_stun_udp_send_evidence(data,'192.168.1.120',54321),
+          {'events':1,'bytes':20})
+        self.assertIsNone(qa.owned_stun_udp_send_evidence({},'192.168.1.120',54321))
     def test_synthetic_valid_cases_are_internally_consistent(self):
         self.assertTrue(all(item['passed'] for item in qa.assessment(fixture_cases())))
     def test_zero_native_control_udp_cannot_pass(self):
         visits=fixture_cases();visits[1]['stun_packets']=0;visits[1]['udp_datagrams']=0
+        visits[1]['stun_send_events']=0;visits[1]['stun_send_bytes']=0
+        self.assertFalse(all(item['passed'] for item in qa.assessment(visits)))
+    def test_proxied_owned_stun_socket_send_cannot_pass(self):
+        visits=fixture_cases();visits[2]['stun_send_events']=1;visits[2]['stun_send_bytes']=20
         self.assertFalse(all(item['passed'] for item in qa.assessment(visits)))
     def test_leaked_udp_broken_direct_and_missing_proxy_cannot_pass(self):
         for index,key,value in ((2,'udp_datagrams',1),(3,'origin_hits',1),(2,'proxy_requests',0),(3,'proxy_requests',0)):

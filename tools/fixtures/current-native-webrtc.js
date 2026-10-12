@@ -8,8 +8,18 @@
     peer.onicecandidate=event=>{if(event.candidate)output.candidates.push(event.candidate.candidate)};
     peer.createDataChannel('owned-native-qa');
     await peer.setLocalDescription(await peer.createOffer());
-    // Keep the same bounded allocation window for control and protected visits.
-    await new Promise(resolve=>setTimeout(resolve,7000));
+    // Observe actual ICE completion where possible. A fixed seven-second
+    // sample left the owned positive control in "gathering" on Windows.
+    await new Promise(resolve=>{
+      if(peer.iceGatheringState==='complete') return resolve();
+      let finished=false;
+      const done=()=>{if(finished)return;finished=true;clearTimeout(timer);
+        peer.removeEventListener('icegatheringstatechange',changed);resolve();};
+      const changed=()=>{if(peer.iceGatheringState==='complete')done();};
+      const timer=setTimeout(done,18000);
+      peer.addEventListener('icegatheringstatechange',changed);
+      changed();
+    });
     output.iceGatheringState=peer.iceGatheringState;
   } catch(error) {output.error=String(error)}
   finally {if(peer)peer.close()}

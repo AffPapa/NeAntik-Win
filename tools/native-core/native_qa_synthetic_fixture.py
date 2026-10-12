@@ -18,10 +18,14 @@ def full_report(verification):
         canvas.update(translucent='00'*3072,
                       displayP3={'colorSpace': 'display-p3', 'pixels': '00'*3072},
                       float16={'unsupported': 'synthetic fixture unavailable'})
-        surface = {**values, 'canvas': canvas, 'userAgent': 'synthetic-unit-fixture',
-                   'requestHeaders': {'User-Agent': 'synthetic-unit-fixture',
-                                      'Sec-CH-Device-Memory': memory}}
-        result = {context: copy.deepcopy(surface) for context in h.CONTEXTS}
+        result = {}
+        for context in h.CONTEXTS:
+            headers = {'User-Agent': 'synthetic-unit-fixture'}
+            if context in ('main', 'sameIframe', 'crossIframe'):
+                headers['Sec-CH-Device-Memory'] = memory
+            surface = {**values, 'canvas': canvas, 'userAgent': 'synthetic-unit-fixture',
+                       'requestHeaders': headers}
+            result[context] = copy.deepcopy(surface)
         result.update(early=copy.deepcopy(values),
                       offscreen={'kind': 'OffscreenCanvas', **copy.deepcopy(canvas)},
                       largeCanvas={'width': 2048, 'height': 2048, 'readbackMs': [1, 2, 3],
@@ -39,6 +43,9 @@ def full_report(verification):
         net.append({'label': label, 'process': {'return_code': 0, 'active_processes': 0},
                     'stun_packets': 1 if unproxied else 0,
                     'udp_datagrams': 1 if unproxied else 0,
+                    'stun_send_log_valid': True,
+                    'stun_send_events': 1 if unproxied else 0,
+                    'stun_send_bytes': 20 if unproxied else 0,
                     'proxy_requests': 0 if unproxied or 'unavailable' in label else 1,
                     'origin_hits': 0 if broken else 3,
                     'result': None if broken else {'peerConnectionAvailable': True,
@@ -55,6 +62,7 @@ def full_report(verification):
                               'canvas_translucent'), False))
     netchecks = validator.webrtc.assessment(net)
     return {'format': 'neantik-own155-native-qa-v1', 'status': 'passed',
+            'execution_bundle_verified': True,
             'verification': copy.deepcopy(verification), 'bundle_reverified_after_visits': True,
             'probe': {'actual_info': {'schema': 1, 'engine_id': 'neantik-chromium',
                 'version': h.VERSION, 'source_commit': h.COMMIT,
@@ -63,5 +71,6 @@ def full_report(verification):
             'malformed_inputs': [{'name': name, 'passed': True,
                 'process': {'return_code': 78, 'active_processes': 0}}
                 for name in sorted(validator.MALFORMED)],
-            'visits': visits, 'webrtc': {'visits': net, 'assertions': netchecks},
+            'visits': visits, 'webrtc': {'visits': net, 'assertions': netchecks,
+              'limitations': [validator.WEBRTC_DELIVERY_LIMITATION]},
             'assertions': h.assess(visits) + netchecks, 'comparisons': h.comparisons(visits)}

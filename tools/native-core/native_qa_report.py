@@ -29,6 +29,7 @@ MALFORMED = {'zero_seed', 'unknown_namespace', 'orphan_cpu', 'invalid_cpu',
              'unsupported_windows_memory_0.5', 'unsupported_windows_memory_1'}
 NETWORK = {'ordinary unproxied', 'native unproxied', 'native HTTP proxy',
            'native broken HTTP proxy', 'native unavailable TCP proxy'}
+WEBRTC_DELIVERY_LIMITATION = ('Positive/negative WebRTC control uses exact UDP_BYTES_SENT NetLog evidence for the owned STUN IP:port. The custom Chromium build emitted OS-accepted sends, but this host listener received zero datagrams; no raw-NIC capture was performed, so external delivery is not proven.')
 
 def require(condition, message):
     if not condition:
@@ -142,6 +143,7 @@ def assertion_map(value):
 def validate_report(report, verification):
     require(type(report) is dict and report.get('format') == 'neantik-own155-native-qa-v1'
             and report.get('status') == 'passed' and
+            report.get('execution_bundle_verified') is True and
             report.get('bundle_reverified_after_visits') is True and
             not report.get('harness_error'), 'status/reverification/error invalid')
     actual = report.get('verification')
@@ -181,11 +183,16 @@ def validate_report(report, verification):
                 'typed canvas performance evidence missing')
     network = report.get('webrtc')
     require(type(network) is dict, 'WebRTC observations missing')
+    require(type(network.get('limitations')) is list and
+            WEBRTC_DELIVERY_LIMITATION in network['limitations'],
+            'WebRTC local-listener delivery limitation must remain explicit')
     netvisits = records(network.get('visits'), 'label', NETWORK)
     for label, run in netvisits.items():
         process(run.get('process'), 0)
         require(all(integer(run.get(k)) for k in
-                    ('stun_packets', 'udp_datagrams', 'proxy_requests', 'origin_hits')),
+                    ('stun_packets', 'udp_datagrams', 'proxy_requests', 'origin_hits',
+                     'stun_send_events', 'stun_send_bytes')) and
+                run.get('stun_send_log_valid') is True,
                 'typed network counters missing')
         require(run['stun_packets'] <= run['udp_datagrams'], 'STUN count exceeds datagrams')
         require(type(run.get('dom_matches_server')) is bool, 'untyped network DOM agreement')

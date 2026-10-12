@@ -1,10 +1,10 @@
 # NeAntik Win
 
-Local-first portable Windows browser project, previously named NeVision Win. This source tree includes an authored native Chromium 155 patch series and launcher integration; it is not yet a verified native browser release. See [native core contract](core/README.md), [build instructions](tools/native-core/README.md) and [independent runtime QA](tools/CURRENT_NATIVE_QA.md).
+Local-first portable Windows browser project, previously named NeVision Win. This source tree includes an authored native Chromium 155 engine and launcher integration. The engine passed its independent runtime QA matrix; the versioned portable application still requires its own packaged release checks before download. See [native core contract](core/README.md), [build instructions](tools/native-core/README.md) and [independent runtime QA](tools/CURRENT_NATIVE_QA.md).
 
 ## Download and start
 
-The [official download page](https://nevision-win.mail782861.chatgpt.site/#download) still serves the previously verified NeVision Win release; its executable is `NeVisionWin.exe`. New NeAntik builds use `NeAntikWin.exe`. Extract the **entire ZIP** into a writable local folder. Python and an installer are not required. The existing ordinary-profile mode requires installed Google Chrome or Microsoft Edge; a native engine must pass the separate release gates before being published.
+The [official download page](https://nevision-win.mail782861.chatgpt.site/#download) remains the source of published binaries; until the new 0.3.0 preview is deployed it may show the previous NeVision Win release. New NeAntik builds use `NeAntikWin.exe`. Extract the **entire ZIP** into a writable local folder. Python and an installer are not required. Ordinary profiles use installed Google Chrome or Microsoft Edge; native profiles use the bundled, independently tested Chromium engine.
 
 This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other Windows versions are not validated by this release. A matching checksum detects changed bytes; it does not replace an Authenticode signature or make Windows trust a publisher.
 
@@ -18,7 +18,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Native browser Extensions page for a closed profile; install only extensions you trust.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The published NeVision 0.2.1 release launches stock Chrome/Edge without fingerprint changes. The current NeAntik source adds explicit native profiles with persistent seed, CPU/memory settings and optional IANA timezone. Existing profiles remain ordinary. Native profiles refuse to launch when the matching verified engine is missing; there is no stock-browser fallback. The C++ series covers only opaque sRGB uint8 Canvas readback, not every Canvas format or fingerprint surface. Actual compiled-browser observations are still required. No anonymity, account-safety or anti-detection-test guarantee is made.
+NeAntik native profiles support a persistent seed, CPU/device-memory values and optional IANA timezone, plus narrowly scoped opaque sRGB uint8 Canvas readback behavior. Existing profiles remain ordinary. Native profiles refuse to launch when the matching verified engine is missing; there is no stock-browser fallback. Canvas formats outside that scope and many other fingerprint surfaces are not covered. Worker Device-Memory Client Hints are not currently emitted by Chromium's worker fetch context. WebRTC test evidence is limited to owned endpoints and NetLog; external packet delivery was not verified. No anonymity, account-safety, third-party policy bypass or universal anti-detection guarantee is made.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 

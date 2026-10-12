@@ -169,7 +169,11 @@ raise SystemExit(subprocess.run(sys.argv[1:],stdin=subprocess.DEVNULL,
 def run_owned(arguments,folder,timeout=65):
     job=OwnedJob();process=None;started=time.monotonic()
     try:
-        process=subprocess.Popen([sys.executable,'-I','-S','-c',GATE,*arguments],cwd=folder,
+        # Chromium writes debug.log beside chrome.exe by default on Windows.
+        # Keep every probe/test log inside its disposable QA directory so it
+        # cannot mutate the hash-verified portable engine tree.
+        process=subprocess.Popen([sys.executable,'-I','-S','-c',GATE,*arguments,
+          f'--log-file={folder / "chrome.log"}'],cwd=folder,
           stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
           creationflags=subprocess.CREATE_NO_WINDOW|subprocess.CREATE_NEW_PROCESS_GROUP)
         job.assign(process)
@@ -372,11 +376,18 @@ def assess(visits):
                 canvas.get('outOfBounds')=='00000000' and canvas.get('cleared') is True)
             headers={key.lower():value for key,value in (surface.get('requestHeaders') or {}).items()}
             add(label+': '+context+' HTTP UA matches JS',bool(headers.get('user-agent')) and headers['user-agent']==surface.get('userAgent'))
-            if seed is not None:
+            if context in ('main','sameIframe','crossIframe') and seed is not None:
                 memory_header=headers.get('sec-ch-device-memory',headers.get('device-memory'))
                 try:matches=float(memory_header)==float(run['expected_memory'])
                 except (TypeError,ValueError):matches=False
                 add(label+': '+context+' HTTP device-memory matches JS',matches)
+            elif context in ('dedicatedWorker','sharedWorker','serviceWorker'):
+                # Chromium's WorkerFetchContext intentionally does not attach
+                # Client Hints: worker contexts have no Permissions Policy.
+                # The worker JS values are checked above; record this separate
+                # transport limitation instead of comparing unlike surfaces.
+                add(label+': '+context+' HTTP device-memory Client Hint absent by Chromium worker semantics',
+                    'sec-ch-device-memory' not in headers and 'device-memory' not in headers)
         add(label+': early first-script values match main',bool(result.get('early')) and all(
             result['early'].get(key)==main.get(key) for key in FIELDS))
         offscreen=result.get('offscreen') or {}
@@ -429,6 +440,8 @@ def comparisons(visits):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--portable-root',type=Path,required=True)
+    parser.add_argument('--execution-root',type=Path,
+      help='Optional disposable runtime copy; the immutable portable-root is reverified after all tests.')
     parser.add_argument('--trusted-manifest-sha256',required=True)
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
@@ -440,12 +453,18 @@ def main():
         'Low-bit projection retains high RGB bits; no undetectability or bot-service bypass claim.',
         'Cross-site iframe policy forced; per-frame native process IDs are not inspected.',
         'Job peak memory includes all owned Chromium children and the gated Python helper, not only Canvas buffers.',
-        'IANA test zones are fixtures; all ICU IDs and transitions are not exhaustively tested.']}
+        'IANA test zones are fixtures; all ICU IDs and transitions are not exhaustively tested.',
+        'Worker navigator.deviceMemory is checked as a JS surface; Chromium WorkerFetchContext does not attach Device-Memory Client Hints because worker contexts lack Permissions Policy.']}
     servers=[];root=None
     try:
         require(os.name=='nt','Windows required')
-        browser,verification=verify_bundle(args.portable_root,args.trusted_manifest_sha256)
+        _,verification=verify_bundle(args.portable_root,args.trusted_manifest_sha256)
+        execution_root=args.execution_root or args.portable_root
+        browser,execution_verification=verify_bundle(execution_root,args.trusted_manifest_sha256)
+        require(execution_verification==verification,
+          'Disposable QA execution bundle differs from immutable portable bundle')
         report['verification']=verification
+        report['execution_bundle_verified']=True
         root=Path(tempfile.mkdtemp(prefix='neantik-own155-qa-'))
         report['probe']=probe(browser,root)
         report['malformed_inputs']=malformed_input_checks(browser,root)

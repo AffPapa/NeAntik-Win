@@ -152,8 +152,10 @@ class CoreResolver:
             output = directory / "info.json"
             try:
                 result = subprocess.run([str(executable), f"--user-data-dir={directory / 'profile'}",
-                                         f"--neantik-core-info={output}", "--no-first-run", "--no-default-browser-check"],
-                                        capture_output=True, timeout=15,
+                                         f"--neantik-core-info={output}",
+                                         f"--log-file={directory / 'chrome.log'}",
+                                         "--no-first-run", "--no-default-browser-check"],
+                                        cwd=directory, capture_output=True, timeout=15,
                                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                 if result.returncode != 0 or not output.is_file() or output.stat().st_size > 64 * 1024:
                     raise CoreError("Ядро не подтвердило native-контракт NeAntik.")

@@ -15,11 +15,17 @@ download is not authentication.
 ```powershell
 python tools/test_current_native_fingerprint.py `
   --portable-root C:\QA\NeAntikWin `
+  --execution-root C:\QA\NeAntikWin-DisposableCopy `
   --trusted-manifest-sha256 <trusted-64-character-sha256> `
   --output docs\qa\current-native-runtime.json
 ```
 
-The executable and every manifest member are checked before and after visits.
+`--portable-root` is the immutable release candidate; `--execution-root` is a
+separate disposable copy used for browser runs. Windows Chromium can create an
+early-startup `debug.log` beside its executable during malformed-input tests.
+The source bundle is reverified after visits; the disposable copy may contain
+that test side effect. The executable and every manifest member in both roots
+are checked before visits.
 The manifest must exactly cover the engine tree; path traversal, alternate data
 streams, symlinks/junctions, case collisions, unknown engine identity, and missing
 files fail closed. The actual `--neantik-core-info` probe must report the pinned
@@ -40,17 +46,21 @@ part of the public-source export.
 
 - Missing/malformed native flags must fail with exit 78.
 - Main document, same/cross-origin iframe, dedicated/shared/service workers:
-  hardware concurrency, device memory, HTTP Client Hints, Date/Intl timezone and
-  DST observations.
+  hardware concurrency, device memory, Date/Intl timezone and DST observations.
+- HTTP Client Hints are checked only for document/iframe fetch contexts. The
+  tested Chromium WorkerFetchContext does not add Device-Memory hints because
+  worker contexts lack Permissions Policy; worker JavaScript values are checked
+  independently and this transport limitation is reported, not marked as a
+  fingerprint match.
 - Seed A, same-profile A restart, seed B, another hardware/timezone persona,
   and no-persona baseline.
 - Canvas exact native pixel reference, absolute-coordinate subrects, repeated
   reads, `putImageData`, clearing, PNG exports, HTML and Offscreen paths.
 - 2048 x 2048 readback and PNG timings, plus owned-process peak committed memory.
 - WebRTC five-scenario network checks: ordinary and native unproxied positive
-  controls must emit actual valid STUN packets to an owned IPv4 loopback listener;
-  native with an owned HTTP proxy must load the fixture through that proxy and
-  send no datagrams to the listener. A broken HTTP proxy must receive the test
+  controls must show an OS-accepted `UDP_BYTES_SENT` event to the exact owned
+  STUN IP:port in NetLog. Native with an owned HTTP proxy must load the fixture
+  through that proxy and show no send event to that endpoint. A broken HTTP proxy must receive the test
   document request without any DIRECT request reaching the owned origin.
   An additional unavailable TCP proxy test holds an exclusively bound, non-listening
   IPv4 TCP socket alive throughout the browser visit. Chrome must show the exact
@@ -59,10 +69,14 @@ part of the public-source export.
   source-bound NetLog evidence is also accepted: the owned URL's unique
   `URL_REQUEST_START_JOB` BEGIN/END pair, same URL_REQUEST source ID, with numeric
   `net_error=-130`. Empty output, arbitrary log text or a different request's
-  error cannot satisfy this check. NetLog uses default capture mode, lives only
-  in the disposable private QA profile, and is never packaged/published.
+  error cannot satisfy this check. WebRTC NetLog uses `Everything` capture but
+  contains only fresh test profiles and is retained privately, never packaged
+  or published. On the current host custom Chromium logged OS-accepted STUN
+  sends but the local listener received zero datagrams; no raw-NIC capture was
+  performed, so this does not prove external delivery.
 
-The network fixture removes Chrome's implicit loopback HTTP bypass with
+The network fixture uses an owned UDP server on the active local IPv4 address;
+the documentation-only route probe sends no packet. It removes Chrome's implicit loopback HTTP bypass with
 `--proxy-bypass-list=<-loopback>`. Without that, visiting `127.0.0.1` would not
 prove HTTP proxy use. These observations do not cover remote network interfaces,
 external IP leaks, HTTPS CONNECT tunnelling, SOCKS, extensions, other UDP APIs or

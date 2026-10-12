@@ -8,6 +8,7 @@ from __future__ import annotations
 import html
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import ipaddress
 import json
 from pathlib import Path
 import re
@@ -36,9 +37,10 @@ def stun_response(packet,address):
 
 
 class OwnedStun:
-    def __init__(self):
+    def __init__(self,host='127.0.0.1'):
+        self.host=host
         self.socket=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.socket.bind(('127.0.0.1',0));self.socket.settimeout(.2)
+        self.socket.bind((self.host,0));self.socket.settimeout(.2)
         self.port=self.socket.getsockname()[1];self.count=0;self.datagrams=0
         self.stop=threading.Event();self.thread=threading.Thread(target=self.serve,daemon=True)
         self.thread.start()
@@ -55,6 +57,21 @@ class OwnedStun:
                 except OSError:pass
     def close(self):
         self.stop.set();self.socket.close();self.thread.join(timeout=1)
+
+
+def owned_local_route_ipv4():
+    """Select only this host's route address; UDP connect sends no packet."""
+    route_probe=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    try:
+        route_probe.connect(('192.0.2.1',9))  # RFC 5737 documentation-only address
+        address=route_probe.getsockname()[0]
+    except OSError as error:
+        raise harness.HarnessError('No usable IPv4 route for positive STUN control') from error
+    finally:
+        route_probe.close()
+    if not address or ipaddress.ip_address(address).is_loopback or address=='0.0.0.0':
+        raise harness.HarnessError('No non-loopback local IPv4 route for positive STUN control')
+    return address
 
 
 class OwnedProxy(ThreadingHTTPServer):
@@ -120,6 +137,38 @@ def proxy_failure_netlog(data,expected_url):
     return matches[0] if len(matches)==1 else None
 
 
+def owned_stun_udp_send_evidence(data,host,port):
+    """Count OS-accepted UDP sends to the one owned STUN tuple in NetLog."""
+    if not isinstance(data,dict):return None
+    constants=data.get('constants') or {};events=data.get('events')
+    if not isinstance(constants,dict) or not isinstance(events,list) or len(events)>100000:return None
+    event_types=constants.get('logEventTypes');source_types=constants.get('logSourceType')
+    if not isinstance(event_types,dict) or not isinstance(source_types,dict):return None
+    send_type=event_types.get('UDP_BYTES_SENT');udp_socket=source_types.get('UDP_SOCKET')
+    if type(send_type) is not int or type(udp_socket) is not int:return None
+    wanted_host=str(ipaddress.ip_address(host));count=total_bytes=0
+    for event in events:
+        if not isinstance(event,dict) or event.get('type')!=send_type:continue
+        source=event.get('source') or {};params=event.get('params') or {}
+        if not isinstance(source,dict) or source.get('type')!=udp_socket or not isinstance(params,dict):continue
+        address=params.get('address');byte_count=params.get('byte_count')
+        if not isinstance(address,str) or type(byte_count) is not int or byte_count<1:continue
+        endpoint_host,separator,endpoint_port=address.rpartition(':')
+        if not separator:continue
+        if endpoint_host.startswith('[') and endpoint_host.endswith(']'):
+            endpoint_host=endpoint_host[1:-1]
+        try:matches=ipaddress.ip_address(endpoint_host)==ipaddress.ip_address(wanted_host) and int(endpoint_port)==port
+        except (ValueError,TypeError):matches=False
+        if matches:count+=1;total_bytes+=byte_count
+    return {'events':count,'bytes':total_bytes}
+
+
+def read_owned_stun_udp_send_evidence(path,host,port):
+    if not path.is_file() or path.stat().st_size>8*1024*1024:return None
+    try:return owned_stun_udp_send_evidence(harness.unique_json(path.read_text(encoding='utf-8')),host,port)
+    except (ValueError,UnicodeError,harness.HarnessError):return None
+
+
 def read_proxy_failure_netlog(path,expected_url):
     if not path.is_file() or path.stat().st_size>8*1024*1024:return None
     try:return proxy_failure_netlog(harness.unique_json(path.read_text(encoding='utf-8')),expected_url)
@@ -173,6 +222,7 @@ def assessment(visits):
         visit=by.get(label,{})
         add(label+' owned process exited normally',visit.get('process',{}).get('return_code')==0 and
           visit.get('process',{}).get('active_processes')==0)
+        add(label+' NetLog exact-owned-STUN send evidence captured',visit.get('stun_send_log_valid') is True)
         if label=='native unavailable TCP proxy':
             evidence=visit.get('proxy_failure_netlog') or {}
             precise_failure=visit.get('proxy_neterror')=='ERR_PROXY_CONNECTION_FAILED' or (
@@ -182,20 +232,24 @@ def assessment(visits):
               visit.get('proxy_unavailable_checked') is True and precise_failure and
               visit.get('origin_hits')==0 and visit.get('result') is None)
             add('unavailable TCP proxy sends no STUN datagrams',visit.get('udp_datagrams')==0)
+            add('unavailable TCP proxy has no UDP send to owned STUN endpoint',visit.get('stun_send_events')==0)
         elif label=='native broken HTTP proxy':
             add('broken proxy attempted and no DIRECT origin fallback',visit.get('proxy_requests',0)>0 and
               visit.get('origin_hits')==0 and visit.get('result') is None)
             add('broken proxy sends no STUN datagrams',visit.get('udp_datagrams')==0)
+            add('broken HTTP proxy has no UDP send to owned STUN endpoint',visit.get('stun_send_events')==0)
         else:
             result=visit.get('result') or {}
             add(label+' real page result agrees with dumpDOM',visit.get('dom_matches_server') is True and
               result.get('peerConnectionAvailable') is True and result.get('error') is None and
               result.get('iceGatheringState') in ('gathering','complete'))
             if 'unproxied' in label:
-                add(label+' positive native STUN packets actually observed',visit.get('stun_packets',0)>0)
+                add(label+' positive control emits OS-accepted UDP sends to exact owned STUN endpoint',
+                    visit.get('stun_send_events',0)>0 and visit.get('stun_send_bytes',0)>0)
             else:
                 add('explicit owned HTTP proxy was used',visit.get('proxy_requests',0)>0 and visit.get('origin_hits',0)>0)
                 add('proxied native sends no STUN datagrams',visit.get('udp_datagrams')==0)
+                add('proxied native has no UDP send to exact owned STUN endpoint',visit.get('stun_send_events')==0)
     return checks
 
 
@@ -207,31 +261,35 @@ def run_webrtc_checks(browser,root):
         for label,native,proxied,broken in [('ordinary unproxied',False,False,False),
             ('native unproxied',True,False,False),('native HTTP proxy',True,True,False),
             ('native broken HTTP proxy',True,True,True),('native unavailable TCP proxy',True,True,False)]:
-            token=uuid.uuid4().hex;stun=OwnedStun();proxy=None
+            token=uuid.uuid4().hex;stun=OwnedStun(owned_local_route_ipv4());proxy=None
             try:
                 case={'ready':threading.Event(),'result':None,'lock':threading.Lock(),
-                  'stun_url':f'stun:127.0.0.1:{stun.port}','origin_hits':0}
+                  'stun_url':f'stun:{stun.host}:{stun.port}','origin_hits':0}
                 state[token]=case
                 url=f'http://127.0.0.1:{origin.server_port}/webrtc?token={token}'
                 folder=root/('webrtc-'+label.replace(' ','-'));folder.mkdir()
                 netlog=folder/'net-log.json'
                 arguments=[str(browser),'--headless','--dump-dom',f'--user-data-dir={folder}',
-                  '--timeout=30000' if 'unavailable' in label else '--timeout=15000',
+                  '--timeout=30000',
                   '--no-first-run','--no-default-browser-check','--disable-background-networking',
                   '--disable-component-update','--disable-sync','--disable-extensions','--disable-quic',
                   '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1']
                 if native:arguments+=harness.current_core.identity_arguments(harness.current_core.new_identity())
-                if 'unavailable' in label:arguments+=['--log-net-log='+str(netlog)]
+                arguments+=['--log-net-log='+str(netlog),'--log-net-log-capture-mode=Everything']
                 if proxied:
                     proxy=OwnedUnavailableProxy() if label=='native unavailable TCP proxy' else OwnedProxy(
                       f'http://127.0.0.1:{origin.server_port}',broken)
                     arguments+=[f'--proxy-server=http://127.0.0.1:{proxy.server_port}','--proxy-bypass-list=<-loopback>']
                 else:arguments+=['--no-proxy-server']
-                stdout,stderr,process=harness.run_owned(arguments+[url],folder,60 if 'unavailable' in label else 40)
+                stdout,stderr,process=harness.run_owned(arguments+[url],folder,65 if 'unavailable' in label else 40)
+                send_evidence=read_owned_stun_udp_send_evidence(netlog,stun.host,stun.port)
                 match=re.search(r'<pre id="current-webrtc-result">(.*?)</pre>',stdout.decode('utf-8','replace'),re.S)
                 dom=harness.unique_json(html.unescape(match.group(1))) if match else None
                 visits.append({'label':label,'process':process,'stun_packets':stun.count,'udp_datagrams':stun.datagrams,
                   'origin_hits':case['origin_hits'],'proxy_requests':sum(item.get('test_document',False) for item in proxy.requests) if proxy else 0,
+                  'stun_send_log_valid':send_evidence is not None,
+                  'stun_send_events':send_evidence['events'] if send_evidence else 0,
+                  'stun_send_bytes':send_evidence['bytes'] if send_evidence else 0,
                   'result':case['result'],'dom_matches_server':case['result'] is not None and dom==case['result'],
                   'proxy_unavailable_checked':getattr(proxy,'unavailable_checked',False),
                   'proxy_fixture_outcome':getattr(proxy,'fixture_outcome',None),
@@ -248,4 +306,4 @@ def run_webrtc_checks(browser,root):
         'CONNECT/TLS/SOCKS, extensions, other UDP APIs and global kill-switch are NOT covered.',
         'HTTP 502 and exclusively reserved non-listening TCP proxy both tested; Windows may refuse or drop SYN until timeout. DNS failure, authentication and proxy failover lists are not covered.',
         'Broken-proxy case never loads JS; no STUN there alone is not evidence of the WebRTC policy.',
-        'Unproxied native positive control must actually emit valid STUN; zero traffic cannot produce a passing result.']}
+        'Positive/negative WebRTC control uses exact UDP_BYTES_SENT NetLog evidence for the owned STUN IP:port. The custom Chromium build emitted OS-accepted sends, but this host listener received zero datagrams; no raw-NIC capture was performed, so external delivery is not proven.']}

@@ -2,19 +2,27 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
-## Unreleased — own native Chromium cycle
+## 0.3.0-preview — release candidate (2026-10-12, not yet published)
 
 - Renamed the product to NeAntik Win and published reviewed sources at
   https://github.com/AffPapa/NeAntik-Win; personal runtime data is excluded.
-- Authored an exact Chromium 155 native patch series for immutable profile seed,
-  CPU/deviceMemory, explicit ICU timezone and opaque sRGB uint8 Canvas readback.
-  Source/patch verification passed; compilation and browser observations are not
-  release evidence until the separate acceptance gates complete.
+- Bundles the project's own Chromium 155.0.8059.40 with native profile seed,
+  CPU/deviceMemory, ICU timezone and narrowly scoped opaque sRGB uint8 Canvas
+  readback behavior. Release QA is limited to the recorded test matrix; this is
+  not a claim of undetectability or compatibility with every fingerprint test.
 - Added native/ordinary profile choice, compact CPU/memory/timezone controls and
   explicit missing-core errors without falling back to ordinary Chrome.
 - Native backup/restore retains the persona; clean cloning uses a fresh seed.
   Existing ordinary profiles and legacy backup identifiers remain compatible.
-- This is not a released version. Public download remains NeVision 0.2.1-preview.
+- WebRTC QA checks owned endpoints and proxy scenarios. This host's NetLog shows
+  OS-accepted STUN sends but its local listener received none; no packet capture
+  verified delivery outside the OS. Worker Device-Memory Client Hints are not
+  emitted by Chromium's current WorkerFetchContext; worker JS surfaces are tested
+  separately.
+- **Preview only.** Back up `Data/` before first launch or upgrading. Chromium
+  profiles may be upgraded and may not be usable by an older browser afterward.
+- The artifact remains unsigned; Windows SmartScreen may warn. Other Windows
+  versions and untested fingerprint surfaces are not certified.
 
 ## 0.2.1-preview — 2026-10-11
 
