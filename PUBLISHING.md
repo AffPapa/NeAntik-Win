@@ -1,5 +1,11 @@
 # Safe GitHub publication
 
+The public repository already exists at
+<https://github.com/AffPapa/NeAntik-Win>. The first-push instructions below are
+historical setup guidance; do not create another repository or change the
+existing remote for a routine release. Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+for current release gates.
+
 ## Scope boundary
 
 Publish only the reviewed source export of this application as **NeAntik-Win**.
@@ -56,8 +62,11 @@ Never push the current workspace's existing index without reviewing its staged f
 2. For a bundled-browser release, stage a source-built stable unbranded
    Chromium runtime using [docs/CHROMIUM_SOURCE_BUILD.md](docs/CHROMIUM_SOURCE_BUILD.md)
    and pass it to `.\build.ps1 -Clean -EngineDirectory <staged-engine-directory>`.
-   Never promote a continuous snapshot or the older fingerprint-modified local
-   Chromium build. Test the generated EXE with `--self-test`.
+   Never promote a continuous snapshot or an unreviewed local Chromium build.
+   If the experimental native-persona patch is selected, satisfy the additional
+   [prototype gates](docs/NATIVE_PERSONA_PROTOTYPE_AUDIT.md), including exact
+   patch and compiled-core identity; a successful local smoke test alone is
+   not enough. Test the generated EXE with `--self-test`.
 3. Run `.\tools\verify-release-archive.ps1 -ArchivePath <path-to-zip>`.
 4. On GitHub, create a **draft prerelease** for the matching tag, for example
    `v0.1.3-preview`.
