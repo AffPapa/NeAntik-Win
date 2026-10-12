@@ -50,6 +50,11 @@ fingerprint uniqueness. The present prototype changes opaque sRGB uint8
 Canvas2D readbacks only; translucent content, wide-gamut/float16 paths,
 WebGL/WebGPU, AudioContext, fonts, TLS, IP and many other surfaces remain
 untouched. Cross-API and real-site compatibility are not yet established.
+Code review also found that the prototype currently returns the requested
+CPU-thread and memory bucket values without clamping them to a smaller real
+machine. A four-core/eight-GiB persona on a lower-end host could therefore be
+implausible. This must be corrected and tested on a second hardware class
+before any release.
 
 ## Gates before any public release
 
@@ -68,6 +73,7 @@ untouched. Cross-API and real-site compatibility are not yet established.
    `toDataURL`, `toBlob`, OffscreenCanvas, partial transparency, color spaces,
    WebGL/WebGPU, timezone across `Date`/`Intl` and HTTP/JS coherence. Include
    same-seed restart, different-seed separation and negative controls.
+   Bound CPU and memory claims to the host or an otherwise defensible cohort.
 5. Measure broken sites, graphics correctness, browser speed and memory on
    multiple GPUs/hardware classes and Windows 10/11. Run proxy, DNS, IPv4/IPv6,
    WebRTC/STUN/TURN and fail-closed network tests independently.
