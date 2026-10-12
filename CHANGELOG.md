@@ -12,9 +12,11 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   0.8.1-preview binary and its public checksum are unchanged. External network
   leaks, a second hardware class and Windows 10 remain unverified.
 - Added a self-hosted WebRTC STUN/UDP diagnostic with a required direct positive
-  control. The installed Chrome produced local STUN requests; the source-built
-  Chromium produced none in both direct and proxy-bound modes, so that core's
-  result is recorded as inconclusive, not a proof of leak prevention.
+  control and a Chromium NetLog check. Installed Chrome sent and delivered
+  local STUN requests. The source-built Chromium attempted five STUN sends in
+  direct mode but the local sink received none; its proxy-bound case attempted
+  zero UDP sends. The delivery discrepancy remains unresolved, so the core's
+  overall result is inconclusive, not proof of leak prevention.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 

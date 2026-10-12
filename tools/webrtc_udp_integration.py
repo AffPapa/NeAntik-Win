@@ -85,6 +85,22 @@ class StunSink:
         self.thread.join(timeout=2)
 
 
+def netlog_udp_summary(path: Path, stun_host: str, stun_port: int) -> dict[str, int]:
+    """Count attempted UDP sends without copying sensitive NetLog URLs to a report."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    constants = document.get("constants", {})
+    event_type = constants.get("logEventTypes", {}).get("UDP_BYTES_SENT")
+    if not isinstance(event_type, int) or not isinstance(document.get("events"), list):
+        raise RuntimeError("Chromium NetLog lacks UDP event metadata")
+    destination = f"{stun_host}:{stun_port}"
+    attempts = [event for event in document["events"] if event.get("type") == event_type]
+    return {"all_udp_sends": len(attempts),
+            "stun_destination_sends": sum(event.get("params", {}).get("address") == destination
+                                          for event in attempts),
+            "other_udp_sends": sum(event.get("params", {}).get("address") != destination
+                                   for event in attempts)}
+
+
 class ProbeServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -160,7 +176,8 @@ class ProbeHandler(BaseHTTPRequestHandler):
             self.reply(400, b"Invalid report")
 
 
-def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str) -> dict:
+def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
+             force_default_policy: bool = False, net_log_dir: Path | None = None) -> dict:
     token = uuid.uuid4().hex
     stun = StunSink(stun_host)
     server = ProbeServer(token, stun_host, stun.port)
@@ -170,11 +187,13 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str) -> dic
     process: subprocess.Popen[bytes] | None = None
     try:
         profile = root / ("proxy" if proxy_bound else "direct")
+        log_dir = net_log_dir or root
+        net_log_path = log_dir / ("proxy.json" if proxy_bound else "direct.json")
         url = f"http://127.0.0.1:{server.server_port}/case?token={token}"
         arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={profile}",
                      "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
                      "--disable-component-update", "--disable-sync", "--disable-quic",
-                     "--metrics-recording-only"]
+                     "--metrics-recording-only", f"--log-net-log={net_log_path}"]
         if proxy_bound:
             arguments += [f"--proxy-server=http://127.0.0.1:{server.server_port}",
                           "--proxy-bypass-list=<-loopback>",
@@ -182,6 +201,8 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str) -> dic
                           "--webrtc-ip-handling-policy=disable_non_proxied_udp"]
         else:
             arguments += ["--no-proxy-server"]
+            if force_default_policy:
+                arguments += ["--force-webrtc-ip-handling-policy=default"]
         process = spawn_owned_browser([*arguments, url], root, job)
         stdout, stderr = process.communicate(input=b"G", timeout=45)
         if process.returncode != 0 or not isinstance(server.result, dict):
@@ -191,8 +212,10 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str) -> dic
             raise RuntimeError("Browser DOM and loopback report differ")
         if server.result.get("error"):
             raise RuntimeError(f"WebRTC page error: {server.result['error']}")
-        return {"proxy_bound": proxy_bound, "stun_binding_requests": stun.count,
+        return {"proxy_bound": proxy_bound, "stun_destination_port": stun.port,
+                "stun_binding_requests": stun.count,
                 "all_udp_datagrams": stun.all_datagrams,
+                "netlog": netlog_udp_summary(net_log_path, stun_host, stun.port),
                 "candidate_types": server.result.get("candidateTypes", []),
                 "rejected_external_requests": server.rejected_external_requests}
     finally:
@@ -216,11 +239,18 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stun-host", default="127.0.0.1",
                         help="IPv4 address owned by this computer; use a private LAN address if Chromium blocks loopback STUN")
+    parser.add_argument("--force-default-policy", action="store_true",
+                        help="Diagnostic only: force Chromium's default WebRTC IP handling on the direct control")
+    parser.add_argument("--net-log-dir", type=Path,
+                        help="Existing private directory for Chromium NetLogs; logs may contain sensitive request details")
     args = parser.parse_args()
     if os.name != "nt" or not args.chrome.is_file() or args.chrome.name.lower() != "chrome.exe":
         parser.error("An existing Windows chrome.exe is required")
     if args.output.exists() or not args.output.parent.is_dir():
         parser.error("Output path must be new and its parent must exist")
+    if args.net_log_dir is not None and (not args.net_log_dir.is_dir() or
+                                         any((args.net_log_dir / name).exists() for name in ("direct.json", "proxy.json"))):
+        parser.error("NetLog directory must exist and not already contain direct.json or proxy.json")
     try:
         stun_ip = ipaddress.ip_address(args.stun_host)
         if stun_ip.version != 4 or not stun_ip.is_private:
@@ -238,10 +268,15 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-webrtc-udp-qa-") as temporary:
             root = Path(temporary)
-            report["cases"].append(run_case(args.chrome, root, False, args.stun_host))
-            report["cases"].append(run_case(args.chrome, root, True, args.stun_host))
+            report["cases"].append(run_case(args.chrome, root, False, args.stun_host,
+                                            args.force_default_policy, args.net_log_dir))
+            report["cases"].append(run_case(args.chrome, root, True, args.stun_host,
+                                            net_log_dir=args.net_log_dir))
         direct, proxy = report["cases"]
-        report["status"] = "passed" if direct["stun_binding_requests"] > 0 and proxy["stun_binding_requests"] == 0 else "inconclusive"
+        report["status"] = ("passed" if direct["stun_binding_requests"] > 0 and
+                            direct["netlog"]["stun_destination_sends"] > 0 and
+                            proxy["stun_binding_requests"] == 0 and
+                            proxy["netlog"]["all_udp_sends"] == 0 else "inconclusive")
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
