@@ -60,6 +60,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   staging and the manager reject the previous schema-1 binary. Full runtime
   rebuild and second-machine QA are still pending, so the public download
   remains 0.8.1-preview.
+- Made the clean-source, bundled-engine, privacy-patch and locale release gates
+  apply to future public versions by numeric version, rather than silently
+  expiring after a hard-coded 0.8.1 list.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
