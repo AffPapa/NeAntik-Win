@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.7.1-preview";
+const releaseVersion = "0.8.1-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,17 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "13 октября 2026",
+    status: "Нативная приватность CPU/RAM · чистые исходники",
+    compatibility: "Windows x64 · встроенный Chromium 155 · схема профилей и backup не менялись",
+    changes: [
+      { type: "added", label: "Меньше сигналов", text: "Встроенный Chromium ограничивает видимое число логических CPU до 4 и приближённую память до 8 ГиБ. На одном Windows 11 значения согласованы между JavaScript и Device-Memory Client Hint." },
+      { type: "security", label: "Проверяемый код", text: "Нативный патч, его SHA-256, исходный коммит и полный инженерный план открыты на GitHub. Версия 0.8.1 пересобрана из чистого коммита; 0.8.0 заменена из-за неполной привязки исходников в manifest." },
+      { type: "security", label: "Границы", text: "Это уменьшение двух параметров отпечатка, а не полная анонимность. IP, часовой пояс, графика и другие сигналы не скрыты; внешние сетевые утечки ещё не проверены." },
+    ],
+  },
+  {
+    version: "v0.7.1-preview",
     date: "12 октября 2026",
     status: "Открытый код · проверяемая поставка",
     compatibility: "Windows x64 · встроенный Chromium 155 · схема профилей и backup не менялись",
@@ -321,7 +332,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Новые профили запускаются со строгими разрешениями и блокировкой сторонних cookies. Код открыт под MPL-2.0. Подмены отпечатка и гарантии анонимности нет. <a href="/check.html">Диагностика</a> · <a href="https://github.com/AffPapa/NeAntik-Win/blob/main/docs/PROJECT_VISION_AND_ROADMAP.md">План проекта</a>.</p>
+          <p class="download-note">Новые профили блокируют сторонние cookies и чувствительные разрешения. Встроенный Chromium уменьшает два аппаратных сигнала отпечатка — CPU и память; другие сигналы и IP не скрыты. Код открыт под MPL-2.0, гарантии анонимности нет. <a href="/check.html">Диагностика</a> · <a href="https://github.com/AffPapa/NeAntik-Win/blob/main/docs/MASTER_IMPLEMENTATION_PLAN.md">Полный план</a>.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -494,7 +505,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="boundary-grid">
           <article class="boundary-card reveal"><span class="boundary-icon"><svg><use href="/assets/icons.svg#computer"></use></svg></span><h3>Только ваш компьютер</h3><p>Нет обязательной учётной записи и облачной панели. Менеджер не отправляет свою телеметрию; сам Chromium и расширения могут обращаться к сети.</p></article>
           <article class="boundary-card reveal reveal-delay-one"><span class="boundary-icon"><svg><use href="/assets/icons.svg#key"></use></svg></span><h3>Секреты привязаны к Windows</h3><p>DPAPI даёт доступ к proxy-паролям только тому же Windows-пользователю на том же устройстве.</p></article>
-          <article class="boundary-card boundary-card-contrast reveal reveal-delay-two"><span class="boundary-icon"><svg><use href="/assets/icons.svg#eye-off"></use></svg></span><h3>Без ложных гарантий</h3><p>NeAntik Win не заявляет обход проверок сайтов, антифрода, банов или подмену fingerprint.</p></article>
+          <article class="boundary-card boundary-card-contrast reveal reveal-delay-two"><span class="boundary-icon"><svg><use href="/assets/icons.svg#eye-off"></use></svg></span><h3>Без ложных гарантий</h3><p>Два аппаратных сигнала отпечатка стандартизированы лишь частично. Это не скрывает IP и не доказывает анонимность.</p></article>
         </div>
       </section>
 
@@ -504,7 +515,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div>
             <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Новый профиль блокирует сторонние cookies и чувствительные разрешения. Профиль с proxy получает строгие сетевые ограничения; кнопка «Диагностика» поможет проверить видимые сайту параметры. Это не проверка всего сетевого маршрута и не гарантия анонимности.</p>
+            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Новый профиль блокирует сторонние cookies и чувствительные разрешения. Нативный патч ограничивает видимые CPU/RAM; остальные сигналы отпечатка не стандартизированы. Профиль с proxy получает проверенные локально сетевые ограничения. Это не проверка всего сетевого маршрута и не гарантия анонимности.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
@@ -543,7 +554,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <h3>Перенос и возврат к прошлой версии</h3>
           <p>DPAPI-пароли привязаны к вашему Windows-пользователю и компьютеру. На другом устройстве потребуется повторный ввод; перенос cookies и входов в сайты также зависит от Chromium.</p>
           <p>Для отката используйте сохранённую старую папку. Замена одного EXE не откатывает формат профиля Chromium, Chrome или Edge: после обновления браузера старое ядро может не открыть эти данные.</p>
-          <p>NeAntik разделяет локальные профили, но не подменяет fingerprint и не гарантирует прохождение проверок сайтов.</p>
+          <p>NeAntik разделяет локальные профили и ограничивает два аппаратных параметра в собственном Chromium. Это не создаёт независимые сетевые личности и не гарантирует прохождение проверок сайтов.</p>
           <a class="text-link" href="/RELEASE_POLICY.md">Политика релизов и совместимость <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-right"></use></svg></a>
         </div>
       </section>

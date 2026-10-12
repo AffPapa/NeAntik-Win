@@ -3,6 +3,40 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.8.1-preview] — 2026-10-13
+
+**Статус:** portable preview для Windows x64, Chromium 155.0.8059.40 внутри
+архива. Это исправляющий выпуск: 0.8.0 был собран до коммита своих исходников
+и потому его manifest имел `source_state: modified`. Версия 0.8.1 собирается
+из чистого публичного коммита; 0.8.0 остаётся доступной для аудита, но заменена.
+
+### Изменения
+
+- Опубликован маленький нативный патч Chromium: максимум 4 видимых логических
+  CPU и верхняя граница 8 ГиБ для приближённой памяти. На одной Windows 11
+  JavaScript и HTTP Device-Memory Client Hint согласованы; это не результат
+  испытания на разных машинах или сторонних сайтах.
+- [Полный план реализации](https://github.com/AffPapa/NeAntik-Win/blob/v0.8.1-preview/docs/MASTER_IMPLEMENTATION_PLAN.md),
+  [исходный патч и его SHA-256](https://github.com/AffPapa/NeAntik-Win/blob/v0.8.1-preview/docs/CHROMIUM_PRIVACY_BASELINE.md),
+  проверка provenance и [ограничения](https://github.com/AffPapa/NeAntik-Win/blob/v0.8.1-preview/SECURITY_AND_SCOPE.md)
+  доступны вместе с исходниками.
+- Профильные данные и backup-формат не менялись. Установленный Chrome/Edge не
+  получает этот патч. IP, часовой пояс, графика и множество других сигналов
+  не скрыты; полной анонимности или отсутствия сетевых утечек не доказано.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.8.1-preview/NeAntikWin-portable-v0.8.1-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.8.1-preview/NeAntikWin-portable-v0.8.1-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.8.1-preview/NeAntikWin-portable-v0.8.1-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.1-preview)
+
+SHA-256 portable ZIP: `2b43c3ffad3e16754d376ebb49d45530a670f7540d580fa2939ebf2c649fc70e` (262 352 189 байт).
+
+Для обновления сделайте приватную копию всей старой папки, включая `Data/`,
+распакуйте новую отдельно и переносите `Data/` под тем же Windows-пользователем.
+Не открывайте данные, уже обновлённые новым Chromium, старой версией движка.
+
 ## [0.7.1-preview] — 2026-10-12
 
 **Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40;

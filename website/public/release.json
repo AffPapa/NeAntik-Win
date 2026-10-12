@@ -1,22 +1,23 @@
 {
   "format": "neantik-release-v1",
-  "version": "0.7.1-preview",
+  "version": "0.8.1-preview",
   "channel": "preview",
-  "built_at_utc": "2026-10-12T16:08:51.0114515Z",
+  "built_at_utc": "2026-10-12T17:05:48.5998030Z",
   "architecture": "x64",
   "tested_os": "Windows 11 Pro x64 10.0.26200",
   "unverified_os": ["Windows 10", "Windows ARM64"],
-  "browser_strategy": "Bundled Chromium for new isolated profiles. New empty profiles block third-party cookies, sensitive permissions and network prediction. With an assigned proxy, bundled Chromium routes localhost through that proxy, blocks direct background DNS and QUIC, and restricts non-proxied WebRTC UDP. Existing profiles are unchanged. No device/browser identity spoofing or anonymity guarantee. System timezone is retained.",
+  "browser_strategy": "Source-built Chromium for new isolated profiles with a narrow native CPU/RAM fingerprint reduction. New profiles block third-party cookies and sensitive permissions. Proxy-bound profiles use locally tested routing restrictions. Other fingerprint surfaces and external network routes are not anonymized; system timezone is retained.",
   "native_core_bundled": true,
   "engine_version": "155.0.8059.40",
-  "fingerprint_modification": false,
+  "fingerprint_modification": true,
+  "privacy_patch_sha256": "24977527be3635ac888d7527c9ff4176b06e2ddc09a1d982001564a316a5d8f7",
   "signature_status": "NotSigned",
-  "source": "https://github.com/AffPapa/NeAntik-Win/tree/178d57a71ffb40838d2cf197469ef31a39c10467",
-  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.7.1-preview",
+  "source": "https://github.com/AffPapa/NeAntik-Win/tree/ae72a5800d46de0f93f094ca3164dd1a1d52704a",
+  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.1-preview",
   "archive": {
-    "filename": "NeAntikWin-portable-v0.7.1-preview.zip",
-    "size_bytes": 262350101,
-    "sha256": "f212a51da2e4920b349439d613093f7fede1a316c518dc5a8fea3cb40d7f41b4",
-    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.7.1-preview/NeAntikWin-portable-v0.7.1-preview.zip"
+    "filename": "NeAntikWin-portable-v0.8.1-preview.zip",
+    "size_bytes": 262352189,
+    "sha256": "2b43c3ffad3e16754d376ebb49d45530a670f7540d580fa2939ebf2c649fc70e",
+    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.8.1-preview/NeAntikWin-portable-v0.8.1-preview.zip"
   }
 }
