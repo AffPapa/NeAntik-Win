@@ -36,13 +36,15 @@ same-origin iframe, different-origin iframe, dedicated worker, Shared Worker
 and Service Worker. The HTTP Device-Memory Client Hint matched the JavaScript
 value. An invalid timezone exited with code 78 before a page loaded.
 
-The [disposable Canvas probe](../tools/native_canvas_audit.py) passed repeat
-reads, subregion parity, repeat PNG encoding, non-mutating export and clear-to-
-transparent checks. Two fresh profiles with the same seed produced identical
-pixel and PNG hashes; a different seed changed both. The **released** 0.8.1
-core failed the seed-difference control as expected, confirming this feature
-was not accidentally shipped. Reports containing local environment data stay
-outside Git.
+The [disposable loopback Canvas probe](../tools/native_canvas_audit.py) passed
+repeat reads, subregion parity, repeat PNG encoding, `toBlob` decode parity,
+OffscreenCanvas export/decode, dedicated-worker OffscreenCanvas parity,
+non-mutating export and clear-to-transparent checks. Two fresh profiles with
+the same seed produced identical pixel and PNG hashes; a different seed
+changed both. The **released** 0.8.1 core failed the seed-difference control
+as expected, confirming this feature was not accidentally shipped. The probe
+rejects, rather than forwards, background requests outside loopback. Reports
+containing local environment data stay outside Git.
 
 These are narrow functional checks, not a measurement of anonymity or
 cross-site unlinkability. Per-profile stable Canvas changes may *increase*
@@ -69,8 +71,8 @@ before any release.
    backups unintentionally; define copy/restore/migration semantics and ensure
    the launcher rejects unsupported cores instead of silently running stock
    Chromium with ignored switches.
-4. Extend automated checks to main and worker Canvas, `getImageData`,
-   `toDataURL`, `toBlob`, OffscreenCanvas, partial transparency, color spaces,
+4. Extend automated checks beyond the now-passing main/dedicated-worker
+   Canvas2D and OffscreenCanvas smoke test: partial transparency, color spaces,
    WebGL/WebGPU, timezone across `Date`/`Intl` and HTTP/JS coherence. Include
    same-seed restart, different-seed separation and negative controls.
    Bound CPU and memory claims to the host or an otherwise defensible cohort.

@@ -36,6 +36,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   exact public bytes, and a compiled capability handshake. A local staged core
   passed disposable Canvas and six-context CPU/memory/timezone checks; it is
   not a public portable release.
+- Expanded the Canvas probe to asynchronous PNG/blob decoding, main-thread
+  OffscreenCanvas and dedicated-worker OffscreenCanvas behind a loopback load
+  barrier. The staged prototype passes; the 0.8.1 release correctly fails the
+  seed-difference negative control.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
