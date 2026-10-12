@@ -124,7 +124,7 @@ class SourceBuildStageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unapproved untracked Chromium source files"):
             staging.stage(self.args())
 
-    @patch.object(staging, "probe_native_core", return_value={"engine_id": "neantik-chromium", "schema": 1})
+    @patch.object(staging, "probe_native_core", return_value={"engine_id": "neantik-chromium", "schema": 2})
     @patch.object(staging, "extract_credits", return_value=b"<!DOCTYPE html>" + b"C" * 110_000)
     @patch.object(staging, "export_native_persona_patch", return_value=b"native source patch\n")
     def test_native_persona_stage_requires_exact_public_patch(self, _export, _credits, _probe) -> None:
@@ -141,7 +141,7 @@ class SourceBuildStageTests(unittest.TestCase):
         self.assertEqual(receipt["native_persona_core_info"]["engine_id"], "neantik-chromium")
 
     def test_native_core_probe_rejects_missing_capability(self) -> None:
-        info = {"engine_id": "neantik-chromium", "schema": 1, "version": "155.0.8059.40",
+        info = {"engine_id": "neantik-chromium", "schema": 2, "version": "155.0.8059.40",
                 "source_commit": self.commit,
                 "capabilities": {"stable_seed": True, "hardware_concurrency": True,
                                  "device_memory": True, "canvas_opaque_srgb_uint8": False,
@@ -154,6 +154,11 @@ class SourceBuildStageTests(unittest.TestCase):
 
         with patch.object(staging.subprocess, "run", side_effect=fake_run):
             with self.assertRaisesRegex(ValueError, "lacks required compiled capabilities"):
+                staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit)
+
+        info["schema"] = 1
+        with patch.object(staging.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(ValueError, "Invalid native persona core identity"):
                 staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit)
 
 
