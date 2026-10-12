@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.7.0-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. NeAntik does not spoof device or browser fingerprint values or guarantee anonymity. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.7.1-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. NeAntik does not spoof device or browser fingerprint values or guarantee anonymity. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
 
 ## Download and start
 
@@ -61,7 +61,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-The 0.7.0-preview release packages a separately source-built Chromium runtime using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. It carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. No device/browser identity spoofing or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md) and the [next-phase anonymity architecture](docs/ANONYMITY_ARCHITECTURE_2026-10.md) for the scope and test gates. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
+The 0.7.1-preview release packages a separately source-built Chromium runtime using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. It carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. No device/browser identity spoofing or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md), [next-phase anonymity architecture](docs/ANONYMITY_ARCHITECTURE_2026-10.md) and [project roadmap](docs/PROJECT_VISION_AND_ROADMAP.md) for the scope and test gates. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
 
 The public bundled-core release uses source-built stable-branch Chromium,
 not a continuous snapshot. The staging script, reviewed build-only patch and
@@ -77,6 +77,8 @@ Source, packaged and public-download checks are distinct gates. Follow [RELEASE_
 - [SECURITY_AND_SCOPE.md](SECURITY_AND_SCOPE.md) — limits and data handling.
 - [SECURITY.md](SECURITY.md) — vulnerability reporting.
 - [PUBLISHING.md](PUBLISHING.md) — source publication precautions.
+- [LICENSE](LICENSE) — MPL-2.0 for project-authored source.
+- [docs/PROJECT_VISION_AND_ROADMAP.md](docs/PROJECT_VISION_AND_ROADMAP.md) — mission, threat model and release gates.
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — bundled components.
 
-The owner has authorized publishing this project's source as NeAntik-Win. No open-source license has been selected for the original application code; public visibility does not itself grant reuse rights. Third-party components retain their own licenses. Never upload `Data/`, credentials, cookies, databases, certificates, private logs or screenshots. Publish the reviewed source export, not the parent workspace.
+Project-authored source is available under MPL-2.0. Third-party components retain their own licenses and notices; the project license does not grant trademark rights in the NeAntik name or logo. Never upload `Data/`, credentials, cookies, databases, certificates, private logs or screenshots. Publish the reviewed source export, not the parent workspace.

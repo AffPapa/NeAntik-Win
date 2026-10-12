@@ -82,4 +82,4 @@ Test counts and environment evidence are recorded per version rather than treate
 
 ## Deliberate exclusions
 
-No fingerprint-patched browser engine, cloud sync/team service, RPA platform, authenticated SOCKS proxy broker or automatic updater is present. No anonymity/anti-detection guarantee is made. Source licensing is unresolved; public visibility of the source does not itself grant an open-source reuse license.
+No fingerprint-patched browser engine, cloud sync/team service, RPA platform, authenticated SOCKS proxy broker or automatic updater is present. No anonymity/anti-detection guarantee is made. Project-authored source is licensed under MPL-2.0; third-party terms remain separate.

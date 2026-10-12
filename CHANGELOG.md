@@ -2,6 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.7.1-preview — open-source license and verifiable release scope (2026-10-12)
+
+- Project-authored source is now published under MPL-2.0. The portable ZIP
+  includes the same license, and archive verification rejects a missing one.
+  Bundled Chromium and other dependencies retain their own license terms.
+- Added a durable project mission, threat model, phased roadmap and release
+  gates. The first phase documents profile independence and privacy claims;
+  later fingerprint and network-privacy work is explicitly not shipped here.
+- No browser-engine or network behavior changed from 0.7.0-preview. The bundled
+  Chromium version remains 155.0.8059.40. There is no native fingerprint
+  modification or guarantee of anonymity. Existing `Data/` remains compatible;
+  keep a private copy of the complete old portable folder before upgrading.
+
 ## 0.7.0-preview — strict proxy routing and measured cookie protection (2026-10-12)
 
 - Bundled Chromium profiles with a proxy now disable Chromium's implicit

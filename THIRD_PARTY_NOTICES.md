@@ -43,5 +43,7 @@ the supplemental files preserve Tcl/Tk and OpenSSL distribution notices separate
 
 Changing Python/Tcl/OpenSSL or Chromium versions requires reviewing this inventory
 and the notices before publication. Pillow is used only to regenerate the project icon;
-it is not an application runtime dependency. These third-party notices do not select a
-license for NeAntik Win's own source code or branding.
+it is not an application runtime dependency. These third-party notices do not
+grant rights to NeAntik Win's branding. Project-authored source is licensed
+under the root `LICENSE` (MPL-2.0); bundled Chromium and other components
+retain their own terms.

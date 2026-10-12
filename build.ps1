@@ -16,7 +16,7 @@ $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
 if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
-if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
+if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
     throw 'This NeAntik Win release requires EngineDirectory: publish only the complete Chromium portable build.'
 }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
@@ -44,7 +44,7 @@ if (-not $PackageOnly) {
     New-Item -ItemType Directory -Path $sourceRoot, $workRoot -Force | Out-Null
     Write-Output "Isolated build workspace: $buildRoot"
     $sourceItems = @('nevision_win.py', 'profile_identity.py', 'privacy_defaults.py', 'release-version.json', 'requirements-build.txt', 'assets',
-        'README.md', 'SECURITY_AND_SCOPE.md', 'ARCHITECTURE.md', 'RELEASE_CHECKLIST.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md')
+        'README.md', 'SECURITY_AND_SCOPE.md', 'ARCHITECTURE.md', 'RELEASE_CHECKLIST.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE')
     foreach ($relative in $sourceItems) {
         $source = Join-Path $projectRoot $relative
         if (-not (Test-Path -LiteralPath $source)) { throw "Required release input missing: $relative" }
@@ -65,7 +65,7 @@ if (-not $PackageOnly) {
     $builtRoot = Join-Path $distRoot 'NeAntikWin'
     Assert-ReleaseExeVersion (Join-Path $builtRoot 'NeAntikWin.exe') $release
     Copy-Item -LiteralPath $builtRoot -Destination $releaseRoot -Recurse
-    foreach ($relative in $sourceItems | Where-Object { $_ -like '*.md' -or $_ -eq 'release-version.json' }) {
+    foreach ($relative in $sourceItems | Where-Object { $_ -like '*.md' -or $_ -in @('release-version.json', 'LICENSE') }) {
         Copy-Item -LiteralPath (Join-Path $sourceRoot $relative) -Destination (Join-Path $releaseRoot $relative)
     }
     Copy-Item -LiteralPath (Join-Path $metadataRoot 'licenses') -Destination $releaseRoot -Recurse
@@ -97,7 +97,7 @@ if (-not $PackageOnly) {
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
             $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
-            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview')) {
+            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @(Get-ChildItem -LiteralPath (Join-Path $engineSource 'locales') -File -Filter '*.pak' | Select-Object -ExpandProperty Name | Sort-Object) -join ','

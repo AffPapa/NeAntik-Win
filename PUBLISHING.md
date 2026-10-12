@@ -9,10 +9,9 @@ are outside NeAntik Win. The separate macOS repository must not be modified.
 
 ## Before the first push
 
-1. The owner has requested public source publication. Do not silently assign MIT, GPL or another
-   reuse license: no original-source license has been selected. Preserve all third-party notices.
-   A public repository without an explicit license does not grant an open-source reuse license.
-   Review visual-asset provenance before inclusion.
+1. The project-authored source is licensed under the root `LICENSE` (MPL-2.0).
+   Preserve all third-party notices and review visual-asset provenance before inclusion.
+   The project license does not grant rights to third-party code or trademarks.
 2. Run the local guard and tests:
 
    ```powershell

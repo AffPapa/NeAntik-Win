@@ -24,7 +24,7 @@ python nevision_win.py --self-test
 - Include Data-directory mutex, stale launch/deleted profile/proxy binding, malformed ZIP and recovery regression coverage.
 - Test safe close with work in flight, duplicate clicks/queue limits, external browser locks, error dialogs and missing browser.
 - Synthetic Tk tests are not a substitute for real browser and packaged UI testing.
-- Inspect repository and artifact candidates for Data, passwords, tokens, cookies, private screenshots/logs and accidental credentials. Publish original source only with the owner's explicit authorization; retain `SOURCE_LICENSE_NOTICE.txt` and do not invent an open-source license or reuse rights.
+- Inspect repository and artifact candidates for Data, passwords, tokens, cookies, private screenshots/logs and accidental credentials. Confirm root MPL-2.0 `LICENSE` is in source and ZIP, preserve third-party notices, and verify visual-asset provenance.
 
 ## 3. Build an immutable clean candidate
 

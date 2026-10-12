@@ -45,7 +45,7 @@ try {
         if ($entries.ContainsKey($path)) { throw "Duplicate/case-colliding archive path: $path" }
         $entries[$path] = $entry
     }
-    foreach ($required in @('_internal/release-version.json', 'release-version.json', 'release-manifest.json', 'build-provenance.json', 'runtime-components.json', 'SHA256SUMS.txt', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'licenses/Python-LICENSE.txt', 'licenses/Tcl-license.terms', 'licenses/Tk-license.terms', 'licenses/OpenSSL-LICENSE.txt')) {
+    foreach ($required in @('_internal/release-version.json', 'release-version.json', 'release-manifest.json', 'build-provenance.json', 'runtime-components.json', 'SHA256SUMS.txt', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', 'licenses/Python-LICENSE.txt', 'licenses/Tcl-license.terms', 'licenses/Tk-license.terms', 'licenses/OpenSSL-LICENSE.txt')) {
         if (-not $entries.ContainsKey("$root/$required")) { throw "Release is missing $required" }
     }
     $manifest = Read-ArchiveText $entries["$root/release-manifest.json"] | ConvertFrom-Json
@@ -54,7 +54,7 @@ try {
     $version = Read-ArchiveText $entries["$root/release-version.json"] | ConvertFrom-Json
     $frozen = Read-ArchiveText $entries["$root/_internal/release-version.json"] | ConvertFrom-Json
     if ($manifest.format -ne 'nevision-release-v1' -or $manifest.version -ne $version.version -or $version.version -ne $frozen.version) { throw 'Inconsistent release manifest or version.' }
-    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
+    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
     $productBase = [System.IO.Path]::GetFileNameWithoutExtension($exeName)
     if ($root -ne "$productBase-portable-v$($version.version)") { throw 'Archive root does not match release version.' }
     $listed = @{}
@@ -128,7 +128,7 @@ try {
                 $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$') -or
                 (Get-ArchiveHash $entries["${prefix}LICENSE"]) -ne $engineReceipt.license_sha256) { throw 'Source-built Chromium provenance is invalid.' }
-            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview')) {
+            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @($engineEntries | Where-Object { $_ -match '/locales/[^/]+\.pak$' } | ForEach-Object { ($_ -split '/')[-1] } | Sort-Object) -join ','

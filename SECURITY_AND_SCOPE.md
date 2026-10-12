@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.7.0-preview portable Chromium edition.
+Applies to NeAntik Win 0.7.1-preview portable Chromium edition.
 
 ## Product boundary
 
@@ -36,9 +36,9 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.7.0-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior, not comprehensive JavaScript fingerprint measurement.
+This matrix describes the **0.7.1-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior, not comprehensive JavaScript fingerprint measurement.
 
-| Surface | 0.7.0-preview behavior | Evidence / limitation |
+| Surface | 0.7.1-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build-only patch are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |
@@ -66,4 +66,4 @@ Browser launch uses a bounded background executor (3 workers, at most 6 running/
 
 Preserve a private pre-update snapshot of the entire portable folder before copying data into a new version's folder. Roll back with that snapshot, not with data that a newer browser may have upgraded.
 
-The owner authorized publication of the reviewed source repository at https://github.com/AffPapa/NeAntik-Win. No open-source license has been selected for the original application code; public visibility does not itself grant reuse rights. Never publish user `Data/`, secrets or sensitive logs. Every artifact must pass [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including clean packaging, hashes, dependency notices, packaged tests and public-download verification. Report vulnerabilities through [SECURITY.md](SECURITY.md).
+The owner authorized publication of the reviewed source repository at https://github.com/AffPapa/NeAntik-Win. Project-authored source is licensed under [MPL-2.0](LICENSE); third-party notices remain in force. This is not a guarantee of anonymity or legality of every use. Never publish user `Data/`, secrets or sensitive logs. Every artifact must pass [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), including clean packaging, hashes, dependency notices, packaged tests and public-download verification. Report vulnerabilities through [SECURITY.md](SECURITY.md).
