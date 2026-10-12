@@ -13,10 +13,11 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   leaks, a second hardware class and Windows 10 remain unverified.
 - Added a self-hosted WebRTC STUN/UDP diagnostic with a required direct positive
   control and a Chromium NetLog check. Installed Chrome sent and delivered
-  local STUN requests. The source-built Chromium attempted five STUN sends in
-  direct mode but the local sink received none; its proxy-bound case attempted
-  zero UDP sends. The delivery discrepancy remains unresolved, so the core's
-  overall result is inconclusive, not proof of leak prevention.
+  local STUN requests. Both the exact 0.8.1 packaged Chromium and an unpatched
+  source-built Chromium 155 attempted five STUN sends in direct mode, but the
+  local sink received none; their proxy-bound cases attempted zero UDP sends.
+  This narrows the discrepancy away from the published CPU/memory patch but
+  does not resolve delivery, so the overall result remains inconclusive.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
