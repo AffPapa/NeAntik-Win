@@ -53,14 +53,48 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
   document.body.append(frame);
   await frameReady;
   const iframe = surface(frame.contentWindow);
+  const crossOrigin = '__CROSS_ORIGIN__';
+  const crossOriginFrame = await new Promise((resolve, reject) => {
+    const target = document.createElement('iframe');
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('cross-origin frame timeout')); }, 7000);
+    function cleanup() { clearTimeout(timeout); window.removeEventListener('message', receive); target.remove(); }
+    function receive(event) {
+      if (event.origin !== crossOrigin || event.source !== target.contentWindow ||
+          event.data?.token !== token) return;
+      cleanup(); resolve(event.data.surface);
+    }
+    window.addEventListener('message', receive);
+    target.src = crossOrigin + '/cross-frame?token=' + token + '&parent=' + encodeURIComponent(location.origin);
+    document.body.append(target);
+  });
   const worker = await new Promise((resolve, reject) => {
     const target = new Worker('/worker.js?token=' + token);
     const timeout = setTimeout(() => { target.terminate(); reject(new Error('worker timeout')); }, 5000);
     target.onmessage = (event) => { clearTimeout(timeout); target.terminate(); resolve(event.data); };
     target.onerror = (error) => { clearTimeout(timeout); target.terminate(); reject(error); };
   });
+  const sharedWorker = await new Promise((resolve, reject) => {
+    const target = new SharedWorker('/shared-worker.js?token=' + token);
+    const timeout = setTimeout(() => { target.port.close(); reject(new Error('shared worker timeout')); }, 7000);
+    target.port.onmessage = (event) => { clearTimeout(timeout); target.port.close(); resolve(event.data); };
+    target.port.onmessageerror = (error) => { clearTimeout(timeout); target.port.close(); reject(error); };
+    target.port.start();
+    target.port.postMessage('probe');
+  });
+  const registration = await navigator.serviceWorker.register('/service-worker.js?token=' + token, {scope: '/'});
+  const serviceWorker = await new Promise(async (resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('service worker timeout')), 10000);
+    try {
+      await navigator.serviceWorker.ready;
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => { clearTimeout(timeout); channel.port1.close(); resolve(event.data); };
+      channel.port1.onmessageerror = (error) => { clearTimeout(timeout); channel.port1.close(); reject(error); };
+      registration.active.postMessage('probe', [channel.port2]);
+    } catch (error) { clearTimeout(timeout); reject(error); }
+  });
+  await registration.unregister();
   const httpHints = await fetch('/hints?token=' + token, {cache: 'no-store'}).then(r => r.json());
-  const result = {token, main, iframe, worker, httpHints};
+  const result = {token, main, iframe, crossOriginFrame, worker, sharedWorker, serviceWorker, httpHints};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -77,13 +111,57 @@ WORKER = r'''postMessage({
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
 });'''
 
+SHARED_WORKER = r'''onconnect = (event) => {
+  const port = event.ports[0];
+  port.onmessage = () => port.postMessage({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    languages: Array.from(navigator.languages || []),
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigator.deviceMemory ?? null,
+    timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+};'''
+
+SERVICE_WORKER = r'''self.addEventListener('message', (event) => {
+  event.ports[0].postMessage({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    languages: Array.from(navigator.languages || []),
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigator.deviceMemory ?? null,
+    timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+});'''
+
+CROSS_ORIGIN_FRAME = r'''<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+const params = new URLSearchParams(location.search);
+const parentOrigin = params.get('parent');
+const surface = {
+  userAgent: navigator.userAgent,
+  platform: navigator.platform,
+  language: navigator.language,
+  languages: Array.from(navigator.languages || []),
+  hardwareConcurrency: navigator.hardwareConcurrency,
+  deviceMemory: navigator.deviceMemory ?? null,
+  timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+  screen: [screen.width, screen.height, screen.colorDepth],
+  devicePixelRatio,
+};
+parent.postMessage({token: params.get('token'), surface}, parentOrigin);
+</script></body></html>'''
+
 
 class AuditServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, cross_origin: str = ""):
         super().__init__(("127.0.0.1", 0), AuditHandler)
         self.token = token
+        self.cross_origin = cross_origin
         self.result: dict | None = None
         self.ready = threading.Event()
         self.external_attempts = 0
@@ -132,7 +210,8 @@ class AuditHandler(BaseHTTPRequestHandler):
                 "acceptLanguage": self.headers.get("Accept-Language"),
                 "secChUa": self.headers.get("Sec-CH-UA"),
             }
-            self.reply(200, PAGE.replace("__TOKEN__", self.server.token).encode(), "text/html; charset=utf-8",
+            self.reply(200, PAGE.replace("__TOKEN__", self.server.token)
+                       .replace("__CROSS_ORIGIN__", self.server.cross_origin).encode(), "text/html; charset=utf-8",
                        {"Accept-CH": "Sec-CH-Device-Memory, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version"})
         elif route == "/hints":
             self.server.hints_seen = {
@@ -143,8 +222,14 @@ class AuditHandler(BaseHTTPRequestHandler):
             self.reply(200, json.dumps(self.server.hints_seen).encode(), "application/json; charset=utf-8")
         elif route == "/frame":
             self.reply(200, b"<!doctype html><html><body>frame</body></html>", "text/html; charset=utf-8")
+        elif route == "/cross-frame":
+            self.reply(200, CROSS_ORIGIN_FRAME.encode(), "text/html; charset=utf-8")
         elif route == "/worker.js":
             self.reply(200, WORKER.encode(), "application/javascript; charset=utf-8")
+        elif route == "/shared-worker.js":
+            self.reply(200, SHARED_WORKER.encode(), "application/javascript; charset=utf-8")
+        elif route == "/service-worker.js":
+            self.reply(200, SERVICE_WORKER.encode(), "application/javascript; charset=utf-8")
         elif route == "/barrier":
             self.server.ready.wait(20)
             self.reply(200, b"", "image/png")
@@ -174,9 +259,12 @@ def audit_profile(chrome: Path, root: Path) -> dict:
     if not initialize_privacy_defaults(profile):
         raise RuntimeError("Could not initialize a fresh profile")
     token = uuid.uuid4().hex
-    server = AuditServer(token)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    cross_server = AuditServer(token)
+    server = AuditServer(token, f"http://127.0.0.1:{cross_server.server_port}")
+    threads = [threading.Thread(target=item.serve_forever, daemon=True)
+               for item in (server, cross_server)]
+    for thread in threads:
+        thread.start()
     job = OwnedJob()
     process: subprocess.Popen[bytes] | None = None
     try:
@@ -199,10 +287,11 @@ def audit_profile(chrome: Path, root: Path) -> dict:
             raise RuntimeError("Browser DOM and local report differ")
         if result.get("token") != token:
             raise RuntimeError("Report token mismatch")
-        surfaces = {key: result[key] for key in ("main", "iframe", "worker")}
+        surfaces = {key: result[key] for key in ("main", "iframe", "crossOriginFrame",
+                                                   "worker", "sharedWorker", "serviceWorker")}
         return {"surfaces": surfaces, "http": server.headers_seen,
                 "client_hints": server.hints_seen,
-                "blocked_external_requests": server.external_attempts}
+                "blocked_external_requests": server.external_attempts + cross_server.external_attempts}
     finally:
         if process is not None and process.poll() is None:
             process.terminate()
@@ -212,9 +301,11 @@ def audit_profile(chrome: Path, root: Path) -> dict:
                 process.communicate(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
+        for item in (server, cross_server):
+            item.shutdown()
+            item.server_close()
+        for thread in threads:
+            thread.join(timeout=5)
 
 
 def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
@@ -226,14 +317,17 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
         hint = report.get("client_hints", {}).get("deviceMemory")
         memory = surfaces["main"]["deviceMemory"]
         try:
-            hint_matches = hint is None or (memory is not None and float(hint) == memory)
+            hint_matches = hint is not None and memory is not None and float(hint) == memory
         except (TypeError, ValueError):
             hint_matches = False
         consistency.append({
             "main_iframe": surfaces["main"] == surfaces["iframe"],
+            "main_cross_origin_frame": surfaces["main"] == surfaces["crossOriginFrame"],
             "main_worker_common": all(surfaces["main"].get(key) == surfaces["worker"].get(key) for key in keys),
+            "main_shared_worker_common": all(surfaces["main"].get(key) == surfaces["sharedWorker"].get(key) for key in keys),
+            "main_service_worker_common": all(surfaces["main"].get(key) == surfaces["serviceWorker"].get(key) for key in keys),
             "js_http_user_agent": surfaces["main"]["userAgent"] == report["http"]["userAgent"],
-            "device_memory_hint_when_present": hint_matches,
+            "device_memory_hint_parity": hint_matches,
         })
     return consistency
 

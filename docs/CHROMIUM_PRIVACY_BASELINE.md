@@ -1,6 +1,6 @@
 # Chromium 155 conservative fingerprint-reduction baseline
 
-Status: native source patch for the proposed 0.8.0-preview, not an anonymity
+Status: native source patch shipped in 0.8.x-preview, not an anonymity
 claim. The app and browser are open source; the modified Chromium files retain
 their upstream BSD-style license. See [the full implementation plan](MASTER_IMPLEMENTATION_PLAN.md).
 
@@ -37,7 +37,10 @@ With two disposable loopback-only profiles per build, the clean source-built
 Chromium exposed 16 logical threads and a 32-GiB memory bucket. The patched
 build exposed 4 and 8 respectively. Main document, same-origin iframe,
 dedicated worker, HTTP User-Agent and the observed Device-Memory Client Hint
-were internally consistent in both builds. The local reports remain outside
+were internally consistent in both builds. Post-release loopback QA on the
+0.8.1 binary additionally checked a different-origin iframe, Shared Worker
+and Service Worker; all agreed on the measured values in two disposable
+profiles. The local reports remain outside
 the Git repository because they contain device traits. The audit does not
 prove that real sites cannot distinguish NeAntik from Chromium or correlate
 two profiles.
@@ -63,8 +66,9 @@ arguments and `autoninja -C out/NeAntik -j 4 chrome`; stage with
 validation to make a test pass. Verify the compiled binary and release ZIP in
 fresh disposable folders, including Window/iframe/worker/Client Hint agreement,
 profile separation and proxy tests. Windows 10, a second hardware class,
-cross-origin frames, shared/service workers and broad site compatibility are
-not yet validated and remain follow-up gates before a stronger privacy claim.
+cross-site HTTPS, different hardware, incognito mode and broad site
+compatibility are not yet validated and remain follow-up gates before a
+stronger privacy claim.
 
 Primary references: [Tor Browser fingerprinting protections](https://support.torproject.org/tor-browser/features/fingerprinting-protections/),
 [W3C Device Memory API](https://www.w3.org/TR/device-memory/),

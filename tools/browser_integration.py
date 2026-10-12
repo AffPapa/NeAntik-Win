@@ -3,8 +3,9 @@
 Run from the repository: python tools/browser_integration.py
 Uses new temporary AppPaths, real Storage, and a new headless browser process for
 each visit. No existing windows, CDP, WebDriver, or personal profiles are used.
-The local test page commits IndexedDB before releasing a load barrier; dump-dom
-and the server's received result must agree. Background HTTP(S) is directed to a
+The local test page commits IndexedDB, Cache Storage and a service-worker
+registration before releasing a load barrier; dump-dom and the server's
+received result must agree. Background HTTP(S) is directed to a
 loopback rejecting proxy, never forwarded. Chromium's sandbox remains enabled.
 
 The report is generated evidence, not a claim about fingerprints, extensions,
@@ -42,7 +43,9 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 from nevision_win import APP_VERSION, AppPaths, BrowserLauncher, NeVisionApp, Storage  # noqa: E402
 
-EMPTY = {"cookie": None, "local_storage": None, "indexed_db": None}
+EMPTY = {"cookie": None, "local_storage": None, "indexed_db": None,
+         "indexed_db_namespace": False,
+         "cache_storage": None, "cache_namespace": False, "service_worker": None}
 PIXEL = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV1cAAAAASUVORK5CYII=")
 PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>NeVision isolated QA</title></head>
 <body><pre id="nevision-result">pending</pre><img alt="load barrier" src="/barrier?token=__TOKEN__">
@@ -77,10 +80,19 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>NeVision isol
   }
   async function snapshot() {
     const item = document.cookie.split('; ').find(part => part.startsWith(key + '='));
+    const dbExists = (await indexedDB.databases()).some(item => item.name === 'nevision_qa_isolation');
+    const cacheExists = await caches.has('nevision_qa_cache');
+    const cache = cacheExists ? await caches.open('nevision_qa_cache') : null;
+    const cached = cache ? await cache.match('/nevision-qa-cache-entry') : null;
+    const registration = await navigator.serviceWorker.getRegistration('/');
     return {
       cookie: item ? decodeURIComponent(item.slice(key.length + 1)) : null,
       local_storage: localStorage.getItem(key),
-      indexed_db: await idb()
+      indexed_db: dbExists ? await idb() : null,
+      indexed_db_namespace: dbExists,
+      cache_storage: cached ? await cached.text() : null,
+      cache_namespace: cacheExists,
+      service_worker: registration ? 'registered' : null,
     };
   }
   let result;
@@ -95,6 +107,10 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>NeVision isol
       document.cookie = key + '=' + encodeURIComponent(config.value) + '; Max-Age=86400; Path=/; SameSite=Lax';
       localStorage.setItem(key, config.value);
       await idb(config.value);
+      const cache = await caches.open('nevision_qa_cache');
+      await cache.put('/nevision-qa-cache-entry', new Response(config.value));
+      await navigator.serviceWorker.register('/nevision-qa-service-worker.js?token=' + config.token, {scope: '/'});
+      await navigator.serviceWorker.ready;
     }
     result = {token: config.token, operation: config.operation, before, after: await snapshot(),
       user_agent: navigator.userAgent, version_details: versionDetails, origin: location.origin, error: null};
@@ -144,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(content)))
         self.send_header("Cache-Control", "no-store")
         if nonce:
-            self.send_header("Content-Security-Policy", f"default-src 'none'; script-src 'nonce-{nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'")
+            self.send_header("Content-Security-Policy", f"default-src 'none'; script-src 'nonce-{nonce}'; worker-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'")
         self.end_headers()
         try:
             self.wfile.write(content)
@@ -173,6 +189,8 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/case":
             page = PAGE.replace("__TOKEN__", token).replace("__CONFIG__", json.dumps(case["config"]))
             self._reply(200, page.encode("utf-8"), "text/html; charset=utf-8", nonce=token)
+        elif route == "/nevision-qa-service-worker.js":
+            self._reply(200, b"self.addEventListener('install', () => self.skipWaiting());", "application/javascript; charset=utf-8")
         elif route == "/barrier":
             case["ready"].wait(25)
             self._reply(200, PIXEL, "image/png")
@@ -270,8 +288,10 @@ def require(condition: bool, message: str) -> None:
         raise HarnessError(message)
 
 
-def state(value: str) -> dict[str, str]:
-    return dict.fromkeys(EMPTY, value)
+def state(value: str) -> dict[str, Any]:
+    return {**dict.fromkeys(EMPTY, value), "indexed_db_namespace": True,
+            "cache_namespace": True,
+            "service_worker": "registered"}
 
 
 GATED_CHROME_CODE = """import sys
@@ -433,15 +453,15 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
         run_token = uuid.uuid4().hex[:12]
         value_a, value_b = "A-" + run_token, "B-" + run_token
         a = visit(chrome, storage, profile_a, server, "write", value_a, "A writes all storage APIs", report)
-        check(report, "A initially has no test cookie/localStorage/IndexedDB value", a["before"] == EMPTY)
-        check(report, "A writes and reads cookie/localStorage/IndexedDB", a["after"] == state(value_a))
+        check(report, "A initially has no test cookie/localStorage/IndexedDB/Cache Storage/service worker", a["before"] == EMPTY)
+        check(report, "A writes and reads five independent browser storage states", a["after"] == state(value_a))
         b = visit(chrome, storage, profile_b, server, "write", value_b, "B isolated write", report)
         check(report, "B cannot see A's test storage values", b["before"] == EMPTY)
         check(report, "B stores its own distinct values", b["after"] == state(value_b))
         a_again = visit(chrome, storage, profile_a, server, "read", None, "A restart persistence", report)
-        check(report, "A restart retains all three values without a rewrite", a_again["before"] == a_again["after"] == state(value_a))
+        check(report, "A restart retains all five states without a rewrite", a_again["before"] == a_again["after"] == state(value_a))
         b_again = visit(chrome, storage, profile_b, server, "read", None, "B restart persistence", report)
-        check(report, "B restart retains its distinct values without a rewrite", b_again["before"] == b_again["after"] == state(value_b))
+        check(report, "B restart retains its five distinct states without a rewrite", b_again["before"] == b_again["after"] == state(value_b))
         # A real non-null binding makes the restore reset assertion non-vacuous.
         # This fixture is not used by visits, which use the rejecting QA proxy.
         fixture_proxy = storage.save_proxy({"name": "Synthetic local proxy fixture", "scheme": "http",
@@ -462,14 +482,14 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
         restored_profile = storage.get_profile(restored_id)
         check(report, "Restore has a new profile ID and no proxy assignment", restored_id not in (profile_a, profile_b) and restored_profile["proxy_id"] is None)
         restored = visit(chrome, storage, restored_id, server, "read", None, "Restored A reads copied storage", report)
-        check(report, "Same-machine restored profile retains cookie/localStorage/IndexedDB", restored["before"] == restored["after"] == state(value_a))
+        check(report, "Same-machine restored profile retains five browser storage states", restored["before"] == restored["after"] == state(value_a))
         clone_id, clone_status = configuration_clone(storage, profile_a)
         clone = storage.get_profile(clone_id)
         check(report, "Configuration clone copies metadata into a new profile", clone_id not in (profile_a, profile_b, restored_id)
               and clone["group_name"] == "Disposable QA" and clone["tags"] == "isolation" and clone["proxy_id"] == fixture_proxy)
         check(report, "Configuration clone folder starts empty", not any(storage.profile_path(clone_id).iterdir()))
         clone_result = visit(chrome, storage, clone_id, server, "read", None, "Configuration-only clone is clean", report)
-        check(report, "Configuration clone has no inherited cookie/localStorage/IndexedDB values", clone_result["before"] == clone_result["after"] == EMPTY)
+        check(report, "Configuration clone has no inherited browser storage state", clone_result["before"] == clone_result["after"] == EMPTY)
         report["configuration_clone"] = {"actual_handler": "NeVisionApp.clone_selected", "view": "test double, no GUI", "status_text": clone_status}
         a_final = visit(chrome, storage, profile_a, server, "read", None, "Original A remains intact", report)
         check(report, "Backup/restore/clone leave original A's values intact", a_final["before"] == a_final["after"] == state(value_a))

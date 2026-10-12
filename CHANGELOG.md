@@ -2,6 +2,20 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## Unreleased — expanded local QA (2026-10-13)
+
+- Expanded the loopback fingerprint audit to another origin, Shared Worker and
+  Service Worker. A missing Device-Memory Client Hint now fails the audit.
+- Expanded real-browser profile isolation QA to Cache Storage and service-
+  worker registrations, including restart, same-account backup/restore and
+  clean configuration clones. These are post-release test-tool changes; the
+  0.8.1-preview binary and its public checksum are unchanged. External network
+  leaks, a second hardware class and Windows 10 remain unverified.
+- Added a self-hosted WebRTC STUN/UDP diagnostic with a required direct positive
+  control. The installed Chrome produced local STUN requests; the source-built
+  Chromium produced none in both direct and proxy-bound modes, so that core's
+  result is recorded as inconclusive, not a proof of leak prevention.
+
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
 - Rebuilt the same limited native privacy baseline from a committed, clean
