@@ -173,6 +173,29 @@ class LifecycleTests(unittest.TestCase):
 
 
 class ProfileFormTests(unittest.TestCase):
+    def test_manager_only_profile_form_saves_an_ordinary_profile(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-manager-form-") as temporary:
+            paths = AppPaths(Path(temporary))
+            storage = Storage(paths)
+            try:
+                app = NeVisionApp(storage, paths)
+            except tk.TclError as exc:
+                self.skipTest(f"Tk display unavailable: {exc}")
+            try:
+                app.root.update()
+                dialog = ProfileDialog(app)
+                self.assertFalse(dialog.native_available)
+                self.assertFalse(hasattr(dialog, "mode"))
+                dialog.name.insert(0, "Manager only QA")
+                dialog.save()
+                saved = storage.get_profile(storage.list_profiles()[0]["id"])["fingerprint"]
+                self.assertEqual(saved, core.ordinary_identity())
+            finally:
+                app._executor.shutdown(wait=True)
+                for timer in app.root.tk.call("after", "info"):
+                    app.root.after_cancel(timer)
+                app.root.destroy()
+
     def test_native_controls_fixed_footer_and_actual_save(self):
         with tempfile.TemporaryDirectory(prefix="neantik-profile-form-") as temporary:
             paths = AppPaths(Path(temporary))
