@@ -21,6 +21,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Added a disposable Canvas probe and documented a separate native-persona
   development build. Its seed-based Canvas and timezone behavior is **not** in
   the 0.8.1 public download and is not enabled in the profile manager.
+- Exported the complete experimental Chromium patch with an exact upstream
+  commit and deterministic verifier. This is source for review, not a release
+  of the experimental browser core.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
