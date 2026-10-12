@@ -73,10 +73,10 @@ archive in place.
 
 ## Current status (2026-10-12)
 
-The 0.7.0-preview baseline bundles source-built Chromium, keeps ordinary
+The 0.7.1-preview baseline bundles source-built Chromium, keeps ordinary
 profiles separate and applies tested first-launch cookie/permission defaults.
 Some proxy routing and local WebRTC behavior has been tested. Full network leak
 coverage, native fingerprint reduction, independent anonymity validation,
 Windows 10 compatibility and cross-machine session portability are not done.
-Phase 0 licensing is being introduced in the next release; later phases are
-planned work, not claims about the current binary.
+Phase 0 licensing shipped in 0.7.1-preview; later phases are planned work,
+not claims about the current binary.
