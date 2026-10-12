@@ -44,6 +44,11 @@ function New-TestArchive([string]$Mode) {
             $payload["Engine/NeAntikChromium/$member"] = "Synthetic native fixture $member; never launched"
             $coreFiles[$member] = Get-ReleaseTextHash $payload["Engine/NeAntikChromium/$member"]
         }
+        if ($Mode -eq 'native-valid') {
+            $runtimePath = 'gen/third_party/devtools-frontend/src/front_end/models/logs/bundle.stamp'
+            $payload["Engine/NeAntikChromium/$runtimePath"] = 'Required Chromium runtime resource fixture'
+            $coreFiles[$runtimePath] = Get-ReleaseTextHash $payload["Engine/NeAntikChromium/$runtimePath"]
+        }
         if ($Mode -eq 'native-hash') { $coreFiles['chrome.dll'] = '0' * 64 }
         if ($Mode -eq 'native-path') { $coreFiles['../escape'] = '0' * 64 }
         if ($Mode -eq 'native-license') { $coreFiles.Remove('credits.html'); $payload.Remove('Engine/NeAntikChromium/credits.html') }

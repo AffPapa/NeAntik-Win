@@ -39,7 +39,8 @@ try {
         Assert-RelativeReleasePath $path.TrimEnd('/')
         if (-not $root) { $root = $parts[0] }
         if ($parts[0] -ne $root) { throw 'Release ZIP must have exactly one root directory.' }
-        if ($path -match '(^|/)(Data|Profiles|Backups|Logs|secrets)(/|$)' -or $path -match '(^|/)(\.env($|\.)|.*\.(db|sqlite|sqlite3|sqlite-wal|sqlite-shm|pfx|p12|pem|key|session))$') { throw "Forbidden release data: $path" }
+        if ($path -match '^[^/]+/(Data|Profiles|Backups|Logs)(/|$)' -or $path -match '(^|/)secrets(/|$)' -or
+            $path -match '(^|/)(\.env($|\.)|.*\.(db|sqlite|sqlite3|sqlite-wal|sqlite-shm|pfx|p12|pem|key|session))$') { throw "Forbidden release data: $path" }
         if ($path.EndsWith('/')) { continue }
         if ($entries.ContainsKey($path)) { throw "Duplicate/case-colliding archive path: $path" }
         $entries[$path] = $entry
