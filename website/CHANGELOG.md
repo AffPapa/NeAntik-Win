@@ -3,6 +3,29 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.5.1-preview] — 2026-10-12
+
+**Статус:** portable preview, Windows x64. Встроенный Chromium 155.0.8059.40; проверено на Windows 11 Pro x64, build 26200. Схема профилей не менялась.
+
+### Изменения
+
+- Упрощены настройки: выбор пути к установленному Chrome/Edge доступен только в разделе совместимости со старыми профилями. Понятнее названы действия, добавлены краткие подсказки и точная подпись браузера профиля.
+- Архив уменьшен с 275 538 276 до 262 337 857 байт. В Chromium оставлены языковые пакеты `en-US`, `ru`, `th`; остальные языки интерфейса браузера переходят на английский.
+- Если профилю со встроенным Chromium назначен proxy, браузер ограничивает WebRTC UDP вне proxy. Это может повлиять на звонки и не гарантирует, что весь трафик идёт через proxy. Профили без proxy и старые Chrome/Edge не меняются.
+- Часовой пояс остаётся системным: он не вычисляется по proxy IP. Подмены отпечатка устройства, гарантии анонимности и автоматического обновления Chromium нет.
+- Проверены модульные тесты, интерфейс, упаковка, self-test распакованного EXE, хранение данных в реальном Chromium и локальные сценарии прокси. Windows 10 и реальные внешние proxy не проверены.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.1-preview/NeAntikWin-portable-v0.5.1-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.1-preview/NeAntikWin-portable-v0.5.1-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.1-preview/NeAntikWin-portable-v0.5.1-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.5.1-preview)
+
+SHA-256 portable ZIP: `93b11142cb7eff5412ce21334c337d5180fc7f9ae6dc5be38b233e1f801c27aa` (262 337 857 байт).
+
+Для обновления закройте браузер, сохраните копию всей старой portable-папки с `Data/`, распакуйте новый ZIP отдельно и перенесите `Data/` под тем же Windows-пользователем. Прежнюю копию оставьте для отката; старый Chromium может не открыть профиль после использования нового.
+
 ## [0.5.0-preview] — 2026-10-12
 
 **Статус:** portable preview, Windows x64. В ZIP включён Chromium 155.0.8059.40, собранный из закреплённого исходного кода. Для новых профилей установленный Chrome не нужен. Проверенная ОС: Windows 11 Pro x64, build 26200.

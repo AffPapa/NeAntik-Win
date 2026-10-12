@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.5.0-preview";
+const releaseVersion = "0.5.1-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,18 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "12 октября 2026",
+    status: "Проще интерфейс · меньше portable ZIP",
+    compatibility: "Windows x64 · встроенный Chromium 155 · данные 0.5.0 сохраняются · схема профилей 1",
+    changes: [
+      { type: "fixed", label: "Понятнее", text: "Редко нужный путь к старому Chrome или Edge скрыт в дополнительных настройках. Названия действий и подсказки стали яснее; рядом с профилем показана его браузерная семья." },
+      { type: "fixed", label: "Легче", text: "Встроенный Chromium поставляется с русским, английским и тайским языковыми пакетами. ZIP стал меньше примерно на 13 МБ; другие языки интерфейса браузера переходят на английский." },
+      { type: "security", label: "WebRTC и proxy", text: "Для профиля с proxy встроенный Chromium ограничивает WebRTC UDP, обходящий proxy. Это не подтверждение маршрута всех соединений и не гарантия анонимности." },
+      { type: "security", label: "Без ложных обещаний", text: "Часовой пояс остаётся системным: автоматическое определение по proxy без надёжной проверки IP дало бы неверный результат. Подмены отпечатка устройства нет." },
+    ],
+  },
+  {
+    version: "v0.5.0-preview",
     date: "12 октября 2026",
     status: "Chromium внутри · один portable ZIP",
     compatibility: "Windows x64 · встроенный Chromium 155 · установленный Chrome не нужен · схема профилей 1",
@@ -274,7 +286,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Новый профиль запускается во встроенном Chromium. Подмены fingerprint и гарантии анонимности нет.</p>
+          <p class="download-note">Новый профиль запускается во встроенном Chromium. Настройки упрощены, архив стал меньше. Подмены отпечатка устройства и гарантии анонимности нет.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -457,7 +469,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div>
             <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется.</p>
+            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Для профилей с proxy ограничен прямой WebRTC UDP, но весь сетевой маршрут этим не проверяется.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
