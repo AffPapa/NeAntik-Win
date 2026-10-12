@@ -1,9 +1,0 @@
-This is a testharness.js-based test.
-PASS First script observes configured native timezone and DST
-PASS Repeated Date and Intl reads agree
-PASS Same-origin iframe timezone agrees
-PASS Cross-origin iframe timezone agrees
-PASS Dedicated worker timezone agrees
-PASS Shared worker timezone agrees
-PASS Service worker timezone agrees
-Harness: the test ran to completion.

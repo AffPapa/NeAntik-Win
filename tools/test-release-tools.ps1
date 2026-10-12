@@ -120,8 +120,7 @@ $valid = New-TestArchive 'valid'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $valid
 $script:passed++
 $native = New-TestArchive 'native-valid'
-& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $native
-$script:passed++
+Expect-Failure 'custom engine release rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $native } 'Custom browser engines'
 $launcherOnly = New-TestArchive 'launcher-only'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $launcherOnly
 $script:passed++
@@ -132,10 +131,11 @@ foreach ($case in @(@('data', 'Forbidden'), @('hash', 'mismatch'), @('missing-li
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
 }
-foreach ($case in @(@('native-hash', 'hash mismatch'), @('native-path', 'Unsafe'), @('native-license', 'license missing'),
-    @('native-unlisted', 'Unlisted native'), @('native-identity', 'Unknown native'), @('native-undeclared', 'requires'),
-    @('native-false', 'requires'), @('native-manifest-hash', 'manifest hash mismatch'), @('native-qa', 'evidence'), @('native-flag-type', 'boolean'),
-    @('native-schema-string', 'Unknown native'), @('native-schema-fraction', 'Unknown native'), @('native-schema-bool', 'Unknown native'))) {
+foreach ($case in @(@('native-hash', 'Custom browser engines'), @('native-path', 'Custom browser engines'),
+    @('native-license', 'Custom browser engines'), @('native-unlisted', 'Custom browser engines'), @('native-identity', 'Custom browser engines'),
+    @('native-undeclared', 'Custom browser engines'), @('native-false', 'Custom browser engines'), @('native-manifest-hash', 'Custom browser engines'),
+    @('native-qa', 'Custom browser engines'), @('native-flag-type', 'Custom browser engines'), @('native-schema-string', 'Custom browser engines'),
+    @('native-schema-fraction', 'Custom browser engines'), @('native-schema-bool', 'Custom browser engines'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
 }

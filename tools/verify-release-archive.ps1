@@ -81,48 +81,17 @@ try {
     foreach ($license in $runtime.licenses) {
         if (-not $entries.ContainsKey("$root/licenses/$license")) { throw "Runtime license is missing: $license" }
     }
-    # A launcher-only archive is valid; an engine payload must never silently
-    # masquerade as one. Legacy archives without native metadata remain valid.
-    $enginePrefix = "$root/Engine/NeAntikChromium/"
-    $engineEntries = @($entries.Keys | Where-Object { $_.StartsWith($enginePrefix, [StringComparison]::OrdinalIgnoreCase) })
+    # This product edition is deliberately ordinary-browser-only. The release
+    # verifier refuses a custom engine regardless of accompanying metadata.
+    $engineEntries = @($entries.Keys | Where-Object { $_ -match ('^' + [regex]::Escape($root) + '/Engine/') })
+    if ($engineEntries.Count) { throw 'Custom browser engines are not part of this ordinary-browser release.' }
     $hasNativeField = $manifest.PSObject.Properties.Name -contains 'native_core_bundled'
     if ($hasNativeField -and $manifest.native_core_bundled -isnot [bool]) { throw 'native_core_bundled must be a boolean.' }
-    $nativeBundled = $hasNativeField -and $manifest.native_core_bundled
-    if ($engineEntries.Count -and -not $nativeBundled) { throw 'Native engine payload requires native_core_bundled=true.' }
-    if ($nativeBundled) {
-        if (-not $engineEntries.Count -or $manifest.PSObject.Properties.Name -notcontains 'engine') { throw 'Native release is missing engine metadata or payload.' }
-        $engine = $manifest.engine
-        $pinnedCommit = 'cfaadc5a132d78e1828635aa8405a499f3e14864'
-        if ($engine.engine_id -ne 'neantik-chromium' -or $engine.version -ne '155.0.8059.40' -or $engine.source_commit -ne $pinnedCommit -or
-            $engine.qa_status -ne 'passed' -or $engine.canvas_scope -ne 'opaque-srgb-uint8' -or
-            $engine.manifest_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $engine.qa_report_sha256 -cnotmatch '^[a-f0-9]{64}$') { throw 'Invalid native release evidence metadata.' }
-        $coreManifestPath = "${enginePrefix}core-manifest.json"
-        if (-not $entries.ContainsKey($coreManifestPath)) { throw 'Native core manifest is missing.' }
-        if ((Get-ArchiveHash $entries[$coreManifestPath]) -cne $engine.manifest_sha256) { throw 'Native core manifest hash mismatch.' }
-        $core = Read-ArchiveText $entries[$coreManifestPath] | ConvertFrom-Json
-        if ($core.format -ne 'neantik-native-core-v1' -or $core.engine_id -ne 'neantik-chromium' -or
-            $core.version -ne '155.0.8059.40' -or $core.source_commit -ne $pinnedCommit -or
-            ($core.schema -isnot [int] -and $core.schema -isnot [long]) -or $core.schema -ne 1 -or $null -eq $core.files -or
-            $core.files -isnot [System.Management.Automation.PSCustomObject]) { throw 'Unknown native core manifest identity or file map.' }
-        $coreListed = @{}
-        foreach ($property in $core.files.PSObject.Properties) {
-            $relative = [string]$property.Name
-            Assert-RelativeReleasePath $relative
-            if ($relative -ieq 'core-manifest.json' -or $coreListed.ContainsKey($relative)) { throw 'Duplicate or self-referential native core path.' }
-            $coreListed[$relative] = $true
-            $full = "$enginePrefix$relative"
-            if ($property.Value -isnot [string] -or $property.Value -cnotmatch '^[a-f0-9]{64}$' -or -not $entries.ContainsKey($full)) { throw "Native core file missing or invalid: $relative" }
-            if ((Get-ArchiveHash $entries[$full]) -cne $property.Value) { throw "Native core payload hash mismatch: $relative" }
-        }
-        foreach ($requiredNative in @('chrome.exe', 'chrome.dll', 'LICENSE', 'credits.html',
-            'THIRD_PARTY_LICENSES.txt', 'DEPENDENCY_RECEIPT.json', 'BUILD_PROVENANCE.json')) {
-            if (-not $coreListed.ContainsKey($requiredNative)) { throw "Native core required runtime/license missing: $requiredNative" }
-        }
-        foreach ($full in $engineEntries) {
-            $relative = $full.Substring($enginePrefix.Length)
-            if ($relative -ine 'core-manifest.json' -and -not $coreListed.ContainsKey($relative)) { throw "Unlisted native engine file: $relative" }
-        }
-    }
+    if ($hasNativeField -and $manifest.native_core_bundled) { throw 'Native browser cores are not part of this ordinary-browser release.' }
+    if ($manifest.PSObject.Properties.Name -contains 'engine') { throw 'Custom browser engine metadata is not accepted in this release.' }
+    $hasFingerprintField = $manifest.PSObject.Properties.Name -contains 'fingerprint_modification'
+    if ($hasFingerprintField -and $manifest.fingerprint_modification -isnot [bool]) { throw 'fingerprint_modification must be a boolean.' }
+    if ($hasFingerprintField -and $manifest.fingerprint_modification) { throw 'Fingerprint modification is not part of this release.' }
     # High-confidence patterns supplement the source scan and runtime-path guard.
     # Never print matched values; a clean regex scan is not a proof of no secrets.
     $secretPattern = '\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b|\bAKIA[0-9A-Z]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----'

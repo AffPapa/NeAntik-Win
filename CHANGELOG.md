@@ -2,6 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.4.0-preview — ordinary-browser edition (2026-10-12)
+
+- Removed the native fingerprint-profile controls and launch path from the app. New
+  profiles launch installed stock Chrome or Edge without browser-surface override flags.
+- Legacy experimental native profile records remain on disk but are marked unavailable;
+  this edition refuses to launch, edit or clone them. Their browser data is not deleted.
+- Release packaging and archive verification now reject custom browser-engine payloads
+  and reject a release manifest that claims fingerprint modification.
+- This remains a portable profile manager, not a standalone Chromium distribution.
+  It requires Chrome or Edge installed on Windows; it does not modify fingerprint signals.
+- **Preview only.** Back up `Data/` before upgrading. The artifact remains unsigned;
+  Windows SmartScreen may warn. Tested OS scope is documented below.
+
 ## 0.3.0-preview — portable profile manager edition (2026-10-12)
 
 - Renamed the product to NeAntik Win and published reviewed sources at

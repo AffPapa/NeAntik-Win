@@ -1,9 +1,7 @@
-"""NeAntik Win — local-first Windows browser-profile application.
+"""NeAntik Win — local-first Windows profile manager for stock browsers.
 
-Isolated local profiles support an explicitly selected, verified native Chromium
-core with stable identity, or ordinary installed browsers. Native availability
-is checked at launch; missing cores never silently fall back to stock browsers.
-This is not a promise to bypass third-party anti-fraud systems.
+This edition launches installed Chrome or Edge with separate local profile data.
+It does not bundle a custom browser core or alter browser fingerprint signals.
 """
 
 from __future__ import annotations
@@ -33,7 +31,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
-from current_core import ENGINE_DIRECTORY, MANIFEST_NAME, CoreError, CoreResolver, identity_arguments, native_core_manifest_exists, new_identity, ordinary_identity, serialize_identity, validate_identity
+from profile_identity import CoreError, identity_arguments, ordinary_identity, serialize_identity, validate_identity
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -1382,7 +1380,6 @@ class BrowserLauncher:
 
     def __init__(self, storage: Storage):
         self.storage = storage
-        self.native_core = CoreResolver(storage.paths.root)
 
     def available_browsers(self) -> list[tuple[str, Path]]:
         discovered: list[tuple[str, Path]] = []
@@ -1426,10 +1423,9 @@ class BrowserLauncher:
             raise NeVisionError("Назначенный proxy отсутствует или изменён. Обновите список и проверьте настройки перед запуском.")
         profile = current_profile
         fingerprint = profile["fingerprint"]
-        try:
-            executable = self.native_core.resolve() if fingerprint["mode"] == "native" else self.resolve_browser()
-        except CoreError as exc:
-            raise NeVisionError(str(exc)) from exc
+        if fingerprint["mode"] != "ordinary":
+            raise NeVisionError("Этот старый экспериментальный профиль нельзя запускать в выпуске без native-ядра. Данные профиля сохранены.")
+        executable = self.resolve_browser()
         self.storage.ensure_profile_closed(profile_id)
         profile_dir = self.storage.profile_path(profile_id)
         profile_dir.mkdir(parents=True, exist_ok=True)
@@ -1777,10 +1773,9 @@ class ProfileDialog(BaseDialog):
     def __init__(self, app: "NeVisionApp", profile: dict[str, Any] | None = None):
         super().__init__(app, "Новый профиль" if not profile else "Изменить профиль", "560x650")
         self.profile = profile
-        self.native_available = native_core_manifest_exists(app.storage.paths.root)
-        self.identity = profile.get("fingerprint", ordinary_identity()) if profile else (new_identity() if self.native_available else ordinary_identity())
-        if self.identity["mode"] == "native" and not self.native_available:
-            messagebox.showerror(APP_NAME, "Этот portable-выпуск работает с обычными профилями Chrome/Edge. Для изменения native-профиля нужен отдельный выпуск с проверенным ядром.", parent=self)
+        self.identity = profile.get("fingerprint", ordinary_identity()) if profile else ordinary_identity()
+        if self.identity["mode"] != "ordinary":
+            messagebox.showerror(APP_NAME, "Этот профиль был создан для удалённого экспериментального ядра. Его данные сохранены, но этот выпуск не может редактировать или запускать такой профиль.", parent=self)
             self.destroy()
             return
         viewport = ttk.Frame(self, style="Panel.TFrame")
@@ -1808,35 +1803,7 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=list(self.proxy_map), style="Input.TCombobox", state="readonly")
         self.proxy.set(selected_label)
         self.proxy.pack(fill="x", pady=(0, 14))
-        if self.native_available:
-            ttk.Label(body, text="Режим браузера", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-            self.mode = ttk.Combobox(body, values=("Native fingerprint · ядро NeAntik", "Обычный Chrome / Edge"), state="readonly", style="Input.TCombobox")
-            self.mode.current(0 if self.identity["mode"] == "native" else 1)
-            self.mode.pack(fill="x", pady=(0, 10))
-            current_hardware = (self.identity.get("hardware_concurrency", 8), self.identity.get("device_memory", "8"))
-            self.hardware_presets = {"4 потока · 4 GB": (4, "4"), "8 потоков · 8 GB": (8, "8"), "16 потоков · 16 GB": (16, "16")}
-            hardware_label = next((label for label, values in self.hardware_presets.items() if values == current_hardware), f"{current_hardware[0]} потоков · {current_hardware[1]} GB")
-            self.hardware_presets[hardware_label] = current_hardware
-            self.hardware = ttk.Combobox(body, values=list(self.hardware_presets), state="readonly", style="Input.TCombobox")
-            self.hardware.set(hardware_label)
-            self.hardware.pack(fill="x", pady=(0, 7))
-            ttk.Label(body, text="Часовой пояс", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-            self.timezone_presets = {"Системный (без подмены)": "system", "UTC": "UTC", "Europe/Berlin": "Europe/Berlin", "Europe/London": "Europe/London", "America/New_York": "America/New_York", "Asia/Bangkok": "Asia/Bangkok"}
-            current_timezone = self.identity.get("timezone", "system")
-            timezone_label = next((label for label, value in self.timezone_presets.items() if value == current_timezone), current_timezone)
-            self.timezone_presets[timezone_label] = current_timezone
-            self.timezone = ttk.Combobox(body, values=list(self.timezone_presets), state="readonly", style="Input.TCombobox")
-            self.timezone.set(timezone_label)
-            self.timezone.pack(fill="x", pady=(0, 7))
-            def mode_changed(_event: Any = None) -> None:
-                state = "readonly" if self.mode.current() == 0 else "disabled"
-                self.hardware.configure(state=state)
-                self.timezone.configure(state=state)
-            self.mode.bind("<<ComboboxSelected>>", mode_changed)
-            mode_changed()
-            ttk.Label(body, text="Native-профили требуют отдельное проверенное Chromium-ядро.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
-        else:
-            ttk.Label(body, text="Обычный Chrome / Edge · браузер сообщает реальные системные параметры. В этом выпуске native-ядро не включено.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        ttk.Label(body, text="Обычный Chrome или Edge · NeAntik не изменяет параметры браузера и fingerprint.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
             body,
@@ -1857,12 +1824,7 @@ class ProfileDialog(BaseDialog):
 
     def save(self) -> None:
         try:
-            if self.native_available and self.mode.current() == 0:
-                cpu, memory = self.hardware_presets[self.hardware.get()]
-                identity = dict(self.identity) if self.identity["mode"] == "native" else new_identity()
-                identity.update(hardware_concurrency=cpu, device_memory=memory, timezone=self.timezone_presets[self.timezone.get()])
-            else:
-                identity = ordinary_identity()
+            identity = ordinary_identity()
             profile_id = self.app.storage.save_profile(
                 {
                     "name": self.name.get(),
@@ -2404,15 +2366,14 @@ class NeVisionApp:
         heading.pack(side="left", fill="x", expand=True, padx=(13, 0))
         tk.Label(heading, text=profile["name"], bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 20, "bold"), wraplength=380, justify="left").pack(anchor="w")
         identity = profile.get("fingerprint", ordinary_identity())
-        native = identity["mode"] == "native"
-        identity_label = f"Native · {identity['hardware_concurrency']} CPU · {identity['device_memory']} GB · {identity.get('timezone', 'system')}" if native else "Обычный браузер · без подмены"
+        unsupported = identity["mode"] != "ordinary"
+        identity_label = "Старый неподдерживаемый профиль" if unsupported else "Chrome / Edge · без подмены fingerprint"
         sub = "  ·  ".join(part for part in [identity_label, profile.get("group_name"), profile.get("tags")] if part)
         tk.Label(heading, text=sub, bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 0))
         is_running = self._is_profile_active(str(profile["id"]))
         chip_bg = self.colors["lime_surface"] if is_running else self.colors["panel_2"]
         chip_fg = self.colors["lime"] if is_running else self.colors["muted"]
-        core_present = (self.paths.root / ENGINE_DIRECTORY / MANIFEST_NAME).is_file() if native else True
-        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else ("НЕТ NATIVE-ЯДРА" if native and not core_present else "ПРОВЕРКА ПРИ ЗАПУСКЕ" if native else "ГОТОВ"))
+        state = "ОТКРЫТ" if is_running else ("ПРОВЕРЬТЕ ДОСТУП" if str(profile["id"]) in self._unknown_profiles else ("НЕ ПОДДЕРЖИВАЕТСЯ" if unsupported else "ГОТОВ"))
         status_chip = tk.Frame(top, bg=chip_bg, padx=10, pady=6)
         status_chip.pack(side="right", padx=(10, 8), pady=5)
         tk.Label(status_chip, text=state, bg=chip_bg, fg=chip_fg, font=("Segoe UI", 8, "bold")).pack()
@@ -2532,8 +2493,8 @@ class NeVisionApp:
             profile_id = str(profile["id"])
             visible_ids.add(profile_id)
             running = self._is_profile_active(profile_id)
-            native = profile.get("fingerprint", ordinary_identity())["mode"] == "native"
-            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "NATIVE" if native else "ГОТОВ")
+            unsupported = profile.get("fingerprint", ordinary_identity())["mode"] != "ordinary"
+            status = "ОТКРЫТ" if running else ("ДОСТУП?" if profile_id in self._unknown_profiles else "НЕ ПОДДЕРЖ." if unsupported else "ГОТОВ")
             tags = ("running",) if running else ()
             values = (profile["name"], profile.get("group_name") or "—", status)
             if profile_id in existing_ids:
@@ -2634,8 +2595,8 @@ class NeVisionApp:
         profile = self.selected_profile()
         if not profile:
             return
-        if profile["fingerprint"]["mode"] == "native" and not native_core_manifest_exists(self.storage.paths.root):
-            messagebox.showerror(APP_NAME, "Этот portable-выпуск не содержит native-ядро и не может клонировать native-профиль. Существующий профиль и его данные не изменены.", parent=self.root)
+        if profile["fingerprint"]["mode"] != "ordinary":
+            messagebox.showerror(APP_NAME, "Этот старый экспериментальный профиль нельзя клонировать в выпуске без native-ядра. Данные профиля сохранены.", parent=self.root)
             return
         copy_name = f"Копия · {profile['name']}"
         try:
@@ -2646,7 +2607,7 @@ class NeVisionApp:
                     "tags": profile.get("tags", ""),
                     "notes": f"Создано как чистая копия профиля «{profile['name']}».\n\n{profile.get('notes', '')}".strip(),
                     "proxy_id": profile.get("proxy_id") or None,
-                    "fingerprint": new_identity(cpu=profile["fingerprint"]["hardware_concurrency"], memory=profile["fingerprint"]["device_memory"], timezone=profile["fingerprint"].get("timezone", "system")) if profile["fingerprint"]["mode"] == "native" else ordinary_identity(),
+                    "fingerprint": ordinary_identity(),
                 }
             )
             self.storage.log("profile.settings_cloned", new_id, f"source={profile['id']}")
@@ -2882,10 +2843,7 @@ class NeVisionApp:
             messagebox.showinfo(APP_NAME, "Changelog доступен в репозитории проекта.", parent=self.root)
 
     def show_about(self) -> None:
-        if native_core_manifest_exists(self.paths.root):
-            scope = "Profiles can use the optional verified native Chromium core or installed Chrome/Edge. Native surfaces and limitations are documented in the release notes."
-        else:
-            scope = "This portable edition uses installed Chrome/Edge and reports their actual browser values. The optional native core is not included."
+        scope = "Этот portable-выпуск использует установленный Chrome или Edge. Собственного ядра и подмены fingerprint нет."
         messagebox.showinfo(
             APP_NAME,
             f"{APP_NAME} {APP_VERSION}\n\nЛокальные изолированные профили для Windows. {scope}\n\nВключает Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.",
@@ -2924,13 +2882,13 @@ def self_test() -> int:
         assert filesystem_path(storage.profile_path(restored_id) / long_relative).read_bytes() == b"synthetic long-path self-test"
         assert len(storage.list_profiles()) == 2
         assert len(storage.list_events()) >= 4
-        identity = new_identity()
-        native_id = storage.save_profile({"name": "Native identity self-test", "fingerprint": identity})
-        native_backup = storage.backup_profile(native_id)
-        native_restored = storage.restore_profile(native_backup, "Native identity restored")
-        assert storage.get_profile(native_restored)["fingerprint"] == identity
-        storage.save_profile({"name": "Native metadata updated"}, native_id)
-        assert storage.get_profile(native_id)["fingerprint"] == identity
+        ordinary = ordinary_identity()
+        ordinary_id = storage.save_profile({"name": "Ordinary profile self-test", "fingerprint": ordinary})
+        ordinary_backup = storage.backup_profile(ordinary_id)
+        ordinary_restored = storage.restore_profile(ordinary_backup, "Ordinary profile restored")
+        assert storage.get_profile(ordinary_restored)["fingerprint"] == ordinary
+        storage.save_profile({"name": "Ordinary metadata updated"}, ordinary_id)
+        assert storage.get_profile(ordinary_id)["fingerprint"] == ordinary
         print(f"{APP_NAME} self-test: PASS")
         return 0
     except Exception as exc:

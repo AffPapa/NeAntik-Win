@@ -15,8 +15,8 @@ import stat
 
 ROOT_FILES = {
     '.gitattributes', '.gitignore', 'nevision_win.py', 'neantik_win.py',
-    'test_nevision_win.py', 'test_neantik_win.py', 'browser_engine.py',
-    'test_browser_engine.py', 'current_core.py', 'test_current_core.py',
+    'test_nevision_win.py', 'test_neantik_win.py', 'profile_identity.py',
+    'test_profile_identity.py',
     'release-version.json', 'requirements-build.txt',
     'requirements-dev.txt', 'requirements-engine.txt', 'requirements.txt', 'build.ps1', 'LICENSE',
     'LICENSE.txt', 'LICENSE.md', 'NOTICE', 'NOTICE.txt', 'pyproject.toml',
@@ -26,10 +26,16 @@ TEXT_SUFFIXES = {'.py', '.ps1', '.md', '.txt', '.yml', '.yaml', '.json',
     '.toml', '.csv', '.ini', '.cfg', '.terms', '.jsonc', '.webmanifest', '.inc'}
 BINARY_SUFFIXES = {'.ico', '.png'}
 FORBIDDEN_PARTS = {'.git', 'data', 'build', 'dist', 'release', 'engine',
-    'logs', 'outputs', 'storage', 'tdata', 'secrets', '__pycache__', '.venv',
+    'core', 'native-core', 'logs', 'outputs', 'storage', 'tdata', 'secrets', '__pycache__', '.venv',
     'venv', '.pytest_cache', 'node_modules'}
 USER_PATH = re.compile(r'(?i)\b[A-Z]:(?:\\\\|\\|/)Users(?:\\\\|\\|/)[^\\/\s"\'<>]+')
 MAX_BYTES = 10 * 1024 * 1024
+EXCLUDED_SOURCE_PREFIXES = (
+    'browser_engine.py', 'current_core.py', 'test_browser_engine.py', 'test_current_core.py',
+    'docs/neantik_core_research.md', 'docs/neantik_implementation_plan.md',
+    'tools/current_native_qa.md', 'tools/test_current_native_', 'tools/test_native_',
+    'tools/fixtures/current-native-', 'tests/fixtures/fingerprint.',
+)
 
 
 def secret_rules(root: Path) -> list[tuple[str, re.Pattern[str]]]:
@@ -43,6 +49,9 @@ def secret_rules(root: Path) -> list[tuple[str, re.Pattern[str]]]:
 
 
 def allowed(relative: Path) -> bool:
+    normalized = relative.as_posix().lower()
+    if any(normalized == prefix or normalized.startswith(prefix) for prefix in EXCLUDED_SOURCE_PREFIXES):
+        return False
     parts = relative.parts
     if any(p.lower() in FORBIDDEN_PARTS for p in parts):
         return False

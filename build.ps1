@@ -3,9 +3,7 @@ param(
     # Every normal build now uses a new empty workspace; retained for compatibility.
     [switch]$Clean,
     [switch]$PackageOnly,
-    [string]$OutputDirectory,
-    [string]$NativeCoreRoot,
-    [string]$NativeQAReport
+    [string]$OutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,20 +14,6 @@ $release = Get-Content -LiteralPath (Join-Path $projectRoot 'release-version.jso
 $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
-$nativeManifestHash = $null
-$nativeQAHash = $null
-if ([bool]$NativeCoreRoot -ne [bool]$NativeQAReport) { throw 'NativeCoreRoot and NativeQAReport must be supplied together.' }
-if ($NativeCoreRoot) {
-    $NativeCoreRoot = (Resolve-Path -LiteralPath $NativeCoreRoot -ErrorAction Stop).Path
-    $NativeQAReport = (Resolve-Path -LiteralPath $NativeQAReport -ErrorAction Stop).Path
-    $qa = Get-Content -LiteralPath $NativeQAReport -Raw | ConvertFrom-Json
-    if ($qa.format -ne 'neantik-own155-native-qa-v1' -or $qa.status -ne 'passed' -or $qa.bundle_reverified_after_visits -ne $true -or @($qa.assertions).Count -eq 0 -or @($qa.assertions | Where-Object { $_.passed -ne $true }).Count -ne 0) { throw 'A complete passing independent native QA report is required.' }
-    $nativeManifestHash = [string]$qa.verification.manifest_sha256
-    if ($nativeManifestHash -notmatch '^[a-f0-9]{64}$') { throw 'Native QA report has no trusted manifest SHA-256.' }
-    & python (Join-Path $projectRoot 'tools/native-core/package-engine.py') --verify-existing $NativeCoreRoot --trusted-manifest-sha256 $nativeManifestHash --qa-report $NativeQAReport
-    if ($LASTEXITCODE -ne 0) { throw 'Native runtime, manifest or QA report verification failed.' }
-    $nativeQAHash = (Get-FileHash -LiteralPath $NativeQAReport -Algorithm SHA256).Hash.ToLowerInvariant()
-}
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
 $releaseParent = [System.IO.Path]::GetFullPath($OutputDirectory)
 $releaseName = "NeAntikWin-portable-v$releaseVersion"
@@ -54,7 +38,7 @@ if (-not $PackageOnly) {
     $metadataRoot = Join-Path $buildRoot 'metadata'
     New-Item -ItemType Directory -Path $sourceRoot, $workRoot -Force | Out-Null
     Write-Output "Isolated build workspace: $buildRoot"
-    $sourceItems = @('nevision_win.py', 'browser_engine.py', 'current_core.py', 'release-version.json', 'requirements-build.txt', 'assets',
+    $sourceItems = @('nevision_win.py', 'profile_identity.py', 'release-version.json', 'requirements-build.txt', 'assets',
         'README.md', 'SECURITY_AND_SCOPE.md', 'ARCHITECTURE.md', 'RELEASE_CHECKLIST.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md')
     foreach ($relative in $sourceItems) {
         $source = Join-Path $projectRoot $relative
@@ -81,11 +65,6 @@ if (-not $PackageOnly) {
     }
     Copy-Item -LiteralPath (Join-Path $metadataRoot 'licenses') -Destination $releaseRoot -Recurse
     Copy-Item -LiteralPath (Join-Path $metadataRoot 'runtime-components.json') -Destination $releaseRoot
-    if ($NativeCoreRoot) {
-        $engineParent = Join-Path $releaseRoot 'Engine'
-        New-Item -ItemType Directory -Path $engineParent | Out-Null
-        Copy-Item -LiteralPath $NativeCoreRoot -Destination (Join-Path $engineParent 'NeAntikChromium') -Recurse
-    }
     $sourceFiles = @(Get-ReleaseTreeManifest $sourceRoot)
     $sourceHash = Get-ReleaseTextHash ($sourceFiles | ConvertTo-Json -Depth 5 -Compress)
     $commit = & git -C $projectRoot rev-parse --quiet --verify HEAD
@@ -102,8 +81,7 @@ $packagedVersion = Get-Content -LiteralPath (Join-Path $releaseRoot '_internal/r
 if ($packagedVersion.version -ne $releaseVersion) { throw 'Bundled application version disagrees with release.' }
 $provenance = Get-Content -LiteralPath (Join-Path $releaseRoot 'build-provenance.json') -Raw | ConvertFrom-Json
 $runtime = Get-Content -LiteralPath (Join-Path $releaseRoot 'runtime-components.json') -Raw | ConvertFrom-Json
-$bundledNative = Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine/NeAntikChromium/core-manifest.json')
-if ($bundledNative -ne [bool]$NativeCoreRoot) { throw 'Native engine presence must agree with the explicitly verified build inputs.' }
+if (Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine')) { throw 'This edition is ordinary-browser-only; custom browser engines are not accepted in the release.' }
 $files = @(Get-ReleaseTreeManifest $releaseRoot @('release-manifest.json', 'SHA256SUMS.txt'))
 $manifest = [ordered]@{
     format = 'nevision-release-v1'; product = 'NeAntik Win'; executable = 'NeAntikWin.exe'; version = $releaseVersion; channel = $release.channel
@@ -111,14 +89,12 @@ $manifest = [ordered]@{
     source_commit = $provenance.source_commit; source_state = $provenance.source_state; source_tree_sha256 = $provenance.source_tree_sha256
     operating_systems = @('Windows x64')
     tested_os = 'Windows 11 Pro x64 10.0.26200'; unverified_os = @('Windows 10', 'Windows ARM64')
-    browser_strategy = if ($bundledNative) { 'Bundled own Chromium 155 for native profiles; installed Chrome/Edge only for explicit ordinary profiles' } else { 'Portable profile manager edition: installed Chrome or Edge only; native core and fingerprint-modification runtime are not bundled' }
-    native_core_bundled = [bool]$bundledNative
-    schema_version = '1'; backup_format = if ($bundledNative) { 'neantik-profile-backup-v2 (native), nevision-profile-backup-v1 (ordinary)' } else { 'nevision-profile-backup-v1 (ordinary), neantik-profile-backup-v2 metadata support' }
+    browser_strategy = 'Portable local profile manager; launches installed stock Chrome or Edge. No custom engine or fingerprint modification is included.'
+    native_core_bundled = $false
+    fingerprint_modification = $false
+    schema_version = '1'; backup_format = 'nevision-profile-backup-v1 (ordinary profiles only)'
     signature_status = [string](Get-AuthenticodeSignature -LiteralPath $exePath).Status
     release_notes = 'CHANGELOG.md'; runtime = $runtime; files = $files
-}
-if ($bundledNative) {
-    $manifest.engine = [ordered]@{ engine_id = 'neantik-chromium'; version = '155.0.8059.40'; source_commit = 'cfaadc5a132d78e1828635aa8405a499f3e14864'; manifest_sha256 = $nativeManifestHash; qa_report_sha256 = $nativeQAHash; qa_status = 'passed'; canvas_scope = 'opaque-srgb-uint8' }
 }
 Write-ReleaseJson $manifest (Join-Path $releaseRoot 'release-manifest.json')
 $hashLines = @($files | ForEach-Object { "$($_.sha256)  $($_.path)" })

@@ -28,8 +28,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "size_bytes": 2768,
-      "sha256": "97130ba7efdb60a735fc51fef0ed66eb6697d833b73f0834f27881cd58052559"
+      "size_bytes": 2203,
+      "sha256": "5186ff32dbffc90ff577b97a75453d4552be99e7d86e087f3995a4ead6dc419a"
     },
     {
       "path": ".gitignore",
@@ -43,8 +43,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "size_bytes": 6654,
-      "sha256": "16c62fdf4ca86deca2273e20f9df3970b58b30768f9066778e17b1dff8afd8a3"
+      "size_bytes": 7807,
+      "sha256": "a8a2f209573e43e8f15f807ca77d49a490377ed04103a4ba24665acdf9cb26a1"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -58,13 +58,13 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 6677,
-      "sha256": "b753c244a4cb4c5e77b72740045a16dd3990c4f4a477bcef1541aaa1054d86de"
+      "size_bytes": 6196,
+      "sha256": "082a598bd7e3111b55758c52ae09e8aa094127c88d52291cfb2762341e430fc1"
     },
     {
       "path": "RELEASE_CHECKLIST.md",
-      "size_bytes": 7405,
-      "sha256": "a0856f98e5d9ce26134804002a8b99d86d5a25a8a52ab69e0cc9037ec27fae6f"
+      "size_bytes": 6748,
+      "sha256": "0f9dac60cc0a86928edba2e0090fb26f7e07a2fa9d9f95a3c85d149ff8dc0841"
     },
     {
       "path": "RELEASE_NOTES.md",
@@ -78,8 +78,8 @@
     },
     {
       "path": "SECURITY_AND_SCOPE.md",
-      "size_bytes": 4816,
-      "sha256": "08abd34fae15d55f21fa61f1fb310d5ed4f2b45f4b4d188442f88938fe44d0a5"
+      "size_bytes": 7238,
+      "sha256": "6d838448d7b4ec2bb3e033015d3f1a5eb1a2fe2ed64c4f561f0acbeaefea7c99"
     },
     {
       "path": "SUPPORT.md",
@@ -117,174 +117,9 @@
       "sha256": "bfe93be49320c48384f75fdebe043931e95acca1245ae2f47b900415b6528456"
     },
     {
-      "path": "browser_engine.py",
-      "size_bytes": 23717,
-      "sha256": "20d5c00ef02fcd4ec4bfebab836628918b72f7f2f8d72393728660264a7b508d"
-    },
-    {
       "path": "build.ps1",
-      "size_bytes": 11214,
-      "sha256": "1aa560f433c86a9606c4516b55927156c059246bc18a0974a02216b5c469fbe2"
-    },
-    {
-      "path": "core/CANVAS_PATCH_NOTES.md",
-      "size_bytes": 5454,
-      "sha256": "cb7c4cc2bff7164da024bb609f855ee6a987a9fc69874f777cc2a8c0e0b9550c"
-    },
-    {
-      "path": "core/README.md",
-      "size_bytes": 18831,
-      "sha256": "f5a2ede609ca6a62253f48c961a138d0281f7a66928e20d0ee46ae345dfa283b"
-    },
-    {
-      "path": "core/native/LICENSE",
-      "size_bytes": 1536,
-      "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
-    },
-    {
-      "path": "core/native/LICENSE_SCOPE.md",
-      "size_bytes": 918,
-      "sha256": "e410ebd9529923658367ddd3fcfb68feb0e9ff0204ff8e6a8a57aed12cf745fe"
-    },
-    {
-      "path": "core/native/neantik_fingerprint.cc",
-      "size_bytes": 3864,
-      "sha256": "bd21e9fc5a5a0f6f6c58ba39c4b6a36b5115ebd274104b95a264b36d0a699ab6"
-    },
-    {
-      "path": "core/native/neantik_fingerprint.h",
-      "size_bytes": 1948,
-      "sha256": "e5499fc0d84598bcc688b1f7039ccc1e4ea4535fc8288112ac5b12e07c9c86f2"
-    },
-    {
-      "path": "core/native/neantik_fingerprint_unittest.cc",
-      "size_bytes": 4563,
-      "sha256": "a42b09accf114fd248a2b4b813afa44ea221430238ee989e11a855a92134ae6f"
-    },
-    {
-      "path": "core/native/neantik_timezone_tests.inc",
-      "size_bytes": 1848,
-      "sha256": "1062ec9838a4b6d62fb1f8648bb495ee22fbedb0ac1baf1c533cc0607b30bbf9"
-    },
-    {
-      "path": "core/native/neantik_webrtc_policy_tests.inc",
-      "size_bytes": 2504,
-      "sha256": "f07c444b981a15348420f9928c1190a3137979c87287c33167aa0739c408b603"
-    },
-    {
-      "path": "core/native/timezone-expected.txt",
-      "size_bytes": 366,
-      "sha256": "0d4a16400faea746e1dc2de504bafcb0d0f6625bf623f00ea865ec276e5c7a29"
-    },
-    {
-      "path": "core/native/timezone-surface.js",
-      "size_bytes": 533,
-      "sha256": "435aecf49f00ddacc42b9570972d23bebebb020d5e7ccd2d6cb23f3b2a02f4c3"
-    },
-    {
-      "path": "core/native/timezone.html",
-      "size_bytes": 3316,
-      "sha256": "20e5e1c19c5434c480ca4b1cd139debc8f8ee150e80fc2bc77897edb11ce3b61"
-    },
-    {
-      "path": "core/patches/0001-native-seed-state.patch",
-      "size_bytes": 15871,
-      "sha256": "7adbd35a412214642eaf8d68492f47b16dbc77c573fab7aa19d0c8a510544052"
-    },
-    {
-      "path": "core/patches/0002-native-cpu-memory.patch",
-      "size_bytes": 2240,
-      "sha256": "9008cd970b0f4528754baff1167256ca601b181259af290e6f877fddb862e08d"
-    },
-    {
-      "path": "core/patches/0005-omit-branded-updater-test.patch",
-      "size_bytes": 470,
-      "sha256": "a06b951c46885981d445423ec166dccfcb53134e7414b7192100924572caa9c2"
-    },
-    {
-      "path": "core/patches/003-canvas-readback.patch",
-      "size_bytes": 16944,
-      "sha256": "ee46f5acf9a3155dcee16dea5899f780050ed59c74674df264475513e77f0186"
-    },
-    {
-      "path": "core/patches/004-native-timezone.patch",
-      "size_bytes": 18387,
-      "sha256": "1b76b402fb768429f8bbe7826d302a55961cd8bbdf7b9e0da811f59deeef19b9"
-    },
-    {
-      "path": "core/patches/006-core-capability-scope.patch",
-      "size_bytes": 2617,
-      "sha256": "47849cb8641aaacb1dbe06e77e10066a8a09b17f6b6e7bb9298ef8188c196960"
-    },
-    {
-      "path": "core/patches/007-deterministic-midl-name-hashes.patch",
-      "size_bytes": 5595,
-      "sha256": "56b38129f88f6890ecd71328cc120dca151b322789b1839be5c187603e77faf2"
-    },
-    {
-      "path": "core/patches/008-windows155-memory-values.patch",
-      "size_bytes": 2844,
-      "sha256": "9bc732be9444bb53ab19ed319d2c68a129c94717165dd294c04958dc289388f3"
-    },
-    {
-      "path": "core/patches/009-native-proxy-webrtc-policy.patch",
-      "size_bytes": 8150,
-      "sha256": "9c22c99b46fd70d4114ef1723c77fe0d4a081536518efed32eeda3f01643704e"
-    },
-    {
-      "path": "core/patches/010-define-core-info-file-path.patch",
-      "size_bytes": 395,
-      "sha256": "46f27ce7bf90f085ad0b877ba7dc95de8aaf8b0b100b5ad0b16841a785f0ad7c"
-    },
-    {
-      "path": "core/patches/capability-chain-provenance.json",
-      "size_bytes": 4990,
-      "sha256": "3beb6a1296bfb5a90365dd4400c7d9851625e158e258f18265b922efca6ce98b"
-    },
-    {
-      "path": "core/patches/combined-patch-provenance.json",
-      "size_bytes": 3243,
-      "sha256": "b3b6701d1bad7cbedf5920de58fac78bee23262b010ccbc160c15a573a89d9b2"
-    },
-    {
-      "path": "core/patches/file-path-chain-provenance.json",
-      "size_bytes": 6511,
-      "sha256": "3c87bbedb62cb094f07d2a35c5ca7178d6f4643ddfc05413bb43a887574a5f07"
-    },
-    {
-      "path": "core/patches/memory-chain-provenance.json",
-      "size_bytes": 5555,
-      "sha256": "8ee6aca55b0c870b0b7c93bf4ee96dd87a44958a31b9c7427caab1a10b1fdda1"
-    },
-    {
-      "path": "core/patches/midl-chain-provenance.json",
-      "size_bytes": 5498,
-      "sha256": "6c58b017bd492b49458d7d979a26431dfa6343c3af7b74ca3b669a0099caecee"
-    },
-    {
-      "path": "core/patches/seed-patch-provenance.json",
-      "size_bytes": 2590,
-      "sha256": "82194f58cfbd891f9b308ea5f1f709c03c70e1fb76a25d01995a7be18999d2de"
-    },
-    {
-      "path": "core/patches/timezone-chain-provenance.json",
-      "size_bytes": 4584,
-      "sha256": "f94e7c07cfc3ffe5ff5b2c94a739a9606bbb5b7dddf7f07ca0da9790f1c2c2bc"
-    },
-    {
-      "path": "core/patches/webrtc-candidate-provenance.json",
-      "size_bytes": 6076,
-      "sha256": "dc0655e86cf97acc0dbb3a37e8a6d72828c3be6daa24de1af242e89d4cbcbe98"
-    },
-    {
-      "path": "core/patches/webrtc-chain-provenance.json",
-      "size_bytes": 6358,
-      "sha256": "915b2456dbfee146b9dbbffcebb2963cefd14a8e4ab2535688e9608c0aa7bcf9"
-    },
-    {
-      "path": "current_core.py",
-      "size_bytes": 10436,
-      "sha256": "3ec8c1059d1ab9d25533183182bbc549e5dc3d396c117a41fb19baf16c304695"
+      "size_bytes": 8922,
+      "sha256": "e2db6b65d8d347feb4b00e80432833aba98e6ab34c8f73c1343d0c1cbabfd8e7"
     },
     {
       "path": "docs/CYCLE_PLAN.md",
@@ -295,16 +130,6 @@
       "path": "docs/MARKET_RESEARCH.md",
       "size_bytes": 54689,
       "sha256": "b86428028618dbe1f99cfc82fbddc0c1d90da58e2d96fc293e1bebb72591c567"
-    },
-    {
-      "path": "docs/NEANTIK_CORE_RESEARCH.md",
-      "size_bytes": 16792,
-      "sha256": "50b29983b0e6351361aabac61651f7ee2d5b445870b02dccd81e323738f27a80"
-    },
-    {
-      "path": "docs/NEANTIK_IMPLEMENTATION_PLAN.md",
-      "size_bytes": 16750,
-      "sha256": "2a9e3c2c9de4e7180569f8f39a0f14d5a1d4cf13e4264820d3c3721ebb7e7c11"
     },
     {
       "path": "docs/NEANTIK_PUBLIC_SOURCE_AUDIT.md",
@@ -328,13 +153,18 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 162975,
-      "sha256": "3ee0bb349faadf4c2d157c5252dbcfc7e4596858cee45d476f3f3e2912939596"
+      "size_bytes": 160171,
+      "sha256": "1f9aa600513a0bc86eb09168544b763bdd133952b4fefc2530561f5b0476d112"
+    },
+    {
+      "path": "profile_identity.py",
+      "size_bytes": 1638,
+      "sha256": "c013562b031d3dece1fc72b521ad86c9e5dd8e16822aeb4f35654beb869b8efd"
     },
     {
       "path": "release-version.json",
       "size_bytes": 89,
-      "sha256": "07586ebec91a2443bf0af31172e88498153f9fde0fb54ed7f9c4217004a74a1a"
+      "sha256": "8694c7c5ad9c8dde8aaecdfcd79f5804ec0fa7cb06f3010d028ebc5505509fcb"
     },
     {
       "path": "requirements-build.txt",
@@ -347,24 +177,14 @@
       "sha256": "b9f669f530e76bccda51788e376f429cbfebc41f3f63dc4eafe0b0e3a62d586b"
     },
     {
-      "path": "test_browser_engine.py",
-      "size_bytes": 12786,
-      "sha256": "0266d342e4e0ccc3ac8bf24d6ae9e0a0a839460fb12f8ceffd9dbb4392a37bb5"
-    },
-    {
-      "path": "test_current_core.py",
-      "size_bytes": 16120,
-      "sha256": "dc376ccc5cfe26757c301be832d95913b19999de361aae3ff5b412ae44b5978c"
-    },
-    {
       "path": "test_nevision_win.py",
       "size_bytes": 40974,
       "sha256": "6871cd53f87c47159f6af5866ee58448b915c324e5ed95f437b3e73bd3498b56"
     },
     {
-      "path": "tools/CURRENT_NATIVE_QA.md",
-      "size_bytes": 5556,
-      "sha256": "9c6fcdaf0d7bbd35f3e2e7c5c859de4a81756cfd5865dd40e5720a9611bcd726"
+      "path": "test_profile_identity.py",
+      "size_bytes": 3631,
+      "sha256": "d2408fc2f1f639fddf3c58e35b7290923200eec33c3bddf5600bc0f3c96b7b94"
     },
     {
       "path": "tools/benchmark_runtime.py",
@@ -383,23 +203,8 @@
     },
     {
       "path": "tools/export-public-source.py",
-      "size_bytes": 6875,
-      "sha256": "c78dc64a93c03998574ac4139521ac107bf70eafe179601a440b85bf1b0c4e8c"
-    },
-    {
-      "path": "tools/fixtures/current-native-driver.js",
-      "size_bytes": 3764,
-      "sha256": "f073c5597a345285f3156a527397ebb135309f3f4e03164a797b20be9fc1f485"
-    },
-    {
-      "path": "tools/fixtures/current-native-surfaces.js",
-      "size_bytes": 4914,
-      "sha256": "f1a1684f98dba2a03213beb3c8384f95aefd27acf06f557d1a8fa3b629c44cd7"
-    },
-    {
-      "path": "tools/fixtures/current-native-webrtc.js",
-      "size_bytes": 1050,
-      "sha256": "bc0a9ba1c6d64a7c265a76483e2a3fabbdf35050ae79e5e16625f413b08dc7e1"
+      "size_bytes": 7387,
+      "sha256": "a6ab1dc48cbbe1626cd015ae7560de399a54978d24a194a109f095170f933a2b"
     },
     {
       "path": "tools/gui_regression.py",
@@ -427,146 +232,6 @@
       "sha256": "d05d471419880a3b05e6d03940e6b072cf385d4d6ff2439c6453dca611fe9122"
     },
     {
-      "path": "tools/native-core/README.md",
-      "size_bytes": 15484,
-      "sha256": "7cf49d16b67c3fa9e679c4867bbaa319c5981f3f7c06a110c523e5c568b8d4fb"
-    },
-    {
-      "path": "tools/native-core/bootstrap-sdk.ps1",
-      "size_bytes": 1645,
-      "sha256": "7667303ec87284fac27868366d70d5c78e2bc5f4e2641b76af4cef015c876cfc"
-    },
-    {
-      "path": "tools/native-core/bootstrap-vs2026.ps1",
-      "size_bytes": 2523,
-      "sha256": "fc86577e28d272de429fd8ca41416ef2b7fd4e8aadc6d10ce4441aefa6145750"
-    },
-    {
-      "path": "tools/native-core/build-current-core.ps1",
-      "size_bytes": 5664,
-      "sha256": "fe26bd90af27017dd458e97c483ea050e6ed500481e0844b8229fd6c6f4345df"
-    },
-    {
-      "path": "tools/native-core/buildspec.json",
-      "size_bytes": 9176,
-      "sha256": "5022ac93365f138ec6b6b18115dc345fe2af07ae04bf1e90bfa31fcba047cde2"
-    },
-    {
-      "path": "tools/native-core/generate-capability-scope-patch.py",
-      "size_bytes": 4988,
-      "sha256": "2d73df840b1f9c3c0e7fe73a62fdeb3dd196ea154c973b6a6e088c58da20f924"
-    },
-    {
-      "path": "tools/native-core/generate-dependency-receipt.py",
-      "size_bytes": 6823,
-      "sha256": "f8390d307c19552e3c0808aaf1eb5a10fcca1c7a67c2362851d5bf3269015241"
-    },
-    {
-      "path": "tools/native-core/generate-memory-values-patch.py",
-      "size_bytes": 5030,
-      "sha256": "aa76ea849249ac5ed3a67e3dd412e84b60d929cf6bec3b6958c3b6d3a83c619b"
-    },
-    {
-      "path": "tools/native-core/generate-seed-patches.py",
-      "size_bytes": 11121,
-      "sha256": "14fb579a5b8d9281a20d41d48a5a887b473f36c5178feaa581a160acea3e0419"
-    },
-    {
-      "path": "tools/native-core/generate-timezone-patch.py",
-      "size_bytes": 11972,
-      "sha256": "790482e1042fba335651cdc171a4422a1b1a3a0fd27f5ebcc2ac271b6f651af6"
-    },
-    {
-      "path": "tools/native-core/generate-webrtc-policy-patch.py",
-      "size_bytes": 6900,
-      "sha256": "ee1b5ae70944da1131aeaaf39aa6b2ec83ce9ce3ad677a1f459e6e9ebfd4cc3e"
-    },
-    {
-      "path": "tools/native-core/inspect-sdk-bootstrap.py",
-      "size_bytes": 1286,
-      "sha256": "a025f3fd72077d1407d0c6d499b1f1e34c48ce5b549c652951866cdf19487b27"
-    },
-    {
-      "path": "tools/native-core/midl-namehash-diagnostic.py",
-      "size_bytes": 5455,
-      "sha256": "b794b24e87bb52af0c004f4a7b215114619a6ab64c633d82e91f75fcb91a8087"
-    },
-    {
-      "path": "tools/native-core/native_qa_report.py",
-      "size_bytes": 11333,
-      "sha256": "fd4084b1ae5b05234e04859e9ded4588419cd8647db9354d5a3eae42cd69ad80"
-    },
-    {
-      "path": "tools/native-core/native_qa_synthetic_fixture.py",
-      "size_bytes": 4502,
-      "sha256": "33b5792edcd98c7088728c08a68c17a9907c3113811f9c94eca41f242538f181"
-    },
-    {
-      "path": "tools/native-core/package-engine.py",
-      "size_bytes": 14165,
-      "sha256": "da89c8d84b30279ed4a4eac6872137c21011972c38525f79443ccb31f21864ee"
-    },
-    {
-      "path": "tools/native-core/preflight.ps1",
-      "size_bytes": 3572,
-      "sha256": "1d7e800904a3c8155609688d6a2df17b51526c293aa0015fa8f057c6ab3b1943"
-    },
-    {
-      "path": "tools/native-core/test-owned-process-exit.ps1",
-      "size_bytes": 1198,
-      "sha256": "45202b1c2734eb784e2fa1577cb29049abcd69771a7019ee7fd6272b5baca534"
-    },
-    {
-      "path": "tools/native-core/test_file_path_patch_contract.py",
-      "size_bytes": 1185,
-      "sha256": "31c38d4225900889d04d80e300481099bdc6695e6e5eb573d5064380288bca74"
-    },
-    {
-      "path": "tools/native-core/test_generate_dependency_receipt.py",
-      "size_bytes": 2815,
-      "sha256": "431f4ba3e854ade52085c4068a43cb92f0f0da0808229cd62e91a22524cb6d41"
-    },
-    {
-      "path": "tools/native-core/test_midl_namehash.py",
-      "size_bytes": 4640,
-      "sha256": "823c5ee9921ff3f6a5172c30affc2353079fb9e96711bc72fed9b1f90f603762"
-    },
-    {
-      "path": "tools/native-core/test_native_qa_report.py",
-      "size_bytes": 9151,
-      "sha256": "4230e7b96e52ba501cbdae9e852d1f5586c0bc2a86772fe3322e4283766db62d"
-    },
-    {
-      "path": "tools/native-core/test_package_engine.py",
-      "size_bytes": 10046,
-      "sha256": "9d527371d4e3776e30169c5181343cefb225e2b80bbc71090cf3d2fb62fa3d59"
-    },
-    {
-      "path": "tools/native-core/test_verify_patch_series.py",
-      "size_bytes": 4509,
-      "sha256": "ee490896a52e1f3887dcfa853b9f43724e470f4c18dee3289833c7c7aad5e7c1"
-    },
-    {
-      "path": "tools/native-core/test_verify_pins.py",
-      "size_bytes": 2845,
-      "sha256": "c4448862f93f8a4808f32c284749a263cea68e069eb57161098e65d95909faaf"
-    },
-    {
-      "path": "tools/native-core/test_webrtc_patch_contract.py",
-      "size_bytes": 1928,
-      "sha256": "d6624514c4feed62d03cbe6f80c07b777d53831d764287db4f04233023f4d4b7"
-    },
-    {
-      "path": "tools/native-core/verify-patch-series.py",
-      "size_bytes": 5885,
-      "sha256": "d19b7f5aa675299f2dc4515261ca7e607fba57fce4c29dad2d2b7f31ab3871d1"
-    },
-    {
-      "path": "tools/native-core/verify-pins.py",
-      "size_bytes": 3416,
-      "sha256": "b2a6122034b63f66bb92e68ec014b8409c6493b3bf15c90ff19445225bc95469"
-    },
-    {
       "path": "tools/prepare-build-metadata.py",
       "size_bytes": 4874,
       "sha256": "8936d15627a8a95f8dcbb6d7fed14758f23f4a3c41025294470ed2a666dd4c34"
@@ -588,43 +253,18 @@
     },
     {
       "path": "tools/test-release-tools.ps1",
-      "size_bytes": 9751,
-      "sha256": "183f2ee91bc2f69588e6755fbc0519a7d3be9c68373a318f359a0ec2755accc9"
-    },
-    {
-      "path": "tools/test_current_native_fingerprint.py",
-      "size_bytes": 29159,
-      "sha256": "55efbf162424007a2e0de7772f56f98b461c07fe088dd011f9457a60db3094b9"
-    },
-    {
-      "path": "tools/test_current_native_harness_unit.py",
-      "size_bytes": 7312,
-      "sha256": "be1338f8243b85bf4019f3065177d7295fa8982985806225a4c752842aad554e"
-    },
-    {
-      "path": "tools/test_native_fingerprint.py",
-      "size_bytes": 21908,
-      "sha256": "49d0ca3b69c9c5cc61593c1c077b89a72c9687251929c327104ef35faa4e24b5"
-    },
-    {
-      "path": "tools/test_native_webrtc_privacy.py",
-      "size_bytes": 14951,
-      "sha256": "f81e6167c9e84250a4adc1047b5c117fc9df9daea624d8b8f538e4737ca39eae"
-    },
-    {
-      "path": "tools/test_native_webrtc_privacy_unit.py",
-      "size_bytes": 8927,
-      "sha256": "8be13a645ffd097f693bfc8afa4a9e7cbac98883e7521e13c4bf3c184a23f18f"
+      "size_bytes": 10309,
+      "sha256": "4f34509932aaed5fe1b3001dcdb7a1105a219e038c63c8cac25e8dfde3ff4d2a"
     },
     {
       "path": "tools/test_public_source_export.py",
-      "size_bytes": 5841,
-      "sha256": "cdce991d6a5afbb696fac07f58b3952cfefe951e35df54f2dcb60dfbb55c9bf9"
+      "size_bytes": 5861,
+      "sha256": "19cd308fecc1eaf9e3f4f0786995ac5d1ea96d3ee03bd30c01eac054cfd52f98"
     },
     {
       "path": "tools/verify-release-archive.ps1",
-      "size_bytes": 10792,
-      "sha256": "d3d8fa6343d9b551d2f058ecd50021aa27256999d6ed1ce71682f7cfc2fdd82a"
+      "size_bytes": 8422,
+      "sha256": "6f927689a4479eec5c8c11fdd75e1cd596372fc5b10b3abd5f8f7538e348f2cf"
     },
     {
       "path": "website/CHANGELOG.md",
@@ -638,8 +278,8 @@
     },
     {
       "path": "website/RELEASE_POLICY.md",
-      "size_bytes": 3463,
-      "sha256": "277649ebdf0b3bc8ad78273566d670bfaeae7f4fae1af90ca7659badeb2e0283"
+      "size_bytes": 3710,
+      "sha256": "6851db2bc89694d679ececfa92affc161254abfa1f5e99ad8cbcfe8fc67136cb"
     },
     {
       "path": "website/app/CHANGELOG.md/route.ts",

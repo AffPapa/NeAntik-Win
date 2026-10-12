@@ -13,6 +13,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 
 ```powershell
 python -m unittest -v test_nevision_win.py
+python -m unittest -v test_profile_identity.py
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
@@ -69,15 +70,14 @@ Use disposable test data outside the shipping folder. Re-check the final ZIP aft
 - Update version/date/download target/hash/size and CHANGELOG; never invent a GitHub repository or release URL.
 - Verify page, download and changelog GET/HEAD behavior and UTF-8 rendering (including Cyrillic).
 - Recheck desktop/mobile layout, system light/dark theme and all release links.
-- Keep product limits visible for the exact downloadable artifact: the historical stock-browser release has no fingerprint spoofing; a native release must name its actually observed surfaces and uncovered formats. TCP-only proxy diagnostics, unsigned preview, sensitive local backups and cross-PC encryption limits remain explicit.
+- Keep product limits visible for the exact downloadable artifact: this edition always launches installed stock Chrome/Edge and has no fingerprint modification. The archive verifier must reject any custom browser engine. TCP-only proxy diagnostics, unsigned preview, sensitive local backups and cross-PC encryption limits remain explicit.
 
-## 7. Additional gate for the first native NeAntik release
+## 7. Ordinary-browser-only release gate
 
-- Do not publish the launcher-only CI artifact or a stock Chromium binary as the native release. Verify exact source/patch hashes, GN args, dependency receipt and license artifacts for the packaged engine.
-- Complete the owned current-core compilation, run the authored native GoogleTests, build `content_shell` and run the relevant Blink web tests. Source apply checks are not compile or runtime proof.
-- Independently run `tools/test_current_native_fingerprint.py` against the final engine with an externally recorded manifest SHA-256. Require all five fingerprint visits, eight malformed-input rejections and five WebRTC network scenarios, including positive unproxied STUN controls and request-bound unavailable-proxy error evidence. Reject an incomplete report even if its status says `passed`.
-- Recheck CPU/memory/HTTP hints, Date/Intl/timezone, supported Canvas readback/export and frame/worker parity. Record unsupported P3, float16 and translucent Canvas, genuine host GPU/fonts/audio, and no undetectability guarantee.
-- Real headed Windows checks must include the bundled engine, tabs/history/downloads/extensions, proxy behavior, native backup/restore identity continuity and update/rollback. Historical stock-browser results do not certify this engine.
-- Reverify the engine and outer ZIP after testing, then repeat the public-download hash/launch checks. Publish a new version, not new bytes under the old 0.2.1 version.
+- Verify `release-manifest.json` reports `native_core_bundled: false` and `fingerprint_modification: false`; the release tree must contain no `Engine/` directory.
+- Verify there are no fingerprint or engine command-line overrides in the launcher; ordinary profiles must have no appended identity arguments.
+- Test an experimental legacy profile marker: its browser data remains unchanged, and launch/edit/clone actions fail clearly without falling back to stock Chrome/Edge.
+- Test normal stock Chrome/Edge launch, data isolation, profile backup/restore, proxy assignment and update/rollback using disposable data as described above.
+- Reverify the exact ordinary-browser ZIP after testing, then repeat public-download hash and launch checks.
 
 Release is complete only when the exact portable artifact, public download, checksums, release notes and public website agree and no known release-blocking P0/P1 defect remains. Keep release evidence; do not describe pending gates as passed.

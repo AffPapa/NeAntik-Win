@@ -30,7 +30,7 @@ class PublicExportTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding='utf-8')
 
-    def test_source_engine_fixture_included_runtime_and_qa_excluded(self):
+    def test_experimental_engine_sources_are_excluded_from_app_export(self):
         for name in ('browser_engine.py', 'test_browser_engine.py', 'tests/fixtures/fingerprint.html',
                      'tools/engine.js', '.github/workflows/ci.yml', 'docs/PLAN.md',
                      'core/patches/003-canvas.patch', 'core/native/helper.cc',
@@ -42,12 +42,12 @@ class PublicExportTests(unittest.TestCase):
             self.write(name, 'must never export\n')
         result = MODULE.export(self.root, self.destination)
         paths = {item['path'] for item in result['files']}
-        self.assertIn('browser_engine.py', paths)
-        self.assertIn('tests/fixtures/fingerprint.html', paths)
-        self.assertIn('core/patches/003-canvas.patch', paths)
-        self.assertIn('core/native/LICENSE', paths)
-        self.assertIn('core/native/helper_tests.inc', paths)
-        self.assertIn('current_core.py', paths)
+        self.assertNotIn('browser_engine.py', paths)
+        self.assertNotIn('tests/fixtures/fingerprint.html', paths)
+        self.assertNotIn('core/patches/003-canvas.patch', paths)
+        self.assertNotIn('core/native/LICENSE', paths)
+        self.assertNotIn('core/native/helper_tests.inc', paths)
+        self.assertNotIn('current_core.py', paths)
         self.assertNotIn('Engine/config.json', paths)
         self.assertNotIn('docs/qa/host.json', paths)
         self.assertNotIn('assets/private.key', paths)

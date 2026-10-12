@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser manager, previously named NeVision Win. This `0.3.0-preview` portable edition manages isolated profiles and launches the installed Google Chrome or Microsoft Edge. It does not bundle the experimental native Chromium core or change browser fingerprint signals. The repository also contains a separate native-core research branch and its QA reports; those are not included in this downloadable edition.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.4.0-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. It does not bundle a browser engine, provide a standalone browser, or alter browser fingerprint signals. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
 
 ## Download and start
 
@@ -18,7 +18,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Native browser Extensions page for a closed profile; install only extensions you trust.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The downloadable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not include fingerprint modification. Native-core source and experimental capability tests remain in the repository but are not part of this portable artifact.
+The downloadable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not include fingerprint modification. The release builder and archive verifier refuse custom browser-engine payloads.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 
@@ -48,7 +48,7 @@ Use Windows x64, PowerShell and Python 3.12 in an authorized source checkout:
 
 ```powershell
 python -m pip install -r requirements-build.txt
-python -m unittest -v test_nevision_win.py test_browser_engine.py test_current_core.py
+python -m unittest -v test_nevision_win.py test_profile_identity.py
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
@@ -58,7 +58,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-Building the launcher alone does not build Chromium and does not create a complete native release. Follow the separate native build and independent runtime QA instructions before bundling or publishing an engine. Native backup uses `neantik-profile-backup-v2` and preserves seed/settings; ordinary v1 backups remain readable. A clean settings clone creates a new seed and copies no cookies.
+This project does not build or bundle Chromium. Every profile uses the installed stock browser; no fingerprint configuration or launch flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to Chrome/Edge. A clean profile clone copies no cookies or browser session data.
 
 The source freeze checkpoint passed 44 core tests, 7 Tk checks, 13 release-tool checks and the source self-test. This is not evidence that a later artifact passed packaged or public-download QA: follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for each release.
 

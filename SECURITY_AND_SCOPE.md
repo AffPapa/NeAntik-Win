@@ -1,10 +1,10 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.3.0-preview portable profile manager edition.
+Applies to NeAntik Win 0.4.0-preview ordinary-browser profile manager edition.
 
 ## Product boundary
 
-This downloadable edition manages local directories and launches installed stock Chrome/Edge. It does not bundle the experimental native Chromium core or modify browser fingerprint signals. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user.
+This downloadable edition manages local directories and launches installed stock Chrome/Edge. It does not bundle a browser engine or modify browser fingerprint signals. New profiles use stock browser behavior. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user.
 
 Only Windows 11 x64 build 26200 has been exercised for this release. The portable executable is unsigned. A checksum verifies bytes, not publisher identity.
 
@@ -28,9 +28,9 @@ The Extensions action opens the native Chrome/Edge extension manager for a close
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.3.0-preview manager-only binary**, not the experimental core source elsewhere in this repository. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by the installed browser and Windows. The release tests exercise profile/launcher behavior, not JavaScript fingerprint measurement, so inherited values below are not a claim that every API/context was independently instrumented.
+This matrix describes the **0.4.0-preview ordinary-browser binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by the installed browser and Windows. The release tests exercise profile/launcher behavior, not JavaScript fingerprint measurement, so inherited values below are not a claim that every API/context was independently instrumented.
 
-| Surface | 0.3.0-preview behavior | Evidence / limitation |
+| Surface | 0.4.0-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | Uses the installed Chrome or Edge; no engine is bundled or patched | Launcher discovery and process behavior are tested; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |
