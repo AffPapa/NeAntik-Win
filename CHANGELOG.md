@@ -2,6 +2,24 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.5.1-preview — smaller portable build and clearer controls (2026-10-12)
+
+- Bundled Chromium now carries `en-US`, Russian and Thai UI locale packs instead
+  of 228 languages. Other Windows languages fall back to English; browser core
+  and profile data format are unchanged. ZIP is still a single portable folder.
+- Added delayed, keyboard-accessible explanations to the principal controls and
+  a short in-app guide under Help. Ambiguous action labels now say “Backup” and
+  “Clean copy” in full Russian wording, including the sensitive backup warning.
+- Profile details now display the actual pinned browser family instead of always
+  saying “Chrome / Edge”. No browsing data is migrated or deleted.
+- A bundled-Chromium profile with a configured proxy now restricts non-proxied
+  WebRTC UDP using Chromium's supported IP-handling preference. WebRTC calls may
+  behave differently; this is not a leak or anonymity guarantee. The system
+  timezone remains unchanged.
+- The core remains Chromium 155.0.8059.40, built from the same pinned upstream
+  source. This preview is unsigned, does not spoof device/browser identity values and does
+  not guarantee anonymity. Save the whole old portable folder before upgrading.
+
 ## 0.5.0-preview — self-contained portable Chromium (2026-10-12)
 
 - The portable ZIP now includes source-built, unbranded Chromium 155.0.8059.40.

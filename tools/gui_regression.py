@@ -136,10 +136,47 @@ class GuiTests(unittest.TestCase):
     def test_escape_closes_settings_dialog(self):
         dialog = nv.SettingsDialog(self.app)
         self.app.root.update()
-        dialog.path.focus_force()
-        dialog.path.event_generate("<Escape>")
+        dialog.theme.focus_force()
+        dialog.theme.event_generate("<Escape>")
         self.app.root.update()
         self.assertFalse(dialog.winfo_exists())
+
+    def test_legacy_browser_path_is_hidden_until_requested(self):
+        dialog = nv.SettingsDialog(self.app)
+        self.app.root.update()
+        self.assertFalse(dialog.compatibility.winfo_ismapped())
+        dialog.toggle_compatibility()
+        self.app.root.update()
+        self.assertTrue(dialog.compatibility.winfo_ismapped())
+        dialog.destroy()
+
+    def test_important_actions_have_plain_language_hints(self):
+        self.app.refresh_profiles(self.profile)
+        self.app.root.update()
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+        buttons = {widget.text: widget for widget in walk(self.app.root) if isinstance(widget, nv.IconButton)}
+        for label in ("Резервная копия", "Чистая копия", "TCP-проверка proxy", "Удалить профиль"):
+            self.assertIsNotNone(buttons[label].hint)
+            self.assertGreater(len(buttons[label].hint.text), 20)
+        hint = buttons["Чистая копия"].hint
+        hint._show()
+        self.assertIsNotNone(hint.popup)
+        hint._hide()
+        self.assertIsNone(hint.popup)
+
+    def test_profile_browser_label_matches_pinned_engine(self):
+        self.storage.pin_browser_family(self.profile, "chromium")
+        self.app.refresh_profiles(self.profile)
+        self.app.root.update()
+        def labels(widget):
+            for child in widget.winfo_children():
+                if isinstance(child, nv.tk.Label):
+                    yield str(child.cget("text"))
+                yield from labels(child)
+        self.assertTrue(any("Встроенный Chromium" in value for value in labels(self.app.detail)))
 
 
 if __name__ == "__main__": unittest.main(verbosity=2)

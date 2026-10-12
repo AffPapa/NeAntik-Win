@@ -7,7 +7,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 - Set `release-version.json` once; it is the source for runtime, Windows metadata, artifact names and release manifests. Do not independently hardcode a new runtime version.
 - Update CHANGELOG with date, changes, limitations and migration notes; preserve historical entries.
 - Keep README, architecture, security scope and site claims consistent with implemented behavior.
-- The unpublished 0.2.0 candidate passed its initial source gate but failed packaged long-path backup. Version 0.2.1 adds seven regressions (51 core checks) and a long-path frozen self-test. Repeat the complete gate after freeze; packaged/public QA remains mandatory.
+- Re-run the complete gate after every change; source-only success is not packaged or public-download QA.
 
 ## 2. Verify source and release tooling
 
@@ -28,7 +28,7 @@ python nevision_win.py --self-test
 ## 3. Build an immutable clean candidate
 
 ```powershell
-.\build.ps1 -Clean
+.\build.ps1 -Clean -EngineDirectory <staged-engine-directory>
 ```
 
 For a bundled-browser release, stage the pinned stable Chromium source build
@@ -45,6 +45,8 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Verify Chromium source commit, build-only patch SHA-256, version, `LICENSE`,
   `credits.html` and exact runtime allowlist. A bundled archive must contain
   no PDBs, build intermediates, tests or user `Data/`.
+- For 0.5.1, verify only en-US/ru/th Chromium UI packs are present, record the
+  old/new ZIP size, and test English fallback before claiming a size win.
 
 ## 4. Test the exact packaged ZIP
 
@@ -81,14 +83,14 @@ Use disposable test data outside the shipping folder. Re-check the final ZIP aft
 - Update version/date/download target/hash/size and CHANGELOG; never invent a GitHub repository or release URL.
 - Verify page, download and changelog GET/HEAD behavior and UTF-8 rendering (including Cyrillic).
 - Recheck desktop/mobile layout, system light/dark theme and all release links.
-- Keep product limits visible for the exact downloadable artifact: this edition always launches installed stock Chrome/Edge and has no fingerprint modification. The archive verifier must reject any custom browser engine. TCP-only proxy diagnostics, unsigned preview, sensitive local backups and cross-PC encryption limits remain explicit.
+- Keep product limits visible for the exact downloadable artifact: the bundled Chromium runs new profiles; old Chrome/Edge profiles stay pinned. The proxy WebRTC UDP restriction is not a guarantee against leaks. System timezone is unchanged. Unsigned preview, sensitive backups and cross-PC encryption limits remain explicit.
 
-## 7. Ordinary-browser-only release gate
+## 7. Bundled-browser release gate
 
-- Verify `release-manifest.json` reports `native_core_bundled: false` and `fingerprint_modification: false`; the release tree must contain no `Engine/` directory.
-- Verify there are no fingerprint or engine command-line overrides in the launcher; ordinary profiles must have no appended identity arguments.
+- Verify `release-manifest.json` reports `native_core_bundled: true` and `fingerprint_modification: false`; the release tree must contain complete `Engine/Chromium` provenance, licenses and runtime files.
+- Verify new profiles use bundled Chromium and a proxy profile receives only the tested WebRTC IP-handling preference; ordinary identity values are not rewritten.
 - Test an experimental legacy profile marker: its browser data remains unchanged, and launch/edit/clone actions fail clearly without falling back to stock Chrome/Edge.
-- Test normal stock Chrome/Edge launch, data isolation, profile backup/restore, proxy assignment and update/rollback using disposable data as described above.
-- Reverify the exact ordinary-browser ZIP after testing, then repeat public-download hash and launch checks.
+- Test bundled Chromium launch, old Chrome/Edge pinning, data isolation, backup/restore, proxy assignment and update/rollback using disposable data as described above.
+- Reverify the exact portable ZIP after testing, then repeat public-download hash and launch checks.
 
 Release is complete only when the exact portable artifact, public download, checksums, release notes and public website agree and no known release-blocking P0/P1 defect remains. Keep release evidence; do not describe pending gates as passed.

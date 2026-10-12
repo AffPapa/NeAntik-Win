@@ -20,7 +20,7 @@ function Expect-Failure([string]$Name, [scriptblock]$Action, [string]$Pattern) {
 }
 
 function New-TestArchive([string]$Mode) {
-    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } else { '0.2.0-preview' }
+    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } elseif ($Mode -eq 'new-preview-051-without-core') { '0.5.1-preview' } else { '0.2.0-preview' }
     $folder = "NeVisionWin-portable-v$testVersion"
     $version = "{`"version`":`"$testVersion`",`"file_version`":[0,2,0,0],`"channel`":`"preview`"}"
     $payload = [ordered]@{
@@ -110,7 +110,7 @@ function New-TestArchive([string]$Mode) {
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
     }
     if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
-    if ($Mode -in @('neantik', 'new-preview-without-core')) {
+    if ($Mode -in @('neantik', 'new-preview-without-core', 'new-preview-051-without-core')) {
         $folder = "NeAntikWin-portable-v$testVersion"
         $payload['NeAntikWin.exe'] = $payload['NeVisionWin.exe']
         $payload.Remove('NeVisionWin.exe')
@@ -118,7 +118,7 @@ function New-TestArchive([string]$Mode) {
         $manifest.files = $files
         $manifest.executable = 'NeAntikWin.exe'
         $manifest.product = 'NeAntik Win'
-        if ($Mode -eq 'new-preview-without-core') { $manifest.native_core_bundled = $false }
+        if ($Mode -in @('new-preview-without-core', 'new-preview-051-without-core')) { $manifest.native_core_bundled = $false }
     }
     $payload['release-manifest.json'] = $manifest | ConvertTo-Json -Depth 5 -Compress
     $payload['SHA256SUMS.txt'] = ($files | ForEach-Object { "$($_.sha256)  $($_.path)" }) -join "`n"
@@ -174,6 +174,8 @@ $renamed = New-TestArchive 'neantik'
 $script:passed++
 $incompleteNewPreview = New-TestArchive 'new-preview-without-core'
 Expect-Failure '0.5 portable archive without Chromium rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $incompleteNewPreview } 'must bundle Chromium'
+$incompleteNewPreview051 = New-TestArchive 'new-preview-051-without-core'
+Expect-Failure '0.5.1 portable archive without Chromium rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $incompleteNewPreview051 } 'must bundle Chromium'
 foreach ($case in @(@('data', 'Forbidden'), @('hash', 'mismatch'), @('missing-license', 'missing'), @('unlisted', 'Unlisted'), @('version', 'Inconsistent'), @('traversal', 'Unsafe'), @('duplicate', 'Duplicate'), @('secret', 'credential'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]

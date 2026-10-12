@@ -85,7 +85,9 @@ staging tool rejects changed tracked files outside those two build inputs,
 checks the pinned commit and version, curates runtime files, and extracts
 `chrome://credits` from the staged browser. The runtime set includes the
 versioned Windows Side-by-Side manifest and unmodified x64 Visual C++
-redistributable DLLs. On NTFS, Windows AppContainer children need read/execute
+redistributable DLLs. The 0.5.1 portable stage retains only `en-US`, `ru` and
+`th` Chromium UI packs; other locales fall back to English. This reduces the
+ZIP without modifying or repacking the Chromium DLL. On NTFS, Windows AppContainer children need read/execute
 access to engine files; staging and the portable launcher grant that access
 only under `Engine/Chromium`, never private `Data/`. Then run `build.ps1
 -EngineDirectory <staged-engine-directory>` and verify the resulting ZIP with

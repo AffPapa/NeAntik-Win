@@ -1,10 +1,10 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.5.0-preview portable Chromium edition.
+Applies to NeAntik Win 0.5.1-preview portable Chromium edition.
 
 ## Product boundary
 
-This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. NeAntik does not modify browser fingerprint signals. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
+This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. NeAntik does not spoof device or browser identity values. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
 
 Chromium's Windows sandbox needs read/execute access to its own runtime files. Because ZIP extraction drops NTFS ACLs, the first bundled-browser launch grants the Windows `ALL APPLICATION PACKAGES` group that access to `Engine/Chromium` only. It does not grant access to `Data/`, backups or proxy secrets. A writable NTFS folder is tested; a filesystem without Windows ACL support is not validated. The browser sandbox remains enabled.
 
@@ -26,24 +26,26 @@ Hosts are validated and normalized, including IDNA and IPv6. A missing assigned 
 
 Proxy checking is TCP reachability only: it does not verify authentication, protocol negotiation, DNS routing, UDP, exit IP or WebRTC behavior. No local authenticated-proxy broker is bundled.
 
+When a proxy is assigned to a **bundled Chromium** profile, the launcher sets Chromium's `disable_non_proxied_udp` WebRTC IP-handling preference. WebRTC remains available but may behave differently, including calls. The setting does not prove that all traffic uses the proxy or that IP/DNS leaks are impossible. No-proxy profiles and installed Chrome/Edge are unchanged. The system timezone is not overridden or inferred from proxy IP.
+
 The Extensions action opens the selected browser's native extension manager for a closed profile. When a profile is already open, use its browser menu. Extensions are optional and not installed automatically. They can access sensitive browsing data according to their permissions; NeAntik does not audit or sandbox third-party extensions.
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.5.0-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise profile/launcher behavior, not comprehensive JavaScript fingerprint measurement.
+This matrix describes the **0.5.1-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise profile/launcher behavior, not comprehensive JavaScript fingerprint measurement.
 
-| Surface | 0.5.0-preview behavior | Evidence / limitation |
+| Surface | 0.5.1-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build-only patch are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |
-| Language, timezone, CPU/memory, screen and viewport | Not overridden; inherited from Windows/browser configuration | No persona configuration; cross-frame and worker consistency were not separately measured |
+| Language, timezone, CPU/memory, screen and viewport | Not overridden; inherited from Windows/browser configuration. Browser UI packs are en-US, ru and th, with English fallback | No persona configuration; cross-frame and worker consistency were not separately measured |
 | Canvas, WebGL/WebGPU, audio, fonts and layout metrics | Not modified by the manager | No surface-level fingerprint probes or equality guarantees |
 | Frames, dedicated/shared/service workers | No injected JavaScript or worker patching | These contexts were not independently tested for this release |
 | Cookies, history and web storage | Stored by the selected browser inside each profile's separate user-data directory | Profile path isolation is tested; this is not an OS security sandbox |
-| Proxy routing | Optional per-profile proxy assignment is passed to the browser; missing/invalid assignments fail closed | Proxy checker is TCP-only. Auth, DNS, exit IP, UDP/WebRTC and leak resistance are not verified |
+| Proxy routing and WebRTC | Optional per-profile proxy assignment is passed to the browser; bundled Chromium with proxy restricts non-proxied WebRTC UDP | Proxy checker is TCP-only. Auth, DNS, exit IP and full leak resistance are not verified; WebRTC calling may differ |
 | Extensions | Uses the browser's native extension manager and browser policy | No automatic installation or extension permission audit |
 
-Do not infer fingerprint modification, coherent cross-surface personas, anonymity, or successful anti-fraud testing from profile isolation or proxy assignment. Those are distinct capabilities and are absent from this downloadable edition.
+Do not infer fingerprint spoofing, coherent cross-surface personas, anonymity, or successful anti-fraud testing from profile isolation or proxy assignment. Those are distinct capabilities and are absent from this downloadable edition.
 
 ## Backup, recovery and concurrency safeguards
 

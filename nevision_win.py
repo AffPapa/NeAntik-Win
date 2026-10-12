@@ -2,7 +2,7 @@
 
 This edition prefers bundled unbranded Chromium for new local profiles and can
 continue to launch profiles pinned to an installed Chrome or Edge browser.
-It bundles upstream unbranded Chromium without changing fingerprint signals.
+It bundles upstream unbranded Chromium without spoofing device or browser identities.
 """
 
 from __future__ import annotations
@@ -1585,6 +1585,10 @@ class BrowserLauncher:
                 if proxy["scheme"] == "socks5" and (proxy.get("username") or proxy.get("password_protected")):
                     raise NeVisionError("Chromium/Chrome/Edge не поддерживает SOCKS5 с логином/паролем. Используйте proxy с IP-авторизацией или HTTP(S). Пароль в vault хранится, но автоматически в браузер не передаётся.")
                 arguments.append(f"--proxy-server={proxy_endpoint(proxy)}")
+                if family == "chromium":
+                    # Keep WebRTC available, but do not permit direct UDP outside
+                    # the configured proxy. This is not an IP-spoofing guarantee.
+                    arguments.append("--webrtc-ip-handling-policy=disable_non_proxied_udp")
             else:
                 raise NeVisionError("Назначенный proxy отсутствует. Выберите другой proxy перед запуском.")
         if extensions:
@@ -1770,6 +1774,55 @@ class ProfileBadge(tk.Canvas):
         self.create_oval(size - 10, size - 10, size - 4, size - 4, fill=colors["lime"], outline=colors["lime_soft"])
 
 
+class HoverTip:
+    """Small delayed hint for native controls; no extra UI framework or polling."""
+
+    def __init__(self, widget: tk.Misc, text: str, colors: dict[str, str]):
+        self.widget = widget
+        self.text = text
+        self.colors = colors
+        self.timer: str | None = None
+        self.popup: tk.Toplevel | None = None
+        widget.bind("<Enter>", self._schedule, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+        widget.bind("<FocusIn>", self._schedule, add="+")
+        widget.bind("<FocusOut>", self._hide, add="+")
+        widget.bind("<ButtonPress>", self._hide, add="+")
+
+    def _schedule(self, _event: tk.Event[Any] | None = None) -> None:
+        self._hide()
+        self.timer = self.widget.after(550, self._show)
+
+    def _show(self) -> None:
+        self.timer = None
+        if not self.widget.winfo_exists() or self.popup is not None:
+            return
+        popup = tk.Toplevel(self.widget)
+        popup.withdraw()
+        popup.overrideredirect(True)
+        tk.Label(popup, text=self.text, justify="left", wraplength=320,
+                 bg=self.colors["panel_2"], fg=self.colors["text"],
+                 relief="solid", borderwidth=1, padx=10, pady=7,
+                 font=("Segoe UI", 9)).pack()
+        popup.update_idletasks()
+        x = min(self.widget.winfo_rootx() + 12, max(0, self.widget.winfo_screenwidth() - popup.winfo_reqwidth() - 12))
+        y = min(self.widget.winfo_rooty() + self.widget.winfo_height() + 6,
+                max(0, self.widget.winfo_screenheight() - popup.winfo_reqheight() - 12))
+        popup.geometry(f"+{x}+{y}")
+        popup.deiconify()
+        self.popup = popup
+
+    def _hide(self, _event: tk.Event[Any] | None = None) -> None:
+        if self.timer is not None:
+            with contextlib.suppress(tk.TclError):
+                self.widget.after_cancel(self.timer)
+            self.timer = None
+        if self.popup is not None:
+            with contextlib.suppress(tk.TclError):
+                self.popup.destroy()
+            self.popup = None
+
+
 class IconButton(tk.Canvas):
     """Keyboard-focusable, native icon button with a small, fast hover response."""
 
@@ -1784,6 +1837,7 @@ class IconButton(tk.Canvas):
         kind: str = "secondary",
         width: int | None = None,
         height: int = 38,
+        tooltip: str | None = None,
     ):
         self.text = text
         self.icon = icon
@@ -1804,6 +1858,7 @@ class IconButton(tk.Canvas):
         self.bind("<Button-1>", self._on_click)
         self.bind("<Return>", self._on_key)
         self.bind("<space>", self._on_key)
+        self.hint = HoverTip(self, tooltip, colors) if tooltip else None
         self._render()
 
     def _palette(self) -> tuple[str, str, str, str]:
@@ -1949,7 +2004,7 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=proxy_labels, style="Input.TCombobox", state="readonly")
         self.proxy.current(selected_index)
         self.proxy.pack(fill="x", pady=(0, 14))
-        browser_hint = "Встроенный Chromium по умолчанию · NeAntik не изменяет fingerprint." if app.launcher.bundled_browser() else "Обычный Chrome или Edge · NeAntik не изменяет fingerprint."
+        browser_hint = "Встроенный Chromium по умолчанию · без подмены отпечатка устройства." if app.launcher.bundled_browser() else "Обычный Chrome или Edge · без подмены отпечатка устройства."
         ttk.Label(body, text=browser_hint, style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
@@ -2109,7 +2164,7 @@ class ProxyVaultDialog(BaseDialog):
 
 class SettingsDialog(BaseDialog):
     def __init__(self, app: "NeVisionApp"):
-        super().__init__(app, "Настройки", "650x610")
+        super().__init__(app, "Настройки", "650x560")
         body = ttk.Frame(self, style="Panel.TFrame", padding=24)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="Настройки", style="DialogTitle.TLabel").pack(anchor="w", pady=(0, 15))
@@ -2124,21 +2179,38 @@ class SettingsDialog(BaseDialog):
             wraplength=520,
         ).pack(anchor="w", pady=(0, 16))
         ttk.Separator(body).pack(fill="x", pady=(0, 14))
-        ttk.Label(body, text="Браузер для новых профилей", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-        row = ttk.Frame(body, style="Panel.TFrame")
+        ttk.Label(body, text="Браузер", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+        ttk.Label(body, text="Новые профили открываются во встроенном Chromium. Отдельный Chrome не нужен.",
+                  style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 5))
+        ttk.Label(body, text="Для профиля с proxy WebRTC ограничивает прямой UDP; звонки могут работать иначе. Часовой пояс остаётся системным.",
+                  style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 9))
+        self.compatibility_button = ttk.Button(body, text="Совместимость со старыми профилями ▸", style="Ghost.TButton", command=self.toggle_compatibility)
+        self.compatibility_button.pack(anchor="w", pady=(0, 7))
+        self.compatibility = ttk.Frame(body, style="Panel.TFrame")
+        ttk.Label(self.compatibility, text="Путь к прежнему Chrome или Edge (необязательно)", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+        row = ttk.Frame(self.compatibility, style="Panel.TFrame")
         row.pack(fill="x", pady=(0, 5))
         self.path = ttk.Entry(row, style="Input.TEntry")
         self.path.insert(0, app.storage.get_setting("browser_path"))
         self.path.pack(side="left", fill="x", expand=True)
         ttk.Button(row, text="Выбрать…", style="Ghost.TButton", command=self.choose).pack(side="left", padx=(8, 0))
-        discovered = app.launcher.available_browsers()
-        available = ", ".join(f"{name}: {path}" for name, path in discovered) or "не найдены"
-        ttk.Label(body, text=f"Обнаружено: {available}", style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 16))
-        ttk.Label(body, text="Если поле пустое, встроенный Chromium выбирается первым. Уже запущенные профили сохраняют привязку к прежнему Chrome/Edge; путь выше — ручное переопределение.", style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 10))
+        ttk.Label(self.compatibility, text="Нужно только для старых данных, закреплённых за Chrome/Edge. Пустое поле использует встроенный Chromium для новых профилей.",
+                  style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 5))
+        if self.path.get():
+            self.toggle_compatibility()
         ttk.Separator(body).pack(fill="x", pady=8)
-        ttk.Label(body, text="Portable режим", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
-        ttk.Label(body, text="База данных, профили, backups и логи создаются в папке Data рядом с NeAntikWin.exe. Переносить можно всю папку; сохранённые proxy-пароли защищены Windows DPAPI и на другом Windows-пользователе потребуют повторного ввода.", style="Hint.TLabel", wraplength=520).pack(anchor="w")
+        ttk.Label(body, text="Где мои данные?", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
+        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Для переноса копируйте всю папку; proxy-пароли Windows DPAPI на другом ПК могут потребовать повторного ввода.",
+                  style="Hint.TLabel", wraplength=520).pack(anchor="w")
         self.footer(body, self.save, "Сохранить")
+
+    def toggle_compatibility(self) -> None:
+        if self.compatibility.winfo_manager():
+            self.compatibility.pack_forget()
+            self.compatibility_button.configure(text="Совместимость со старыми профилями ▸")
+        else:
+            self.compatibility.pack(fill="x", after=self.compatibility_button, pady=(0, 6))
+            self.compatibility_button.configure(text="Совместимость со старыми профилями ▾")
 
     def choose(self) -> None:
         path = filedialog.askopenfilename(parent=self, title="Выберите Chrome/Edge/Chromium", filetypes=[("Исполняемый файл", "*.exe"), ("Все файлы", "*.*")])
@@ -2400,6 +2472,7 @@ class NeVisionApp:
         vault_menu.add_command(label="Добавить proxy", command=lambda: ProxyDialog(self))
         menu.add_cascade(label="Vault", menu=vault_menu)
         help_menu = tk.Menu(menu, **menu_options)
+        help_menu.add_command(label="Как пользоваться", command=self.show_quick_guide)
         help_menu.add_command(label="История изменений", command=self.open_changelog)
         help_menu.add_command(label="О продукте", command=self.show_about)
         menu.add_cascade(label="Помощь", menu=help_menu)
@@ -2414,9 +2487,12 @@ class NeVisionApp:
         brand_copy.pack(side="left", fill="y", pady=15)
         tk.Label(brand_copy, text=APP_NAME, bg=self.colors["header"], fg=self.colors["text"], font=("Segoe UI", 15, "bold")).pack(anchor="w")
         tk.Label(brand_copy, text="Локальные профили браузера · portable preview", bg=self.colors["header"], fg=self.colors["muted"], font=("Segoe UI", 9)).pack(anchor="w", pady=(2, 0))
-        IconButton(header, "Настройки", "settings", lambda: SettingsDialog(self), self.colors, self.colors["header"], width=122).pack(side="right", padx=(8, 24), pady=22)
-        IconButton(header, "Журнал", "history", lambda: HistoryDialog(self), self.colors, self.colors["header"], width=105).pack(side="right", pady=22)
-        IconButton(header, "Изменения", "history", self.open_changelog, self.colors, self.colors["header"], width=128).pack(side="right", padx=(0, 8), pady=22)
+        IconButton(header, "Настройки", "settings", lambda: SettingsDialog(self), self.colors, self.colors["header"], width=122,
+                   tooltip="Тема, путь к браузеру и расположение portable-данных.").pack(side="right", padx=(8, 24), pady=22)
+        IconButton(header, "Журнал", "history", lambda: HistoryDialog(self), self.colors, self.colors["header"], width=105,
+                   tooltip="Локальная история действий менеджера профилей.").pack(side="right", pady=22)
+        IconButton(header, "Изменения", "history", self.open_changelog, self.colors, self.colors["header"], width=128,
+                   tooltip="Открыть историю версий этого выпуска.").pack(side="right", padx=(0, 8), pady=22)
         local_chip = tk.Frame(header, bg=self.colors["lime_surface"], padx=10, pady=6)
         local_chip.pack(side="right", padx=(0, 12), pady=23)
         tk.Label(local_chip, text="LOCAL", bg=self.colors["lime_surface"], fg=self.colors["lime"], font=("Segoe UI", 8, "bold")).pack()
@@ -2428,11 +2504,14 @@ class NeVisionApp:
         sidebar.pack_propagate(False)
         sidebar_inner = tk.Frame(sidebar, bg=self.colors["sidebar"])
         sidebar_inner.pack(fill="both", expand=True, padx=16, pady=18)
-        IconButton(sidebar_inner, "Новый профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["sidebar"], kind="primary", width=238, height=42).pack(fill="x")
+        IconButton(sidebar_inner, "Новый профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["sidebar"], kind="primary", width=238, height=42,
+                   tooltip="Создать отдельный каталог браузера с собственной историей и cookies.").pack(fill="x")
         tools = tk.Frame(sidebar_inner, bg=self.colors["sidebar"])
         tools.pack(fill="x", pady=(8, 22))
-        IconButton(tools, "Vault", "vault", self.open_proxy_vault, self.colors, self.colors["sidebar"], width=112).pack(side="left")
-        IconButton(tools, "Импорт", "backup", self.restore_backup, self.colors, self.colors["sidebar"], width=118).pack(side="right")
+        IconButton(tools, "Vault", "vault", self.open_proxy_vault, self.colors, self.colors["sidebar"], width=112,
+                   tooltip="Локальное хранилище proxy; пароли защищены Windows DPAPI.").pack(side="left")
+        IconButton(tools, "Импорт", "backup", self.restore_backup, self.colors, self.colors["sidebar"], width=118,
+                   tooltip="Восстановить профиль из ранее созданного backup ZIP.").pack(side="right")
 
         list_heading = tk.Frame(sidebar_inner, bg=self.colors["sidebar"])
         list_heading.pack(fill="x", pady=(0, 8))
@@ -2447,6 +2526,7 @@ class NeVisionApp:
         search = tk.Entry(search_box, textvariable=self.search_var, bg=self.colors["input"], fg=self.colors["text"], insertbackground=self.colors["text"], relief="flat", highlightthickness=0, font=("Segoe UI", 9))
         search.pack(side="left", fill="x", expand=True, pady=8, padx=(0, 7))
         self.search_entry = search
+        HoverTip(search, "Поиск по названию, группе и тегам. Ctrl+F — перейти к поиску; Escape — очистить.", self.colors)
         search.bind("<Escape>", lambda event: self.search_var.set(""))
 
         tree_wrap = tk.Frame(sidebar_inner, bg=self.colors["sidebar"])
@@ -2463,6 +2543,7 @@ class NeVisionApp:
         self.profile_tree.bind("<Return>", lambda event: self._shortcut(self.launch_selected))
         scroll = ttk.Scrollbar(tree_wrap, orient="vertical", command=self.profile_tree.yview, style="NV.Vertical.TScrollbar")
         self.profile_tree.configure(yscrollcommand=scroll.set)
+        HoverTip(self.profile_tree, "Выберите профиль: справа появятся запуск, резервная копия и другие действия. Enter — запуск.", self.colors)
         self.profile_tree.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
 
@@ -2505,10 +2586,12 @@ class NeVisionApp:
         illustration.pack(pady=(0, 19))
         tk.Label(empty, text="Ваше рабочее пространство", bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 21, "bold")).pack()
         tk.Label(empty, text=f"Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно. {browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
-        IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42).pack()
+        IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42,
+                   tooltip="Новый профиль создаётся локально и запускается во встроенном Chromium.").pack()
         tk.Label(empty, text="Данные локально · без cloud sync · без подмены fingerprint", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
         tk.Label(empty, text=f"Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\n{browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
-        IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200).pack(pady=(12, 0))
+        IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200,
+                   tooltip="Открыть сайт с последней portable-версией и инструкцией обновления.").pack(pady=(12, 0))
 
     def _metric_card(self, parent: tk.Misc, icon: str, title: str, value: str, accent: str) -> tk.Frame:
         card = tk.Frame(parent, bg=self.colors["card"], highlightthickness=1, highlightbackground=self.colors["line"], padx=15, pady=14)
@@ -2542,7 +2625,9 @@ class NeVisionApp:
         tk.Label(heading, text=profile["name"], bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 20, "bold"), wraplength=380, justify="left").pack(anchor="w")
         identity = profile.get("fingerprint", ordinary_identity())
         unsupported = identity["mode"] != "ordinary"
-        identity_label = "Старый неподдерживаемый профиль" if unsupported else "Chrome / Edge · без подмены fingerprint"
+        family = profile.get("browser_family") or ""
+        browser_label = {"chromium": "Встроенный Chromium", "chrome": "Google Chrome", "edge": "Microsoft Edge"}.get(family, "Браузер ещё не закреплён")
+        identity_label = "Старый неподдерживаемый профиль" if unsupported else f"{browser_label} · без подмены fingerprint"
         sub = "  ·  ".join(part for part in [identity_label, profile.get("group_name"), profile.get("tags")] if part)
         tk.Label(heading, text=sub, bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(3, 0))
         is_running = self._is_profile_active(str(profile["id"]))
@@ -2552,13 +2637,22 @@ class NeVisionApp:
         status_chip = tk.Frame(top, bg=chip_bg, padx=10, pady=6)
         status_chip.pack(side="right", padx=(10, 8), pady=5)
         tk.Label(status_chip, text=state, bg=chip_bg, fg=chip_fg, font=("Segoe UI", 8, "bold")).pack()
-        IconButton(top, "Изменить", "edit", self.edit_selected, self.colors, self.colors["panel"], width=112).pack(side="right", pady=5)
+        IconButton(top, "Изменить", "edit", self.edit_selected, self.colors, self.colors["panel"], width=112,
+                   tooltip="Изменить название, группу, proxy или заметку профиля.").pack(side="right", pady=5)
 
         action_row = tk.Frame(body, bg=self.colors["card"], highlightthickness=1, highlightbackground=self.colors["line"], padx=10, pady=10)
         action_row.pack(fill="x", pady=(27, 22))
-        actions = (("Запустить", "launch", self.launch_selected), ("Backup", "backup", self.backup_selected), ("Копия", "clone", self.clone_selected), ("Проверка", "health", self.health_selected), ("Папка", "folder", self.open_profile_folder), ("Расширения", "profiles", self.open_extensions))
-        for index, (label, icon, command) in enumerate(actions):
-            IconButton(action_row, label, icon, command, self.colors, self.colors["card"], kind="primary" if index == 0 else "ghost", width=160, height=38).grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=3)
+        actions = (
+            ("Запустить", "launch", self.launch_selected, "Открыть этот профиль в закреплённом браузере."),
+            ("Резервная копия", "backup", self.backup_selected, "Создать ZIP с данными профиля. В нём могут быть cookies и сессии — храните его приватно."),
+            ("Чистая копия", "clone", self.clone_selected, "Создать новый профиль с теми же настройками, но без cookies, истории и сессий."),
+            ("Проверить", "health", self.health_selected, "Проверить состояние локальных файлов и привязку браузера."),
+            ("Папка", "folder", self.open_profile_folder, "Открыть каталог данных этого профиля в Проводнике."),
+            ("Расширения", "profiles", self.open_extensions, "Открыть страницу расширений в браузере этого профиля."),
+        )
+        for index, (label, icon, command, hint) in enumerate(actions):
+            IconButton(action_row, label, icon, command, self.colors, self.colors["card"], kind="primary" if index == 0 else "ghost", width=190, height=38,
+                       tooltip=hint).grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=3)
         for column in range(3):
             action_row.columnconfigure(column, weight=1)
 
@@ -2583,7 +2677,8 @@ class NeVisionApp:
         tk.Label(note_heading, text="ЗАМЕТКА", bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(7, 0))
         notes = profile.get("notes") or "Заметка пока не добавлена."
         tk.Label(left, text=notes, bg=self.colors["card"], fg=self.colors["text"] if profile.get("notes") else self.colors["muted"], wraplength=470, justify="left", anchor="nw", font=("Segoe UI", 10)).pack(fill="both", expand=True, pady=(13, 0))
-        IconButton(left, "История профиля", "history", lambda: HistoryDialog(self, profile["id"]), self.colors, self.colors["card"], width=160).pack(anchor="w", pady=(19, 0))
+        IconButton(left, "История профиля", "history", lambda: HistoryDialog(self, profile["id"]), self.colors, self.colors["card"], width=160,
+                   tooltip="Посмотреть локальную историю действий только этого профиля.").pack(anchor="w", pady=(19, 0))
         right = tk.Frame(lower, bg=self.colors["card"], width=255, height=220, highlightthickness=1, highlightbackground=self.colors["line"], padx=12, pady=12)
         right.pack(side="left", fill="y", padx=(14, 0))
         right.pack_propagate(False)
@@ -2591,9 +2686,12 @@ class NeVisionApp:
         operations_heading.pack(fill="x")
         VectorIcon(operations_heading, "health", 18, self.colors["cyan"], self.colors["card"]).pack(side="left")
         tk.Label(operations_heading, text="ОПЕРАЦИИ", bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(7, 0))
-        IconButton(right, "TCP-проверка proxy", "proxy", self.test_selected_proxy, self.colors, self.colors["card"], width=224).pack(fill="x", pady=(10, 0))
-        IconButton(right, "Скопировать пароль", "vault", self.copy_selected_proxy_password, self.colors, self.colors["card"], width=244).pack(fill="x", pady=(8, 0))
-        IconButton(right, "Удалить профиль", "trash", self.delete_selected, self.colors, self.colors["card"], kind="danger", width=244).pack(fill="x", pady=(24, 0))
+        IconButton(right, "TCP-проверка proxy", "proxy", self.test_selected_proxy, self.colors, self.colors["card"], width=224,
+                   tooltip="Проверить только TCP-соединение. Это не проверяет внешний IP, DNS, WebRTC или UDP.").pack(fill="x", pady=(10, 0))
+        IconButton(right, "Скопировать пароль", "vault", self.copy_selected_proxy_password, self.colors, self.colors["card"], width=244,
+                   tooltip="Скопировать сохранённый proxy-пароль на 30 секунд. Доступно только для текущего Windows-пользователя.").pack(fill="x", pady=(8, 0))
+        IconButton(right, "Удалить профиль", "trash", self.delete_selected, self.colors, self.colors["card"], kind="danger", width=244,
+                   tooltip="Переместить закрытый профиль в Data\\Deleted после подтверждения.").pack(fill="x", pady=(24, 0))
 
     def set_status(self, message: str) -> None:
         self.status_label.configure(text=message)
@@ -3017,6 +3115,18 @@ class NeVisionApp:
             os.startfile(SITE_URL + "/#download")
         except OSError as exc:
             messagebox.showerror(APP_NAME, f"Не удалось открыть сайт: {exc}", parent=self.root)
+
+    def show_quick_guide(self) -> None:
+        messagebox.showinfo(
+            "Как пользоваться NeAntik Win",
+            "1. Распакуйте весь ZIP в доступную для записи папку NTFS и запустите NeAntikWin.exe.\n"
+            "2. Создайте профиль. Новый профиль откроется во встроенном Chromium со своими cookies и историей.\n"
+            "3. Proxy добавьте через Vault и назначьте профилю. TCP-проверка не подтверждает внешний IP или отсутствие утечек.\n"
+            "4. Перед переносом или обновлением закройте браузер и сохраните всю папку Data. Backup ZIP содержит незашифрованные данные сайтов.\n"
+            "5. На другом компьютере сохранённые proxy-пароли могут потребовать повторного ввода из-за Windows DPAPI.\n\n"
+            "Наведите курсор на кнопку или выделите её клавишей Tab — появится подсказка.",
+            parent=self.root,
+        )
 
     def open_changelog(self) -> None:
         file = self.paths.root / "CHANGELOG.md"

@@ -24,6 +24,7 @@ SOURCE_RUNTIME_FILES = {
     "msvcp140.dll", "msvcp140_atomic_wait.dll", "vcruntime140.dll",
     "vcruntime140_1.dll", "vccorlib140.dll",
 }
+PORTABLE_LOCALES = {"en-US.pak", "ru.pak", "th.pak"}
 
 
 def git(source: Path, *args: str) -> str:
@@ -91,11 +92,16 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
         elif item.is_dir() and item.name in RUNTIME_FOLDERS:
             for child in item.rglob("*"):
                 if child.is_file() and child.suffix.lower() in {".pak", ".pb", ".json"}:
+                    if item.name == "locales" and child.name not in PORTABLE_LOCALES:
+                        continue
                     entries.append((child, child.relative_to(build)))
     required = {"chrome.exe", "chrome.dll", "chrome_elf.dll", "icudtl.dat", "resources.pak", version_manifest,
                 "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"}
     if not required.issubset({str(relative) for _, relative in entries}):
         raise ValueError("Build output is missing essential Chromium runtime files")
+    staged_locales = {relative.name for _, relative in entries if relative.parent == Path("locales")}
+    if staged_locales != PORTABLE_LOCALES:
+        raise ValueError(f"Build output lacks required portable locale packs: {sorted(PORTABLE_LOCALES - staged_locales)}")
     for item, _ in entries:
         if item.is_symlink():
             raise ValueError(f"Symlink in Chromium runtime: {item}")
@@ -126,6 +132,7 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
             "chromium_version": version,
             "build_args_sha256": sha256(gn_args),
             "runtime_file_count": len(entries),
+            "locales": sorted(staged_locales),
             "license_sha256": sha256(staged / "LICENSE"),
             "credits_sha256": sha256(staged / "credits.html"),
         }

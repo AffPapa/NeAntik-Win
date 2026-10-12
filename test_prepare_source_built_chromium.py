@@ -38,6 +38,9 @@ class SourceBuildStageTests(unittest.TestCase):
             (self.build / name).write_bytes(name.encode("ascii"))
         (self.build / "locales").mkdir()
         (self.build / "locales" / "en-US.pak").write_bytes(b"locale fixture")
+        (self.build / "locales" / "ru.pak").write_bytes(b"russian fixture")
+        (self.build / "locales" / "th.pak").write_bytes(b"thai fixture")
+        (self.build / "locales" / "de.pak").write_bytes(b"unused fixture")
         (self.build / "locales" / "en-US.pak.info").write_bytes(b"build metadata, not runtime")
 
     def args(self, approved: str | None = None) -> argparse.Namespace:
@@ -54,6 +57,8 @@ class SourceBuildStageTests(unittest.TestCase):
         self.assertTrue((self.root / "staged" / "chrome.exe").is_file())
         self.assertTrue((self.root / "staged" / "155.0.8059.40.manifest").is_file())
         self.assertTrue((self.root / "staged" / "locales" / "en-US.pak").is_file())
+        self.assertEqual(receipt["locales"], ["en-US.pak", "ru.pak", "th.pak"])
+        self.assertFalse((self.root / "staged" / "locales" / "de.pak").exists())
         self.assertFalse((self.root / "staged" / "locales" / "en-US.pak.info").exists())
         self.assertFalse((self.root / "staged" / "Data").exists())
 

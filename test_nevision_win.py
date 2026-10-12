@@ -615,8 +615,26 @@ class PortableCoreRegressionTests(unittest.TestCase):
             with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access") as sandbox_acl, patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
                 launcher.launch(self.storage.get_profile(profile_id))
             self.assertEqual(spawn.call_args.args[0][0], str(engine / "chrome.exe"))
+            self.assertNotIn("--webrtc-ip-handling-policy=disable_non_proxied_udp", spawn.call_args.args[0])
             sandbox_acl.assert_called_once_with(engine)
             self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "chromium")
+
+    def test_bundled_proxy_restricts_non_proxied_webrtc_udp(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak", "ENGINE_PROVENANCE.json"):
+            (engine / name).touch()
+        proxy_id = self.storage.save_proxy({"name": "QA HTTP", "scheme": "http", "host": "127.0.0.1", "port": 8080})
+        profile_id = self.storage.save_profile({"name": "Proxy WebRTC", "proxy_id": proxy_id})
+        launcher = BrowserLauncher(self.storage)
+        process = MagicMock()
+        process.poll.return_value = None
+        with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
+            with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
+                launcher.launch(self.storage.get_profile(profile_id))
+        arguments = spawn.call_args.args[0]
+        self.assertIn("--proxy-server=http://127.0.0.1:8080", arguments)
+        self.assertIn("--webrtc-ip-handling-policy=disable_non_proxied_udp", arguments)
 
     def test_bundled_acl_grant_is_limited_to_engine_and_cached(self):
         engine = self.root / "Engine" / "Chromium"
