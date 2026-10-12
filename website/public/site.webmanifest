@@ -1,7 +1,7 @@
 {
   "name": "NeAntik Win",
   "short_name": "NeAntik",
-  "description": "Local-first менеджер изолированных браузерных профилей для Windows.",
+  "description": "Portable Chromium с изолированными локальными профилями для Windows.",
   "lang": "ru",
   "start_url": "./",
   "display": "standalone",

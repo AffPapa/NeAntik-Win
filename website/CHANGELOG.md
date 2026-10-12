@@ -3,6 +3,34 @@
 Все заметные изменения продукта фиксируются здесь одновременно с публикацией новой версии.
 Полные правила — в [RELEASE_POLICY.md](RELEASE_POLICY.md).
 
+## [0.5.0-preview] — 2026-10-12
+
+**Статус:** portable preview, Windows x64. В ZIP включён Chromium 155.0.8059.40, собранный из закреплённого исходного кода. Для новых профилей установленный Chrome не нужен. Проверенная ОС: Windows 11 Pro x64, build 26200.
+
+### Изменения
+
+- Вся программа и движок браузера находятся в одном portable ZIP: распакуйте его целиком и откройте `NeAntikWin.exe`.
+- Новые профили используют встроенный Chromium. Старые профили сохраняют привязку к Chrome или Edge. Если у старого профиля уже есть данные, но привязка ещё не определена, выберите исходный браузер вручную или создайте чистую копию: встроенный Chromium не откроет эти данные вслепую.
+- Добавлены provenance сборки Chromium, лицензия и third-party credits. Релизные проверки отклоняют неполный движок и development snapshot под видом stable.
+- При первом запуске встроенного браузера NeAntik выдаёт Windows-песочнице права чтения/исполнения только на файлы `Engine/Chromium`: ZIP не сохраняет ACL NTFS. Частная `Data/` в это правило не входит. Распаковывайте в доступную для записи папку NTFS.
+- В GitHub опубликованы исходники приложения и инструкции воспроизведения сборки; большой бинарник Chromium находится только в релизном ZIP.
+
+### Ограничения и обновление
+
+- Это preview без цифровой подписи и без автоматического обновления Chromium. Для исправлений безопасности потребуется скачать новый portable-выпуск.
+- Подмены fingerprint, автоматической настройки часового пояса по proxy и гарантии анонимности нет. TCP-проверка proxy не доказывает маршрут DNS, WebRTC, UDP и внешний IP.
+- Перед переходом сохраните копию старой portable-папки с `Data/`. Распакуйте новую версию в отдельную папку и скопируйте туда `Data/`. Для возврата используйте сохранённую старую копию: старый движок может не прочитать профиль, обновлённый новым.
+- DPAPI-пароли привязаны к Windows-пользователю и компьютеру; перенос на другой ПК может потребовать повторного ввода.
+
+### Скачать и проверить
+
+- [Portable ZIP](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.0-preview/NeAntikWin-portable-v0.5.0-preview.zip)
+- [SHA-256](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.0-preview/NeAntikWin-portable-v0.5.0-preview.zip.sha256)
+- [Manifest](https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.0-preview/NeAntikWin-portable-v0.5.0-preview.manifest.json)
+- [Все файлы релиза](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.5.0-preview)
+
+SHA-256 portable ZIP: `42ac11d4ecbcf8aac54324127b540870f4efa0e57d1cfb55179871b412692615` (275 538 276 байт).
+
 ## [0.4.1-preview] — 2026-10-12
 
 **Статус:** portable manager preview, Windows x64. Для запуска профилей нужен установленный Chrome или Edge; движок в ZIP не входит. Приложение не изменяет fingerprint.

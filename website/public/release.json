@@ -1,21 +1,22 @@
 {
   "format": "neantik-release-v1",
-  "version": "0.4.1-preview",
+  "version": "0.5.0-preview",
   "channel": "preview",
-  "built_at_utc": "2026-10-12T07:58:47.8113441Z",
+  "built_at_utc": "2026-10-12T14:16:03.7553634Z",
   "architecture": "x64",
   "tested_os": "Windows 11 Pro x64 10.0.26200",
   "unverified_os": ["Windows 10", "Windows ARM64"],
-  "browser_strategy": "Installed Chrome or Edge; ordinary isolated profiles only; no custom core or fingerprint modification",
-  "native_core_bundled": false,
+  "browser_strategy": "Bundled unbranded Chromium for new isolated profiles; installed Chrome or Edge supported for older pinned profiles. No fingerprint modification.",
+  "native_core_bundled": true,
+  "engine_version": "155.0.8059.40",
   "fingerprint_modification": false,
   "signature_status": "NotSigned",
-  "source": "https://github.com/AffPapa/NeAntik-Win/tree/77e5ada20e89717527446014ee91fe5fa9d74f75",
-  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.4.1-preview",
+  "source": "https://github.com/AffPapa/NeAntik-Win/tree/e2975f12d1e91dde2d4b5998ca65993e6bd471f2",
+  "release": "https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.5.0-preview",
   "archive": {
-    "filename": "NeAntikWin-portable-v0.4.1-preview.zip",
-    "size_bytes": 14323606,
-    "sha256": "203e629d603630cbe3880c73de9613f49f4be0911ffd8f3030337c1b83c91056",
-    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.4.1-preview/NeAntikWin-portable-v0.4.1-preview.zip"
+    "filename": "NeAntikWin-portable-v0.5.0-preview.zip",
+    "size_bytes": 275538276,
+    "sha256": "42ac11d4ecbcf8aac54324127b540870f4efa0e57d1cfb55179871b412692615",
+    "download_url": "https://github.com/AffPapa/NeAntik-Win/releases/download/v0.5.0-preview/NeAntikWin-portable-v0.5.0-preview.zip"
   }
 }

@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.4.1-preview";
+const releaseVersion = "0.5.0-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,18 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "12 октября 2026",
+    status: "Chromium внутри · один portable ZIP",
+    compatibility: "Windows x64 · встроенный Chromium 155 · установленный Chrome не нужен · схема профилей 1",
+    changes: [
+      { type: "added", label: "Браузер внутри", text: "Архив включает Chromium 155.0.8059.40, собранный из закреплённого исходного кода. Новый профиль запускается без отдельно установленного Chrome или Edge." },
+      { type: "fixed", label: "Совместимость", text: "Профили с привязкой сохраняют исходный Chrome или Edge. Старые профили без привязки, но уже с данными, не открываются встроенным Chromium без явного выбора." },
+      { type: "security", label: "Проверяемость", text: "В архиве находятся лицензия, credits и сведения о сборке Chromium; опубликованы SHA-256 и манифест. Профильные Data и пароли в ZIP не входят." },
+      { type: "security", label: "Честные границы", text: "Подмены fingerprint, автоматического обновления Chromium и гарантии анонимности нет. Новую версию ядра нужно получать вместе с новым portable-релизом." },
+    ],
+  },
+  {
+    version: "v0.4.1-preview",
     date: "12 октября 2026",
     status: "Portable reliability · usability",
     compatibility: "Windows x64 · установленный Chrome или Edge · portable ZIP · схема профилей 1",
@@ -249,7 +261,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <p class="eyebrow"><span></span> Windows · local-first · portable</p>
           <h1 id="hero-title">Профили в порядке.<br /><em>Темп — ваш.</em></h1>
           <p class="hero-lead">
-            NeAntik Win — локальный менеджер профилей для Windows. Текущий portable-выпуск использует установленный Chrome или Edge.
+            NeAntik Win — локальный браузер с отдельными профилями для Windows. В одном portable-архиве уже есть Chromium: отдельный Chrome устанавливать не нужно.
             Данные, proxy-настройки и история работы остаются на вашем компьютере.
           </p>
           <div class="hero-actions">
@@ -262,7 +274,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Это локальный менеджер профилей для установленного Chrome и Edge — не отдельный Chromium-браузер и не средство подмены fingerprint.</p>
+          <p class="download-note">Новый профиль запускается во встроенном Chromium. Подмены fingerprint и гарантии анонимности нет.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -359,9 +371,9 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
             <div class="isolation-graphic" aria-hidden="true">
               <div class="folder-root"><svg><use href="/assets/icons.svg#folder"></use></svg><span>Profiles</span></div>
               <div class="folder-line line-one"></div><div class="folder-line line-two"></div><div class="folder-line line-three"></div>
-              <div class="profile-folder folder-a"><span>A</span><p>affiliate</p><i>Chrome data</i></div>
+              <div class="profile-folder folder-a"><span>A</span><p>affiliate</p><i>Chromium data</i></div>
               <div class="profile-folder folder-b"><span>B</span><p>brand qa</p><i>Edge data</i></div>
-              <div class="profile-folder folder-c"><span>C</span><p>client nord</p><i>Chrome data</i></div>
+              <div class="profile-folder folder-c"><span>C</span><p>client nord</p><i>Chromium data</i></div>
             </div>
           </article>
 
@@ -404,7 +416,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="workflow-copy reveal">
             <p class="eyebrow"><span></span> Понятная локальная архитектура</p>
             <h2 id="workflow-title">Не обещает магию.<br /><em>Показывает устройство.</em></h2>
-            <p>NeAntik Win использует установленный Chrome или Edge и запускает его с отдельным каталогом данных для каждого профиля.</p>
+            <p>NeAntik Win поставляется со своим Chromium и запускает каждый новый профиль с отдельным каталогом данных. Старые профили с известным Chrome или Edge сохраняют эту привязку.</p>
             <a class="text-link" href="#security">Границы продукта <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-right"></use></svg></a>
           </div>
           <div class="workflow-console reveal reveal-delay-one">
@@ -413,6 +425,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <div class="tree-item root"><svg><use href="/assets/icons.svg#folder"></use></svg><strong>NeAntikWin portable</strong><em>ваша папка</em></div>
               <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#app"></use></svg><b>NeAntikWin.exe</b><em>launcher</em></div>
               <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>_internal/</b><em>локальный runtime</em></div>
+              <div class="tree-item"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>Engine/Chromium/</b><em>встроенный браузер</em></div>
               <div class="tree-item"><span class="tree-branch">└─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>Data/</b><em>создаётся при первом запуске</em></div>
               <div class="tree-item nested"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#database"></use></svg><b>nevision.db</b><em>метаданные + DPAPI</em></div>
               <div class="tree-item nested"><span class="tree-branch">├─</span><svg><use href="/assets/icons.svg#folder"></use></svg><b>Profiles/</b><em>изолированные данные</em></div>
@@ -432,7 +445,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <p>В preview мы открыто фиксируем возможности, ограничения и модель хранения — прежде, чем добавлять новые функции.</p>
         </div>
         <div class="boundary-grid">
-          <article class="boundary-card reveal"><span class="boundary-icon"><svg><use href="/assets/icons.svg#computer"></use></svg></span><h3>Только ваш компьютер</h3><p>Нет обязательной учётной записи, обязательной телеметрии или удалённой панели для запуска профилей.</p></article>
+          <article class="boundary-card reveal"><span class="boundary-icon"><svg><use href="/assets/icons.svg#computer"></use></svg></span><h3>Только ваш компьютер</h3><p>Нет обязательной учётной записи и облачной панели. Менеджер не отправляет свою телеметрию; сам Chromium и расширения могут обращаться к сети.</p></article>
           <article class="boundary-card reveal reveal-delay-one"><span class="boundary-icon"><svg><use href="/assets/icons.svg#key"></use></svg></span><h3>Секреты привязаны к Windows</h3><p>DPAPI даёт доступ к proxy-паролям только тому же Windows-пользователю на том же устройстве.</p></article>
           <article class="boundary-card boundary-card-contrast reveal reveal-delay-two"><span class="boundary-icon"><svg><use href="/assets/icons.svg#eye-off"></use></svg></span><h3>Без ложных гарантий</h3><p>NeAntik Win не заявляет обход проверок сайтов, антифрода, банов или подмену fingerprint.</p></article>
         </div>
@@ -444,7 +457,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div>
             <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Установка не нужна. Скачайте ZIP со страницы GitHub Releases, распакуйте в доступную для записи папку и откройте NeAntikWin.exe. Для профилей нужен уже установленный Google Chrome или Microsoft Edge.</p>
+            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
@@ -453,6 +466,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div class="release-side-row" data-release-size-row hidden><span>Размер ZIP</span><b data-release-size></b></div>
           <div class="release-side-row"><span>Формат backup</span><b>nevision-profile-backup-v1</b></div>
           <div class="release-side-row"><span>Профильные данные</span><b>локально в Data/</b></div>
+          <div class="release-side-row"><span>Права песочницы</span><b>чтение Engine/Chromium, не Data/</b></div>
           <div class="release-side-row"><span>Proxy-пароли</span><b>Windows DPAPI</b></div>
           <div class="release-side-row"><span>Подпись приложения</span><b>нет цифровой подписи (unsigned preview)</b></div>
           <div class="release-side-row release-hash-row" data-release-hash-row hidden><span>SHA-256 архива</span><code data-release-hash></code></div>
@@ -480,7 +494,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="update-caveats">
           <h3>Перенос и возврат к прошлой версии</h3>
           <p>DPAPI-пароли привязаны к вашему Windows-пользователю и компьютеру. На другом устройстве потребуется повторный ввод; перенос cookies и входов в сайты также зависит от Chromium.</p>
-          <p>Для отката используйте сохранённую старую папку. Замена EXE не откатывает формат профиля Chrome или Edge: после обновления браузера старое ядро может не открыть эти данные.</p>
+          <p>Для отката используйте сохранённую старую папку. Замена одного EXE не откатывает формат профиля Chromium, Chrome или Edge: после обновления браузера старое ядро может не открыть эти данные.</p>
           <p>NeAntik разделяет локальные профили, но не подменяет fingerprint и не гарантирует прохождение проверок сайтов.</p>
           <a class="text-link" href="/RELEASE_POLICY.md">Политика релизов и совместимость <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-right"></use></svg></a>
         </div>
@@ -514,7 +528,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
         <div class="final-cta-actions reveal reveal-delay-one">
           <p>Начните с версии, где хранение и ограничения не спрятаны за маркетинговыми словами.</p>
           <a class="button button-light" href="#download">Скачать v${releaseVersion} <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a>
-          <small><svg aria-hidden="true"><use href="/assets/icons.svg#windows"></use></svg> Windows x64 · установленный Chrome или Edge · portable ZIP</small>
+          <small><svg aria-hidden="true"><use href="/assets/icons.svg#windows"></use></svg> Windows x64 · Chromium внутри · portable ZIP</small>
         </div>
       </section>
     </main>

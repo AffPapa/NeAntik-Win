@@ -3,19 +3,19 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "NeAntik Win — локальный менеджер профилей Chrome и Edge",
+    default: "NeAntik Win — portable Chromium и локальные профили",
     template: "%s · NeAntik Win",
   },
   description:
-    "Portable-менеджер изолированных профилей Chrome и Edge для Windows. Данные и proxy-настройки хранятся локально; собственное ядро и изменение fingerprint не входят в продукт.",
+    "Portable-браузер Chromium для Windows с отдельными локальными профилями, proxy vault и backup. Chromium входит в ZIP; подмены fingerprint и гарантии анонимности нет.",
   robots: {
     index: true,
     follow: true,
   },
   openGraph: {
-    title: "NeAntik Win — локальные браузерные профили",
+    title: "NeAntik Win — portable Chromium и локальные профили",
     description:
-      "Portable менеджер изолированных браузерных профилей для Windows — локально, быстро и без обязательного облака.",
+      "Chromium уже в portable ZIP для Windows: локальные профили, proxy vault и backup без обязательного облака.",
     type: "website",
   },
   icons: {
