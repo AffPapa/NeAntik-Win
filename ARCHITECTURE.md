@@ -1,8 +1,8 @@
-# Architecture — 0.2.1-preview
+# Architecture — portable profile manager
 
 ## Lightweight local runtime
 
-NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata. Published 0.4.1 uses installed stock Chrome/Edge; unpublished 0.5.0-dev can prefer an explicitly staged unmodified Chromium runtime in the portable directory. No Electron runtime, cloud account service or web application server is required. No bundled-core public release has passed the stable-engine security gate.
+NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata. The 0.5.0-preview portable folder includes source-built unbranded Chromium in `Engine/Chromium`; new profiles prefer it and older Chrome/Edge profiles remain pinned to their browser family. Only build-compatibility Chromium source changes are permitted and recorded; no browser runtime/fingerprint patch is included. No Electron runtime, cloud account service or web application server is required.
 
 `release-version.json` is the single application/build version source and is bundled in the executable distribution.
 
@@ -10,6 +10,7 @@ NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir exe
 NeAntikWin-portable-v<version>/
   NeAntikWin.exe
   _internal/
+  Engine/Chromium/                bundled browser, license and provenance
   README.md, CHANGELOG.md, SECURITY_AND_SCOPE.md, ...
   THIRD_PARTY_NOTICES.md, licenses/
   release-manifest.json, SHA256SUMS.txt, provenance metadata
@@ -22,9 +23,16 @@ NeAntikWin-portable-v<version>/
 
 The external ZIP checksum verifies the complete archive; the internal inventory describes payload files. Actual build output names and the manifest are authoritative.
 
+ZIP archives do not preserve NTFS ACLs. Before its first bundled-browser launch
+in a manager session, NeAntik checks for links/junctions under `Engine/Chromium`
+and grants the Windows AppContainer group read/execute access to that engine
+directory only. `Data/` and backups are outside the grant. This is required for
+Chromium's sandbox to load resources such as `icudtl.dat`; the sandbox is not
+disabled.
+
 ## Storage, locking and lifecycle
 
-Every profile has an independent user-data directory and metadata such as name, group, tags, notes and activity. Settings-only duplication does not clone cookies or session identity. Cookies/history/password storage is browser-owned; Chrome/Edge encryption rules still apply.
+Every profile has an independent user-data directory and metadata such as name, group, tags, notes and activity. Settings-only duplication does not clone cookies or session identity. Cookies/history/password storage is browser-owned; Windows DPAPI and browser encryption rules still apply.
 
 A Data-directory manager mutex prevents competing manager instances from concurrently performing startup recovery and mutations against the same data. Profile operation locks serialize risky mutations and browser launches. Browser lock checks detect already-open profiles, including ones opened outside this manager. Unknown/unreadable state is surfaced instead of treated as definitely closed.
 
@@ -40,7 +48,7 @@ Normal application close stops accepting work, clears an owned clipboard secret 
 
 ## Browser launch and extensions
 
-Discovery considers a custom executable, standard machine paths, per-user LOCALAPPDATA installs and HKCU/HKLM App Paths registry entries for Chrome/Edge, then deduplicates results.
+Discovery considers an explicitly selected executable, a complete bundled Chromium runtime, standard machine paths, per-user LOCALAPPDATA installs and HKCU/HKLM App Paths registry entries for Chrome/Edge, then deduplicates results. New profiles prefer bundled Chromium unless a custom path is selected; existing profiles remain pinned to their original Chrome/Edge/Chromium family. A partial bundled engine fails rather than silently falling back to an installed browser.
 
 Launch re-reads the profile and verifies its proxy binding before process creation. A queued launch must not create a process after profile deletion or proxy reassignment. The browser receives a profile-specific `--user-data-dir` and first-run suppression flags; secrets are never embedded in arguments.
 
@@ -48,7 +56,7 @@ The Extensions action uses the same profile launch path with `chrome://extension
 
 ## Proxy and secrets
 
-Proxy host validation handles IPv4, IPv6 and IDNA hostnames and rejects URL/list/malformed host input. IPv6 endpoints use brackets. Missing assigned proxies and authenticated SOCKS5 fail before launch because stock Chrome/Edge does not implement the required SOCKS5 authentication here. HTTP(S) proxy authentication remains a manual browser prompt.
+Proxy host validation handles IPv4, IPv6 and IDNA hostnames and rejects URL/list/malformed host input. IPv6 endpoints use brackets. Missing assigned proxies and authenticated SOCKS5 fail before launch because Chromium-based browsers do not implement the required SOCKS5 authentication here. HTTP(S) proxy authentication remains a manual browser prompt.
 
 Saved proxy passwords use current-user Windows DPAPI. The clipboard helper clears a copied password after 30 seconds or normal close only if the clipboard still matches; it does not remove history or synchronized copies.
 
@@ -70,8 +78,8 @@ The build copies a source allowlist into a new workspace, rejects linked inputs,
 
 The product is unsigned and its validated release environment is Windows 11 x64 build 26200, not a claim of validation on all Windows versions. Runtime initialization failures are surfaced as visible Windows errors when the Tk interface cannot start.
 
-The source freeze checkpoint passed 44 core tests, 7 Tk checks, 13 tooling checks and source self-test. The exact packaged executable and public download still require the independent gates in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+Test counts and environment evidence are recorded per version rather than treated as permanent properties of the application. The exact packaged executable and public download require the independent gates in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 ## Deliberate exclusions
 
-No fingerprint-patched browser engine, cloud sync/team service, RPA platform, authenticated SOCKS proxy broker or automatic updater is present. No anonymity/anti-detection guarantee is made. Source licensing is unresolved; authorized binary distribution does not make the private source open source.
+No fingerprint-patched browser engine, cloud sync/team service, RPA platform, authenticated SOCKS proxy broker or automatic updater is present. No anonymity/anti-detection guarantee is made. Source licensing is unresolved; public visibility of the source does not itself grant an open-source reuse license.

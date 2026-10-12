@@ -31,18 +31,29 @@ python nevision_win.py --self-test
 .\build.ps1 -Clean
 ```
 
+For a bundled-browser release, stage the pinned stable Chromium source build
+per [docs/CHROMIUM_SOURCE_BUILD.md](docs/CHROMIUM_SOURCE_BUILD.md), then pass
+`-EngineDirectory <staged-engine-directory>` to `build.ps1`. A continuous
+snapshot may be used only for a local `-dev` archive, never a public release.
+
 - Use the build's dedicated allowlisted workspace, not a used portable installation.
 - Confirm matching version in executable, JSON, folder, ZIP and manifest.
 - Include runtime dependency/license notices, source provenance and file-hash inventory.
 - Verify the archive with `tools\verify-release-archive.ps1`; ensure no Data, private files, links/reparse points or unexpected payloads.
 - Record final ZIP size and SHA-256; retain its separate checksum. A versioned published artifact must never be silently overwritten.
 - Verify manifest OS claims: tested Windows 11 x64 build 26200 only; do not label Windows 10 validated.
+- Verify Chromium source commit, build-only patch SHA-256, version, `LICENSE`,
+  `credits.html` and exact runtime allowlist. A bundled archive must contain
+  no PDBs, build intermediates, tests or user `Data/`.
 
 ## 4. Test the exact packaged ZIP
 
 - Extract to a fresh writable folder; run packaged `NeAntikWin.exe --self-test` (historical NeVision releases use `NeVisionWin.exe`).
 - Launch the real GUI on Windows 11 x64 build 26200; record this environment.
 - Exercise first-run/missing-browser guidance, per-user browser discovery and custom path.
+- With installed-browser discovery disabled, verify a new profile selects the
+  extracted `Engine/Chromium/chrome.exe`; existing Chrome/Edge profiles must
+  remain pinned rather than silently migrating to Chromium.
 - Create/edit/search/duplicate a test profile; launch Chrome/Edge, persist a harmless session/history item, close and reopen.
 - Verify Ctrl+N, Ctrl+F, Enter, Escape and F5; system light/dark themes; scrolling, resizing, focus and readable error states.
 - Test native Extensions action closed/open; do not install untrusted extensions.

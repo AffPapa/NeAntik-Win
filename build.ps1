@@ -16,6 +16,9 @@ $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
 if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
+if ($releaseVersion -eq '0.5.0-preview' -and -not $EngineDirectory -and -not $PackageOnly) {
+    throw 'NeAntik Win 0.5.0-preview requires EngineDirectory: publish only the complete Chromium portable build.'
+}
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
 $releaseParent = [System.IO.Path]::GetFullPath($OutputDirectory)
 $releaseName = "NeAntikWin-portable-v$releaseVersion"
@@ -77,12 +80,24 @@ if (-not $PackageOnly) {
             if (-not (Test-Path -LiteralPath (Join-Path $engineSource $required) -PathType Leaf)) { throw "Browser engine is missing $required" }
         }
         $engineReceipt = Get-Content -LiteralPath (Join-Path $engineSource 'ENGINE_PROVENANCE.json') -Raw | ConvertFrom-Json
-        if ($engineReceipt.format -ne 'neantik-chromium-snapshot-stage-v1') { throw 'Unknown browser engine provenance format.' }
+        if ($engineReceipt.format -notin @('neantik-chromium-snapshot-stage-v1', 'neantik-chromium-source-build-v1')) { throw 'Unknown browser engine provenance format.' }
+        if ($engineReceipt.format -eq 'neantik-chromium-snapshot-stage-v1' -and $engineReceipt.channel -eq 'stable') { throw 'A continuous snapshot cannot claim the stable channel.' }
+        if ($engineReceipt.format -eq 'neantik-chromium-source-build-v1' -and $engineReceipt.channel -ne 'stable') { throw 'A stable source build has inconsistent provenance.' }
         if ($engineReceipt.channel -ne 'stable' -and $releaseVersion -notmatch '-dev$') { throw 'A non-stable Chromium snapshot can only be packaged in a local -dev build.' }
         $actualCoreVersion = (Get-Item -LiteralPath (Join-Path $engineSource 'chrome.exe')).VersionInfo.ProductVersion
         if ($actualCoreVersion -ne $engineReceipt.chromium_version) { throw 'Browser engine version does not match its provenance.' }
         $actualCreditsHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'credits.html') -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($actualCreditsHash -ne $engineReceipt.credits_sha256) { throw 'Browser engine credits do not match provenance.' }
+        if ($engineReceipt.format -eq 'neantik-chromium-source-build-v1') {
+            foreach ($required in @('chrome_elf.dll', "$($engineReceipt.chromium_version).manifest", 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $engineSource $required) -PathType Leaf)) { throw "Source-built browser engine is missing $required" }
+            }
+            if ($engineReceipt.source_commit -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or
+                $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
+                ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
+            $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
+        }
         $engineParent = Join-Path $releaseRoot 'Engine'
         New-Item -ItemType Directory -Path $engineParent | Out-Null
         Copy-Item -LiteralPath $engineSource -Destination (Join-Path $engineParent 'Chromium') -Recurse
@@ -124,7 +139,9 @@ $manifest = [ordered]@{
     release_notes = 'CHANGELOG.md'; runtime = $runtime; files = $files
 }
 if ($hasEngine) {
-    $manifest.engine = [ordered]@{ name = 'Chromium'; version = [string]$engineReceipt.chromium_version; channel = [string]$engineReceipt.channel; source_commit = [string]$engineReceipt.source_commit; snapshot_sha256 = [string]$engineReceipt.snapshot_sha256 }
+    $manifest.engine = [ordered]@{ name = 'Chromium'; version = [string]$engineReceipt.chromium_version; channel = [string]$engineReceipt.channel; source_commit = [string]$engineReceipt.source_commit; provenance_format = [string]$engineReceipt.format }
+    if ($engineReceipt.format -eq 'neantik-chromium-snapshot-stage-v1') { $manifest.engine.snapshot_sha256 = [string]$engineReceipt.snapshot_sha256 }
+    else { $manifest.engine.source_tree = [string]$engineReceipt.source_tree; $manifest.engine.build_args_sha256 = [string]$engineReceipt.build_args_sha256; $manifest.engine.build_patch_sha256 = [string]$engineReceipt.build_patch_sha256 }
 }
 Write-ReleaseJson $manifest (Join-Path $releaseRoot 'release-manifest.json')
 $hashLines = @($files | ForEach-Object { "$($_.sha256)  $($_.path)" })

@@ -20,7 +20,7 @@ function Expect-Failure([string]$Name, [scriptblock]$Action, [string]$Pattern) {
 }
 
 function New-TestArchive([string]$Mode) {
-    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } else { '0.2.0-preview' }
+    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } else { '0.2.0-preview' }
     $folder = "NeVisionWin-portable-v$testVersion"
     $version = "{`"version`":`"$testVersion`",`"file_version`":[0,2,0,0],`"channel`":`"preview`"}"
     $payload = [ordered]@{
@@ -67,9 +67,21 @@ function New-TestArchive([string]$Mode) {
         foreach ($member in @('chrome.exe', 'chrome.dll', 'icudtl.dat', 'resources.pak', 'LICENSE')) {
             $payload["Engine/Chromium/$member"] = "Synthetic Chromium fixture $member"
         }
+        if ($Mode -eq 'chromium-source') {
+            foreach ($member in @('chrome_elf.dll', '155.0.8059.40.manifest', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+                $payload["Engine/Chromium/$member"] = "Synthetic Chromium fixture $member"
+            }
+        }
         $payload['Engine/Chromium/credits.html'] = '<!DOCTYPE html>' + ('C' * 110000)
         $engineReceipt = [ordered]@{ format = 'neantik-chromium-snapshot-stage-v1'; chromium_version = '157.0.8101.0';
             channel = 'continuous-snapshot-not-stable'; source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
+        if ($Mode -eq 'chromium-source') {
+            $engineReceipt = [ordered]@{ format = 'neantik-chromium-source-build-v1'; chromium_version = '155.0.8059.40';
+                channel = 'stable'; source_commit = 'a' * 40; source_tree = 'c' * 40; build_args_sha256 = 'd' * 64; build_patch_sha256 = 'e' * 64;
+                license_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/LICENSE'];
+                credits_sha256 = Get-ReleaseTextHash $payload['Engine/Chromium/credits.html'] }
+        }
+        if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
         $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
     }
     $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
@@ -90,16 +102,23 @@ function New-TestArchive([string]$Mode) {
         $manifest.native_core_bundled = $true
         $manifest.engine = [ordered]@{ name = 'Chromium'; version = '157.0.8101.0'; channel = 'continuous-snapshot-not-stable';
             source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
+        if ($Mode -eq 'chromium-source') {
+            $manifest.engine = [ordered]@{ name = 'Chromium'; version = '155.0.8059.40'; channel = 'stable';
+                source_commit = 'a' * 40; provenance_format = 'neantik-chromium-source-build-v1';
+                source_tree = 'c' * 40; build_args_sha256 = 'd' * 64; build_patch_sha256 = 'e' * 64 }
+        }
+        if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
     }
     if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
-    if ($Mode -eq 'neantik') {
-        $folder = 'NeAntikWin-portable-v0.2.0-preview'
+    if ($Mode -in @('neantik', 'new-preview-without-core')) {
+        $folder = "NeAntikWin-portable-v$testVersion"
         $payload['NeAntikWin.exe'] = $payload['NeVisionWin.exe']
         $payload.Remove('NeVisionWin.exe')
         $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
         $manifest.files = $files
         $manifest.executable = 'NeAntikWin.exe'
         $manifest.product = 'NeAntik Win'
+        if ($Mode -eq 'new-preview-without-core') { $manifest.native_core_bundled = $false }
     }
     $payload['release-manifest.json'] = $manifest | ConvertTo-Json -Depth 5 -Compress
     $payload['SHA256SUMS.txt'] = ($files | ForEach-Object { "$($_.sha256)  $($_.path)" }) -join "`n"
@@ -142,12 +161,19 @@ $chromiumDev = New-TestArchive 'chromium-dev'
 $script:passed++
 $chromiumPreview = New-TestArchive 'chromium-preview'
 Expect-Failure 'development core cannot be public preview' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumPreview } 'Development Chromium snapshot'
+$chromiumSource = New-TestArchive 'chromium-source'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSource
+$script:passed++
+$fakeStableSnapshot = New-TestArchive 'chromium-fake-stable-snapshot'
+Expect-Failure 'snapshot cannot impersonate stable core' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $fakeStableSnapshot } 'Snapshot provenance'
 $launcherOnly = New-TestArchive 'launcher-only'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $launcherOnly
 $script:passed++
 $renamed = New-TestArchive 'neantik'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $renamed
 $script:passed++
+$incompleteNewPreview = New-TestArchive 'new-preview-without-core'
+Expect-Failure '0.5 portable archive without Chromium rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $incompleteNewPreview } 'must bundle Chromium'
 foreach ($case in @(@('data', 'Forbidden'), @('hash', 'mismatch'), @('missing-license', 'missing'), @('unlisted', 'Unlisted'), @('version', 'Inconsistent'), @('traversal', 'Unsafe'), @('duplicate', 'Duplicate'), @('secret', 'credential'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
@@ -195,7 +221,8 @@ function python {
     $global:LASTEXITCODE = $LASTEXITCODE
 }
 $failedBuildOutput = Join-Path $testRoot 'failed-build'
-Expect-Failure 'PyInstaller exit stops packaging' { & (Join-Path $projectRoot 'build.ps1') -OutputDirectory $failedBuildOutput } 'PyInstaller failed \(exit 77\)'
+Expect-Failure 'public portable version requires Chromium' { & (Join-Path $projectRoot 'build.ps1') -OutputDirectory $failedBuildOutput } 'requires EngineDirectory'
+Expect-Failure 'PyInstaller exit stops packaging' { & (Join-Path $projectRoot 'build.ps1') -EngineDirectory (Join-Path $testRoot 'not-used-before-freeze') -OutputDirectory $failedBuildOutput } 'PyInstaller failed \(exit 77\)'
 if (@(Get-ChildItem -LiteralPath $failedBuildOutput -Filter '*.zip' -ErrorAction SilentlyContinue).Count) { throw 'Failed build left a publishable ZIP.' }
 Remove-Item -LiteralPath Function:\python
 Write-Output "Release tooling: PASS ($script:passed checks). Synthetic fixtures retained at $testRoot"

@@ -1,7 +1,8 @@
-"""NeAntik Win — local-first Windows profile manager for stock browsers.
+"""NeAntik Win — local-first portable Windows browser profile manager.
 
-This edition launches installed Chrome or Edge with separate local profile data.
-It does not bundle a custom browser core or alter browser fingerprint signals.
+This edition prefers bundled unbranded Chromium for new local profiles and can
+continue to launch profiles pinned to an installed Chrome or Edge browser.
+It bundles upstream unbranded Chromium without changing fingerprint signals.
 """
 
 from __future__ import annotations
@@ -296,7 +297,7 @@ def browser_family_for_executable(path: Path) -> str:
         return "chrome"
     if name == "msedge.exe":
         return "edge"
-    raise NeVisionError("Выберите установленный chrome.exe или msedge.exe. Другие браузеры не поддерживаются.")
+    raise NeVisionError("Выберите chrome.exe или msedge.exe. Другие браузеры не поддерживаются.")
 
 
 def proxy_choices(proxies: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
@@ -1441,12 +1442,47 @@ class BrowserLauncher:
 
     def __init__(self, storage: Storage):
         self.storage = storage
+        self._sandbox_acl_prepared = False
+
+    def ensure_bundled_sandbox_access(self, engine_dir: Path) -> None:
+        """Grant Windows sandbox children read-only access to public engine files.
+
+        ZIP extraction does not retain NTFS ACLs. Never extend this grant to
+        profile Data/ or follow a junction outside the bundled engine folder.
+        """
+        if self._sandbox_acl_prepared or sys.platform != "win32":
+            return
+        root = self.storage.paths.root.resolve(strict=True)
+        engine_parent = engine_dir.parent
+        if engine_parent.is_symlink() or engine_dir.is_symlink() or engine_dir.resolve(strict=True) != root / self.BUNDLED_RELATIVE.parent:
+            raise NeVisionError("Папка встроенного Chromium является ссылкой или находится вне portable-папки.")
+        pending = [engine_parent, engine_dir]
+        while pending:
+            path = pending.pop()
+            details = path.lstat()
+            attrs = getattr(details, "st_file_attributes", 0)
+            if path.is_symlink() or attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                raise NeVisionError("В папке встроенного Chromium обнаружена ссылка/junction. Распакуйте исходный ZIP заново.")
+            if path != engine_parent and stat.S_ISDIR(details.st_mode):
+                with os.scandir(path) as children:
+                    pending.extend(Path(child.path) for child in children)
+        try:
+            result = subprocess.run(
+                ["icacls.exe", str(engine_dir), "/grant:r", "*S-1-15-2-1:(OI)(CI)RX", "/T"],
+                capture_output=True, timeout=60,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise NeVisionError("Не удалось подготовить права чтения встроенного Chromium для песочницы Windows. Распакуйте ZIP в доступную для записи папку NTFS.") from exc
+        if result.returncode:
+            raise NeVisionError("Windows не разрешила подготовить права чтения встроенного Chromium. Распакуйте ZIP в доступную для записи папку NTFS.")
+        self._sandbox_acl_prepared = True
 
     def bundled_browser(self) -> Path | None:
         engine = self.storage.paths.root / self.BUNDLED_RELATIVE
         # A lone chrome.exe is not a usable portable browser. Require its main
         # runtime payload before offering it as the default.
-        if all(path.is_file() for path in (engine, engine.parent / "chrome.dll", engine.parent / "icudtl.dat")):
+        if all(path.is_file() for path in (engine, engine.parent / "chrome.dll", engine.parent / "icudtl.dat", engine.parent / "resources.pak", engine.parent / "ENGINE_PROVENANCE.json")):
             return engine
         return None
 
@@ -1483,6 +1519,9 @@ class BrowserLauncher:
         return discovered
 
     def resolve_browser(self) -> Path:
+        engine_dir = self.storage.paths.root / "Engine" / "Chromium"
+        if engine_dir.exists() and self.bundled_browser() is None:
+            raise NeVisionError("Встроенный Chromium повреждён или распакован не полностью. Распакуйте весь ZIP заново в новую папку; не используйте отдельный EXE.")
         browsers = self.available_browsers()
         if not browsers:
             raise NeVisionError("Не найден встроенный Chromium, Chrome или Microsoft Edge. Проверьте целостность portable-папки либо выберите браузер в Настройках.")
@@ -1502,7 +1541,7 @@ class BrowserLauncher:
         profile = current_profile
         fingerprint = profile["fingerprint"]
         if fingerprint["mode"] != "ordinary":
-            raise NeVisionError("Этот старый экспериментальный профиль нельзя запускать в выпуске без native-ядра. Данные профиля сохранены.")
+            raise NeVisionError("Этот старый экспериментальный профиль не поддерживается текущим выпуском. Данные профиля сохранены.")
         executable = self.resolve_browser()
         family = self.browser_family(executable)
         pinned_family = validated_browser_family(profile.get("browser_family", ""))
@@ -1515,13 +1554,24 @@ class BrowserLauncher:
                     break
         if pinned_family and pinned_family != family:
             browser_label = {"chrome": "Chrome", "edge": "Edge", "chromium": "встроенным Chromium"}[pinned_family]
+            guidance = (
+                "Распакуйте полный portable ZIP со встроенным Chromium либо создайте чистую копию профиля."
+                if pinned_family == "chromium" else
+                "Установите исходный браузер или выберите его EXE в Настройках; иначе создайте чистую копию профиля."
+            )
             raise NeVisionError(
-                f"Профиль закреплён за {browser_label}. "
-                "Верните нужный браузер в portable-папку или выберите его в Настройках; альтернативно создайте чистую копию профиля."
+                f"Профиль закреплён за {browser_label}. {guidance}"
             )
         self.storage.ensure_profile_closed(profile_id)
         profile_dir = self.storage.profile_path(profile_id)
-        profile_dir.mkdir(parents=True, exist_ok=True)
+        browser_data_dir = filesystem_path(profile_dir)
+        if family == "chromium" and not pinned_family and browser_data_dir.is_dir() and any(browser_data_dir.iterdir()):
+            raise NeVisionError(
+                "У профиля уже есть данные, но его прежний браузер не определён. "
+                "Не открывайте их новым Chromium вслепую: выберите исходный Chrome/Edge в Настройках "
+                "или создайте чистую копию профиля."
+            )
+        browser_data_dir.mkdir(parents=True, exist_ok=True)
         arguments = [
             str(executable),
             f"--user-data-dir={profile_dir}",
@@ -1533,12 +1583,14 @@ class BrowserLauncher:
             proxy = self.storage.get_proxy(str(profile["proxy_id"]))
             if proxy:
                 if proxy["scheme"] == "socks5" and (proxy.get("username") or proxy.get("password_protected")):
-                    raise NeVisionError("Chrome/Edge не поддерживает SOCKS5 с логином/паролем. Используйте proxy с IP-авторизацией или HTTP(S). Пароль в vault хранится, но автоматически в браузер не передаётся.")
+                    raise NeVisionError("Chromium/Chrome/Edge не поддерживает SOCKS5 с логином/паролем. Используйте proxy с IP-авторизацией или HTTP(S). Пароль в vault хранится, но автоматически в браузер не передаётся.")
                 arguments.append(f"--proxy-server={proxy_endpoint(proxy)}")
             else:
                 raise NeVisionError("Назначенный proxy отсутствует. Выберите другой proxy перед запуском.")
         if extensions:
             arguments.append("edge://extensions/" if executable.name.lower() == "msedge.exe" else "chrome://extensions/")
+        if family == "chromium":
+            self.ensure_bundled_sandbox_access(executable.parent)
         # Pin before spawning so even a storage write failure cannot leave a
         # newly launched browser attached to an unguarded profile.
         self.storage.pin_browser_family(profile_id, family)
@@ -1897,7 +1949,8 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=proxy_labels, style="Input.TCombobox", state="readonly")
         self.proxy.current(selected_index)
         self.proxy.pack(fill="x", pady=(0, 14))
-        ttk.Label(body, text="Обычный Chrome или Edge · NeAntik не изменяет параметры браузера и fingerprint.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        browser_hint = "Встроенный Chromium по умолчанию · NeAntik не изменяет fingerprint." if app.launcher.bundled_browser() else "Обычный Chrome или Edge · NeAntik не изменяет fingerprint."
+        ttk.Label(body, text=browser_hint, style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
             body,
@@ -1960,7 +2013,7 @@ class ProxyDialog(BaseDialog):
         ttk.Label(body, text="Пароль" + (" (оставьте пустым, чтобы не менять)" if proxy else ""), style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.password = ttk.Entry(body, style="Input.TEntry", show="●")
         self.password.pack(fill="x", pady=(0, 3))
-        ttk.Label(body, text="NeVision не передаёт пароль браузеру автоматически; браузер запросит его штатно при необходимости.", style="Hint.TLabel", wraplength=460).pack(anchor="w")
+        ttk.Label(body, text="NeAntik не передаёт пароль браузеру автоматически; браузер запросит его штатно при необходимости.", style="Hint.TLabel", wraplength=460).pack(anchor="w")
         self.footer(body, self.save, "Сохранить proxy")
         self.name.focus_set()
 
@@ -2441,6 +2494,8 @@ class NeVisionApp:
 
     def _build_empty_detail(self) -> None:
         self._clear_detail()
+        bundled = self.launcher.bundled_browser() is not None
+        browser_hint = "Во встроенном Chromium; установленный Chrome не нужен." if bundled else "Для запуска нужен установленный Chrome или Edge."
         empty = tk.Frame(self.detail, bg=self.colors["panel"])
         empty.pack(expand=True)
         illustration = tk.Canvas(empty, width=86, height=86, bg=self.colors["panel"], highlightthickness=0, borderwidth=0)
@@ -2449,10 +2504,10 @@ class NeVisionApp:
         draw_vector_icon(illustration, "profiles", 25, 25, 36, self.colors["violet_soft"])
         illustration.pack(pady=(0, 19))
         tk.Label(empty, text="Ваше рабочее пространство", bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 21, "bold")).pack()
-        tk.Label(empty, text="Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно и запускается в установленном Chrome или Edge.", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
+        tk.Label(empty, text=f"Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно. {browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
         IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42).pack()
         tk.Label(empty, text="Данные локально · без cloud sync · без подмены fingerprint", bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
-        tk.Label(empty, text="Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\nДля работы нужен установленный Chrome или Edge.", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
+        tk.Label(empty, text=f"Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\n{browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
         IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200).pack(pady=(12, 0))
 
     def _metric_card(self, parent: tk.Misc, icon: str, title: str, value: str, accent: str) -> tk.Frame:
@@ -2687,14 +2742,18 @@ class NeVisionApp:
         if self._is_profile_active(str(profile["id"])):
             messagebox.showinfo(APP_NAME, "Профиль уже открыт. Расширения доступны через меню браузера → Расширения. Для нового запуска закройте все окна этого профиля.", parent=self.root)
             return
-        if profile["fingerprint"]["mode"] == "ordinary" and not self.launcher.available_browsers():
-            messagebox.showinfo(APP_NAME, "Chrome или Edge не найден. Установите браузер с официального сайта или выберите уже установленный EXE в Настройках. NeVision не скачивает браузер автоматически.", parent=self.root)
-            SettingsDialog(self)
-            return
+        if profile["fingerprint"]["mode"] == "ordinary":
+            try:
+                self.launcher.resolve_browser()
+            except NeVisionError as exc:
+                messagebox.showinfo(APP_NAME, str(exc), parent=self.root)
+                if not (self.paths.root / "Engine" / "Chromium").exists():
+                    SettingsDialog(self)
+                return
         if profile.get("proxy_id"):
             proxy = self.storage.get_proxy(str(profile["proxy_id"]))
             if proxy and proxy["scheme"] in {"http", "https"} and (proxy.get("username") or proxy.get("password_protected")):
-                messagebox.showinfo(APP_NAME, "HTTP(S) proxy: браузер запросит логин и пароль самостоятельно. Сохранённый пароль можно скопировать кнопкой в профиле. NeVision не передаёт пароль через командную строку.", parent=self.root)
+                messagebox.showinfo(APP_NAME, "HTTP(S) proxy: браузер запросит логин и пароль самостоятельно. Сохранённый пароль можно скопировать кнопкой в профиле. NeAntik не передаёт пароль через командную строку.", parent=self.root)
         self.set_status(f"Запускаю: {profile['name']}…")
 
         def completed(spawned: subprocess.Popen[bytes]) -> None:
@@ -2766,7 +2825,7 @@ class NeVisionApp:
             self.set_status("Backup этого профиля уже выполняется")
 
     def restore_backup(self) -> None:
-        archive = filedialog.askopenfilename(parent=self.root, title="Выберите NeVision backup", filetypes=[("NeVision backup", "*.zip"), ("Все файлы", "*.*")])
+        archive = filedialog.askopenfilename(parent=self.root, title="Выберите backup NeAntik", filetypes=[("Backup профиля", "*.zip"), ("Все файлы", "*.*")])
         if not archive:
             return
         archive_path = Path(archive)
@@ -2967,7 +3026,9 @@ class NeVisionApp:
             messagebox.showinfo(APP_NAME, "Changelog доступен в репозитории проекта.", parent=self.root)
 
     def show_about(self) -> None:
-        scope = "Этот portable-выпуск использует установленный Chrome или Edge. Собственного ядра и подмены fingerprint нет."
+        scope = ("В этот portable-выпуск входит Chromium; установленный Chrome не требуется. Подмены fingerprint нет."
+                 if self.launcher.bundled_browser() else
+                 "Этот portable-выпуск использует установленный Chrome или Edge. Собственного ядра и подмены fingerprint нет.")
         messagebox.showinfo(
             APP_NAME,
             f"{APP_NAME} {APP_VERSION}\n\nЛокальные изолированные профили для Windows. {scope}\n\nВключает Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.",

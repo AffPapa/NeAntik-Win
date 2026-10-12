@@ -54,7 +54,11 @@ Never push the current workspace's existing index without reviewing its staged f
 
 1. Build from a clean checkout. Do not reuse an unpacked portable folder that has ever been run,
    because it may contain `Data/`.
-2. Run `.\build.ps1 -Clean`, then test the generated EXE with `--self-test`.
+2. For a bundled-browser release, stage a source-built stable unbranded
+   Chromium runtime using [docs/CHROMIUM_SOURCE_BUILD.md](docs/CHROMIUM_SOURCE_BUILD.md)
+   and pass it to `.\build.ps1 -Clean -EngineDirectory <staged-engine-directory>`.
+   Never promote a continuous snapshot or the older fingerprint-modified local
+   Chromium build. Test the generated EXE with `--self-test`.
 3. Run `.\tools\verify-release-archive.ps1 -ArchivePath <path-to-zip>`.
 4. On GitHub, create a **draft prerelease** for the matching tag, for example
    `v0.1.3-preview`.
@@ -62,4 +66,5 @@ Never push the current workspace's existing index without reviewing its staged f
    `.manifest.json` file. Never attach an
    unpacked `release/` folder, `Data/`, an EXE by itself, a signing certificate or a screenshot
    containing user data.
-6. State clearly that the preview is unsigned until code signing is introduced.
+6. State clearly that the preview is unsigned, the bundled Chromium does not
+   auto-update, and proxy configuration is not an anonymity guarantee.

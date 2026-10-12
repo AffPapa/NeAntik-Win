@@ -2,15 +2,26 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
-## 0.5.0-dev — local bundled-Chromium prototype (not published)
+## 0.5.0-preview — self-contained portable Chromium (2026-10-12)
 
-- Added a bundled Chromium discovery path for new local profiles while keeping
-  existing Chrome/Edge profiles pinned to their original browser family.
-- Added a snapshot staging tool with SHA-256, upstream revision, license and
-  third-party credits checks; dev-only release tooling can package that engine.
-- This is not a public release. The tested official snapshot is a development
-  build, not the latest stable security branch. Proxy routing still does not
-  guarantee anonymity; automatic timezone changes are not implemented.
+- The portable ZIP now includes source-built, unbranded Chromium 155.0.8059.40.
+  New profiles use it by default; installed Chrome or Edge is not required.
+- Existing profiles remain pinned to their original browser family, so a
+  Chrome or Edge data directory is not silently opened with Chromium. Older
+  unpinned profiles that already contain browser data require an explicit
+  choice of their original browser or a clean copy.
+- The bundled runtime includes its upstream license, third-party credits,
+  pinned source commit and build provenance. Release checks reject development
+  snapshots falsely claiming stable provenance or incomplete engine folders.
+- On first bundled-browser launch, the manager grants Windows AppContainer
+  read/execute access only to public `Engine/Chromium` files. ZIP extraction
+  does not preserve NTFS ACLs; private `Data/` is never included in that grant.
+- Browser launch, proxy vault, local profile data, backup and restore remain
+  local. The release is portable-only, unsigned and has no automatic browser
+  updater. Install a newer portable release for future Chromium security fixes.
+- NeAntik does not modify fingerprint signals, automatically synchronize
+  timezone to proxy, or guarantee anonymity. Proxy checking is TCP-only and
+  does not prove exit IP, DNS, WebRTC or UDP behavior.
 
 ## 0.4.1-preview — portable reliability and usability (2026-10-12)
 

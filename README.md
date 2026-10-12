@@ -1,10 +1,10 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The published `0.4.1-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. The **unpublished `0.5.0-dev` source branch** can prefer a staged, unmodified Chromium runtime in `Engine/Chromium`; no stable bundled-core release has passed the security gate yet. Neither edition alters browser fingerprint signals or guarantees anonymity. Each profile is pinned to its browser family on first launch so different engines do not reuse the same data directory. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.5.0-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. NeAntik does not alter fingerprint signals or guarantee anonymity. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
 
 ## Download and start
 
-The [official download page](https://nevision-win.mail782861.chatgpt.site/#download) is the source of published binaries. New builds use `NeAntikWin.exe`. Extract the **entire ZIP** into a writable local folder. Python and an installer are not required. Profiles use installed Google Chrome or Microsoft Edge and report their actual browser and system values.
+The [official download page](https://nevision-win.mail782861.chatgpt.site/#download) links to the published portable ZIP. Extract the **entire ZIP** into a writable local NTFS folder and open `NeAntikWin.exe`. Python, an installer and a separate Chrome installation are not required for new profiles. On first bundled-browser launch, NeAntik grants Windows AppContainer read/execute access to `Engine/Chromium` only; it does not change permissions on private `Data/`. The bundled browser reports its actual browser and system values.
 
 This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other Windows versions are not validated by this release. A matching checksum detects changed bytes; it does not replace an Authenticode signature or make Windows trust a publisher.
 
@@ -18,7 +18,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Native browser Extensions page for a closed profile; install only extensions you trust.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The downloadable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not include fingerprint modification. The release builder and archive verifier refuse custom browser-engine payloads.
+The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not include fingerprint modification. Chromium security updates require a new portable release; this bundle has no automatic updater.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 
@@ -48,19 +48,24 @@ Use Windows x64, PowerShell and Python 3.12 in an authorized source checkout:
 
 ```powershell
 python -m pip install -r requirements-build.txt
-python -m unittest -v test_nevision_win.py test_profile_identity.py
+python -m unittest discover -q
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
 .\tools\check-public-repo.ps1
-.\build.ps1 -Clean
+.\build.ps1 -Clean -EngineDirectory C:\path\to\staged-source-built-Chromium
 ```
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-The published 0.4.1 ZIP does not bundle Chromium. In the unpublished 0.5.0-dev branch, `build.ps1 -EngineDirectory` can add a separately staged Chromium snapshot **only** to a `-dev` archive; the repository never commits the large engine binary. No fingerprint configuration or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md) for the security and portability gates.
+The 0.5.0-preview release packages a separately source-built Chromium runtime using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. Development snapshots are allowed only in local `-dev` archives. No fingerprint configuration or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md) for the security and portability gates.
 
-The source freeze checkpoint passed 44 core tests, 7 Tk checks, 13 release-tool checks and the source self-test. This is not evidence that a later artifact passed packaged or public-download QA: follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for each release.
+The public bundled-core release uses source-built stable-branch Chromium,
+not a continuous snapshot. The staging script, reviewed build-only patch and
+reproducibility notes are in [CHROMIUM_SOURCE_BUILD.md](https://github.com/AffPapa/NeAntik-Win/blob/main/docs/CHROMIUM_SOURCE_BUILD.md).
+The release verifier rejects a snapshot that claims the stable channel.
+
+Source, packaged and public-download checks are distinct gates. Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for each release; source unit tests alone do not certify the downloaded ZIP.
 
 ## Documentation and publication
 

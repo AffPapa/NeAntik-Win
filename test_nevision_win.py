@@ -603,7 +603,7 @@ class PortableCoreRegressionTests(unittest.TestCase):
     def test_bundled_chromium_is_default_without_installed_browser(self):
         engine = self.root / "Engine" / "Chromium"
         engine.mkdir(parents=True)
-        for name in ("chrome.exe", "chrome.dll", "icudtl.dat"):
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak", "ENGINE_PROVENANCE.json"):
             (engine / name).touch()
         launcher = BrowserLauncher(self.storage)
         with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
@@ -612,15 +612,70 @@ class PortableCoreRegressionTests(unittest.TestCase):
             profile_id = self.storage.save_profile({"name": "Portable"})
             process = MagicMock()
             process.poll.return_value = None
-            with patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
+            with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access") as sandbox_acl, patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
                 launcher.launch(self.storage.get_profile(profile_id))
             self.assertEqual(spawn.call_args.args[0][0], str(engine / "chrome.exe"))
+            sandbox_acl.assert_called_once_with(engine)
             self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "chromium")
+
+    def test_bundled_acl_grant_is_limited_to_engine_and_cached(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        (engine / "icudtl.dat").touch()
+        launcher = BrowserLauncher(self.storage)
+        with patch("nevision_win.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            launcher.ensure_bundled_sandbox_access(engine)
+            launcher.ensure_bundled_sandbox_access(engine)
+        run.assert_called_once()
+        command = run.call_args.args[0]
+        self.assertEqual(command[:2], ["icacls.exe", str(engine)])
+        self.assertNotIn(str(self.storage.paths.data), " ".join(command))
+        self.assertIn("*S-1-15-2-1:(OI)(CI)RX", command)
+
+    def test_bundled_acl_rejects_link_before_permission_change(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        linked = engine / "outside"
+        try:
+            linked.symlink_to(self.storage.paths.data, target_is_directory=True)
+        except OSError:
+            self.skipTest("Directory symlink creation is unavailable on this Windows account")
+        launcher = BrowserLauncher(self.storage)
+        with patch("nevision_win.subprocess.run") as run:
+            with self.assertRaisesRegex(NeVisionError, "ссылка/junction"):
+                launcher.ensure_bundled_sandbox_access(engine)
+            run.assert_not_called()
+
+    def test_unpinned_legacy_data_is_not_opened_with_new_bundled_chromium(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak", "ENGINE_PROVENANCE.json"):
+            (engine / name).touch()
+        profile_id = self.storage.save_profile({"name": "Legacy before pinning"})
+        (self.storage.profile_path(profile_id) / "History").write_bytes(b"existing browser data")
+        launcher = BrowserLauncher(self.storage)
+        with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None), patch("nevision_win.subprocess.Popen") as spawn:
+            with self.assertRaisesRegex(NeVisionError, "прежний браузер не определён"):
+                launcher.launch(self.storage.get_profile(profile_id))
+            spawn.assert_not_called()
+        self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "")
+
+    def test_incomplete_bundled_engine_does_not_fall_back_to_installed_browser(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        (engine / "chrome.exe").touch()
+        installed = self.root / "Installed" / "chrome.exe"
+        installed.parent.mkdir()
+        installed.touch()
+        launcher = BrowserLauncher(self.storage)
+        with patch.object(launcher, "KNOWN_BROWSERS", (("Chrome", installed),)), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
+            with self.assertRaisesRegex(NeVisionError, "распакован не полностью"):
+                launcher.resolve_browser()
 
     def test_existing_chrome_profile_prefers_installed_chrome_over_new_bundled_core(self):
         engine = self.root / "Engine" / "Chromium"
         engine.mkdir(parents=True)
-        for name in ("chrome.exe", "chrome.dll", "icudtl.dat"):
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak", "ENGINE_PROVENANCE.json"):
             (engine / name).touch()
         installed = self.root / "Installed" / "chrome.exe"
         installed.parent.mkdir()
@@ -796,6 +851,19 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_about_describes_actual_browser_bundle(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.launcher = MagicMock()
+        with patch("nevision_win.messagebox.showinfo") as show:
+            app.launcher.bundled_browser.return_value = Path("C:/portable/Engine/Chromium/chrome.exe")
+            app.show_about()
+            self.assertIn("входит Chromium", show.call_args.args[1])
+            self.assertIn("установленный Chrome не требуется", show.call_args.args[1])
+            app.launcher.bundled_browser.return_value = None
+            app.show_about()
+            self.assertIn("Собственного ядра", show.call_args.args[1])
+
     def test_duplicate_proxy_labels_keep_distinct_ids(self):
         proxies = [
             {"id": str(index), "name": "same", "scheme": "http", "host": "127.0.0.1", "port": 8080}

@@ -54,6 +54,7 @@ try {
     $version = Read-ArchiveText $entries["$root/release-version.json"] | ConvertFrom-Json
     $frozen = Read-ArchiveText $entries["$root/_internal/release-version.json"] | ConvertFrom-Json
     if ($manifest.format -ne 'nevision-release-v1' -or $manifest.version -ne $version.version -or $version.version -ne $frozen.version) { throw 'Inconsistent release manifest or version.' }
+    if ($version.version -eq '0.5.0-preview' -and -not $manifest.native_core_bundled) { throw '0.5.0-preview must bundle Chromium.' }
     $productBase = [System.IO.Path]::GetFileNameWithoutExtension($exeName)
     if ($root -ne "$productBase-portable-v$($version.version)") { throw 'Archive root does not match release version.' }
     $listed = @{}
@@ -93,6 +94,8 @@ try {
             'libGLESv2.dll', 'D3DCompiler_47.dll', 'dxcompiler.dll', 'vulkan-1.dll', 'vk_swiftshader.dll',
             'vk_swiftshader_icd.json', 'chrome_proxy.exe', 'chrome_pwa_launcher.exe', 'elevated_tracing_service.exe',
             'elevation_service.exe', 'notification_helper.exe', 'eventlog_provider.dll', 'First Run',
+            'chrome.VisualElementsManifest.xml', 'msvcp140.dll', 'msvcp140_atomic_wait.dll',
+            'vcruntime140.dll', 'vcruntime140_1.dll', 'vccorlib140.dll',
             'LICENSE', 'credits.html', 'ENGINE_PROVENANCE.json')
         foreach ($enginePath in $engineEntries) {
             $relative = $enginePath.Substring($prefix.Length)
@@ -108,9 +111,27 @@ try {
         }
         if ($engineEntries | Where-Object { $_ -match '\.(pdb|obj|ilk|lib)$' -or $_ -match '/(setup|interactive_ui_tests|unit_tests)\.exe$' }) { throw 'Build/test files are forbidden in the portable engine.' }
         $engineReceipt = Read-ArchiveText $entries["${prefix}ENGINE_PROVENANCE.json"] | ConvertFrom-Json
-        if ($engineReceipt.format -ne 'neantik-chromium-snapshot-stage-v1' -or $manifest.engine.name -ne 'Chromium' -or
+        $manifestProvenanceFormat = if ($manifest.engine.PSObject.Properties.Name -contains 'provenance_format') { $manifest.engine.provenance_format } else { 'neantik-chromium-snapshot-stage-v1' }
+        if ($engineReceipt.format -notin @('neantik-chromium-snapshot-stage-v1', 'neantik-chromium-source-build-v1') -or
+            $manifest.engine.name -ne 'Chromium' -or $manifestProvenanceFormat -ne $engineReceipt.format -or
             $manifest.engine.version -ne $engineReceipt.chromium_version -or $manifest.engine.channel -ne $engineReceipt.channel -or
-            $manifest.engine.source_commit -ne $engineReceipt.source_commit -or $manifest.engine.snapshot_sha256 -ne $engineReceipt.snapshot_sha256) { throw 'Browser provenance does not match release manifest.' }
+            $manifest.engine.source_commit -ne $engineReceipt.source_commit) { throw 'Browser provenance does not match release manifest.' }
+        if ($engineReceipt.format -eq 'neantik-chromium-snapshot-stage-v1') {
+            if ($engineReceipt.channel -eq 'stable' -or $manifest.engine.snapshot_sha256 -ne $engineReceipt.snapshot_sha256) { throw 'Snapshot provenance cannot claim a stable build.' }
+        } else {
+            foreach ($required in @('chrome_elf.dll', "$($engineReceipt.chromium_version).manifest", 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+                if (-not $entries.ContainsKey("${prefix}$required")) { throw "Source-built Chromium is missing $required" }
+            }
+            if ($engineReceipt.channel -ne 'stable' -or $manifest.engine.source_tree -ne $engineReceipt.source_tree -or
+                $manifest.engine.build_args_sha256 -ne $engineReceipt.build_args_sha256 -or
+                $manifest.engine.build_patch_sha256 -ne $engineReceipt.build_patch_sha256 -or
+                $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
+                ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$') -or
+                (Get-ArchiveHash $entries["${prefix}LICENSE"]) -ne $engineReceipt.license_sha256) { throw 'Source-built Chromium provenance is invalid.' }
+        }
+        if ($engineReceipt.format -eq 'neantik-chromium-source-build-v1' -or $engineReceipt.PSObject.Properties.Name -contains 'credits_sha256') {
+            if ((Get-ArchiveHash $entries["${prefix}credits.html"]) -ne $engineReceipt.credits_sha256) { throw 'Browser credits do not match provenance.' }
+        }
         if ($engineReceipt.channel -ne 'stable' -and $manifest.version -notmatch '-dev$') { throw 'Development Chromium snapshot cannot be a public preview/stable release.' }
         if ($entries["${prefix}credits.html"].Length -lt 100KB) { throw 'Browser third-party credits are incomplete.' }
     } elseif (($hasNativeField -and $manifest.native_core_bundled) -or ($manifest.PSObject.Properties.Name -contains 'engine')) {

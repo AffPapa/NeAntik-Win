@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0-dev",
+  "version": "0.5.0-preview",
   "file_version": [0, 5, 0, 0],
-  "channel": "dev"
+  "channel": "preview"
 }

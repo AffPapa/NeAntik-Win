@@ -1,16 +1,18 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.4.1-preview ordinary-browser profile manager edition.
+Applies to NeAntik Win 0.5.0-preview portable Chromium edition.
 
 ## Product boundary
 
-This downloadable edition manages local directories and launches installed stock Chrome/Edge. It does not bundle a browser engine or modify browser fingerprint signals. New profiles use stock browser behavior. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user.
+This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. NeAntik does not modify browser fingerprint signals. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
+
+Chromium's Windows sandbox needs read/execute access to its own runtime files. Because ZIP extraction drops NTFS ACLs, the first bundled-browser launch grants the Windows `ALL APPLICATION PACKAGES` group that access to `Engine/Chromium` only. It does not grant access to `Data/`, backups or proxy secrets. A writable NTFS folder is tested; a filesystem without Windows ACL support is not validated. The browser sandbox remains enabled.
 
 Only Windows 11 x64 build 26200 has been exercised for this release. The portable executable is unsigned. A checksum verifies bytes, not publisher identity.
 
 ## Sensitive local data
 
-Metadata is stored in SQLite and browser data lives in `Data/`. There is no NeVision cloud synchronization or telemetry. Chrome/Edge and installed extensions can make their own network requests under their own policies.
+Metadata is stored in SQLite and browser data lives in `Data/`. There is no NeAntik cloud synchronization or application telemetry. Bundled Chromium, installed browsers and extensions can make their own network requests under their own policies; the manager does not claim to disable all browser telemetry.
 
 Proxy passwords use Windows DPAPI for the current Windows user. Software running as that user may be able to decrypt them. Moving a database to another account or PC does not make its secrets decryptable there. Browser DPAPI/App-Bound Encryption also limits portability of saved browser credentials and sessions; cross-PC cookie portability is not guaranteed.
 
@@ -24,20 +26,20 @@ Hosts are validated and normalized, including IDNA and IPv6. A missing assigned 
 
 Proxy checking is TCP reachability only: it does not verify authentication, protocol negotiation, DNS routing, UDP, exit IP or WebRTC behavior. No local authenticated-proxy broker is bundled.
 
-The Extensions action opens the native Chrome/Edge extension manager for a closed profile. When a profile is already open, use its browser menu. Extensions are optional and not installed automatically. They can access sensitive browsing data according to their permissions; NeVision does not audit or sandbox third-party extensions.
+The Extensions action opens the selected browser's native extension manager for a closed profile. When a profile is already open, use its browser menu. Extensions are optional and not installed automatically. They can access sensitive browsing data according to their permissions; NeAntik does not audit or sandbox third-party extensions.
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.4.1-preview ordinary-browser binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by the installed browser and Windows. The release tests exercise profile/launcher behavior, not JavaScript fingerprint measurement, so inherited values below are not a claim that every API/context was independently instrumented.
+This matrix describes the **0.5.0-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise profile/launcher behavior, not comprehensive JavaScript fingerprint measurement.
 
-| Surface | 0.4.1-preview behavior | Evidence / limitation |
+| Surface | 0.5.0-preview behavior | Evidence / limitation |
 |---|---|---|
-| Browser engine, version and TLS/network stack | Uses the installed Chrome or Edge; no engine is bundled or patched | Launcher discovery and process behavior are tested; no TLS fingerprint suite |
+| Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build-only patch are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Not overridden; inherited from the selected browser | No per-property override; API and HTTP-header parity were not measured in this release |
 | Language, timezone, CPU/memory, screen and viewport | Not overridden; inherited from Windows/browser configuration | No persona configuration; cross-frame and worker consistency were not separately measured |
 | Canvas, WebGL/WebGPU, audio, fonts and layout metrics | Not modified by the manager | No surface-level fingerprint probes or equality guarantees |
 | Frames, dedicated/shared/service workers | No injected JavaScript or worker patching | These contexts were not independently tested for this release |
-| Cookies, history and web storage | Stored by Chrome/Edge inside each profile's separate user-data directory | Profile path isolation is tested; this is not an OS security sandbox |
+| Cookies, history and web storage | Stored by the selected browser inside each profile's separate user-data directory | Profile path isolation is tested; this is not an OS security sandbox |
 | Proxy routing | Optional per-profile proxy assignment is passed to the browser; missing/invalid assignments fail closed | Proxy checker is TCP-only. Auth, DNS, exit IP, UDP/WebRTC and leak resistance are not verified |
 | Extensions | Uses the browser's native extension manager and browser policy | No automatic installation or extension permission audit |
 

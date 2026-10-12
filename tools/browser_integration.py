@@ -1,7 +1,7 @@
-"""Loopback-only Chromium/NeVision storage integration, not packaged GUI QA.
+"""Loopback-only Chromium/NeAntik storage integration, not packaged GUI QA.
 
 Run from the repository: python tools/browser_integration.py
-Uses new temporary AppPaths, real Storage, and a new headless Chrome process for
+Uses new temporary AppPaths, real Storage, and a new headless browser process for
 each visit. No existing windows, CDP, WebDriver, or personal profiles are used.
 The local test page commits IndexedDB before releasing a load barrier; dump-dom
 and the server's received result must agree. Background HTTP(S) is directed to a
@@ -420,7 +420,7 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
     report["disposable_root"] = str(root)
     storage = Storage(AppPaths(root))
     chrome = Path(args.chrome).resolve() if args.chrome else BrowserLauncher(storage).resolve_browser().resolve()
-    require(chrome.is_file() and chrome.name.lower() == "chrome.exe", "An installed Google Chrome chrome.exe is required")
+    require(chrome.is_file() and chrome.name.lower() == "chrome.exe", "A valid Chromium/Chrome chrome.exe is required")
     report["browser_executable"] = str(chrome)
     server = LoopbackServer()
     server_thread = threading.Thread(target=server.serve_forever, name="nevision-qa-loopback", daemon=True)
@@ -495,7 +495,7 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--chrome", help="Installed chrome.exe; default uses real NeVision discovery")
+    parser.add_argument("--chrome", help="Browser chrome.exe, including a staged portable Chromium; default uses normal NeAntik discovery")
     parser.add_argument("--output", type=Path, default=REPOSITORY / "docs" / "qa" / f"browser-integration-{APP_VERSION.removesuffix('-preview')}.json")
     parser.add_argument("--overwrite-report", action="store_true", help="Explicitly replace a prior generated report")
     args = parser.parse_args()
@@ -510,7 +510,8 @@ def main() -> int:
         "status": "running", "application_version": APP_VERSION,
         "source_sha256": hashlib.sha256((REPOSITORY / "nevision_win.py").read_bytes()).hexdigest(),
         "python_version": platform.python_version(), "os": platform.platform(),
-        "method": "Installed real Chrome, headless --dump-dom, local HTTP test page, real NeVision Storage",
+        "method": "Specified Chromium/Chrome executable" if args.chrome else "Discovered browser executable",
+        "browser_test_mode": "headless --dump-dom, local HTTP test page, real NeAntik Storage",
         "assertions": [], "visits": [],
         "limitations": [
             "This is source-level headless browser/storage integration, not packaged EXE, GUI, accessibility, or performance QA.",

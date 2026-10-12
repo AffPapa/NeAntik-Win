@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   verify:
-    name: Verify portable build
+    name: Verify source and release tooling
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -35,7 +35,7 @@ jobs:
         run: .\tools\check-public-repo.ps1
 
       - name: Run unit tests
-        run: python -m unittest -v test_nevision_win.py test_profile_identity.py
+        run: python -m unittest discover -v
 
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v
@@ -47,18 +47,6 @@ jobs:
         shell: pwsh
         run: .\tools\test-release-tools.ps1
 
-      - name: Build portable application
-        shell: pwsh
-        run: .\build.ps1 -Clean
-
-      - name: Run packaged self-test
-        shell: pwsh
-        run: |
-          $version = (Get-Content .\release-version.json -Raw | ConvertFrom-Json).version
-          $archive = Join-Path $PWD "release/NeAntikWin-portable-v$version.zip"
-          .\tools\verify-release-archive.ps1 -ArchivePath $archive
-          $testRoot = Join-Path $env:RUNNER_TEMP ("nevision-smoke-" + [guid]::NewGuid().ToString('N'))
-          Expand-Archive -LiteralPath $archive -DestinationPath $testRoot
-          $exe = Join-Path $testRoot "NeAntikWin-portable-v$version/NeAntikWin.exe"
-          $process = Start-Process -FilePath $exe -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "Packaged self-test failed: $($process.ExitCode)" }
+      # The public 0.5.0-preview artifact requires source-built Chromium and
+      # cannot be represented by a misleading launcher-only CI archive.
+      # Packaged QA is performed on the actual manually built release ZIP.
