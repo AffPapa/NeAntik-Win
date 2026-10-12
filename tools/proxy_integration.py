@@ -33,7 +33,7 @@ import uuid
 
 from browser_integration import (APP_VERSION, AppPaths, BrowserLauncher, HarnessError, OwnedJob,
                                  REPOSITORY, Storage, await_profile_closed, check, require, spawn_owned_browser)
-from nevision_win import proxy_endpoint
+from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 
 TEST_HOST = "nevision-qa.invalid"
 
@@ -114,7 +114,7 @@ class HTTPProxy(QuietHTTP):
         token = parse_qs(parsed.query).get("token", [""])[0]
         evidence: Evidence = self.server.evidence
         try:
-            valid = parsed.scheme == "http" and parsed.hostname == TEST_HOST and parsed.port == self.server.target_port
+            valid = parsed.scheme == "http" and parsed.hostname in (TEST_HOST, "127.0.0.1") and parsed.port == self.server.target_port
         except ValueError:
             valid = False
         if not valid or parsed.path != "/probe" or not evidence.token_valid(token):
@@ -128,10 +128,10 @@ class HTTPProxy(QuietHTTP):
             upstream = socket.create_connection(("127.0.0.1", self.server.target_port), timeout=5)
             peer_port = evidence.register(upstream, "http")
             with evidence.lock:
-                evidence.forwards.append({"scheme": "http", "token": token, "target_host": TEST_HOST, "target_port": self.server.target_port})
+                evidence.forwards.append({"scheme": "http", "token": token, "target_host": parsed.hostname, "target_port": self.server.target_port})
             connection = http.client.HTTPConnection("127.0.0.1", self.server.target_port, timeout=5)
             connection.sock = upstream
-            connection.request("GET", f"/probe?token={token}", headers={"Host": f"{TEST_HOST}:{self.server.target_port}", "User-Agent": self.headers.get("User-Agent", "")})
+            connection.request("GET", f"/probe?token={token}", headers={"Host": f"{parsed.hostname}:{self.server.target_port}", "User-Agent": self.headers.get("User-Agent", "")})
             response = connection.getresponse()
             body = response.read(32768)
             self.reply(response.status, body, response.getheader("Content-Type", "text/plain"))
@@ -183,7 +183,7 @@ class SocksProxy(socketserver.BaseRequestHandler):
             else:
                 raise ValueError("Unsupported SOCKS address type")
             port = int.from_bytes(receive_exact(client, 2), "big")
-            if (version, command, reserved) != (5, 1, 0) or host != TEST_HOST or port != self.server.target_port:
+            if (version, command, reserved) != (5, 1, 0) or host not in (TEST_HOST, "127.0.0.1") or port != self.server.target_port:
                 with evidence.lock:
                     evidence.rejected["socks5"] += 1
                 client.sendall(b"\x05\x02\x00\x01" + b"\x00" * 6)
@@ -217,9 +217,16 @@ def launch(chrome: Path, storage: Storage, profile_id: str, url: str, endpoint: 
     storage.ensure_profile_closed(profile_id)
     arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={folder}",
                  "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
-                 "--disable-component-update", "--disable-sync", "--disable-quic", "--metrics-recording-only",
-                 f"--host-resolver-rules=MAP {TEST_HOST} 127.0.0.1, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"]
-    arguments.append(f"--proxy-server={endpoint}" if endpoint else "--no-proxy-server")
+                 "--disable-component-update", "--disable-sync", "--metrics-recording-only"]
+    if endpoint:
+        proxy_id = storage.get_profile(profile_id)["proxy_id"]
+        proxy = storage.get_proxy(proxy_id)
+        require(proxy is not None, "Synthetic proxy disappeared")
+        arguments.append(f"--proxy-server={endpoint}")
+        arguments.extend(bundled_proxy_privacy_arguments(proxy))
+    else:
+        arguments.extend(["--no-proxy-server", "--disable-quic",
+                          f"--host-resolver-rules=MAP {TEST_HOST} 127.0.0.1, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"])
     arguments.append(url)
     step: dict[str, Any] = {"name": label, "profile_id": profile_id, "status": "started",
                             "arguments": [value.replace(str(storage.paths.root), "<disposable-root>") for value in arguments]}
@@ -288,7 +295,9 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
     completed = False
     try:
         legs = [("direct", None, None), ("http", "http", proxy.server_port),
+                ("http_loopback", "http", proxy.server_port),
                 ("http_unavailable", "http", dead_port), ("socks5", "socks5", socks.server_address[1]),
+                ("socks5_loopback", "socks5", socks.server_address[1]),
                 ("socks5_unavailable", "socks5", dead_port), ("direct_after", None, None)]
         for name, scheme, port in legs:
             token = uuid.uuid4().hex
@@ -302,7 +311,8 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 profile["proxy_id"] = proxy_id
                 endpoint = proxy_endpoint(storage.get_proxy(proxy_id))
             profile_id = storage.save_profile(profile)
-            url = f"http://{TEST_HOST}:{target.server_port}/probe?token={token}"
+            target_host = "127.0.0.1" if name.endswith("_loopback") else TEST_HOST
+            url = f"http://{target_host}:{target.server_port}/probe?token={token}"
             dom = launch(chrome, storage, profile_id, url, endpoint, report, name)
             with evidence.lock:
                 requests = [item for item in evidence.requests if item["token"] == token]
@@ -331,8 +341,8 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                       and all(item["route"] == expected_route for item in requests))
                 if scheme:
                     check(report, f"{name}: controlled proxy actually opened loopback upstream",
-                          any(item["scheme"] == scheme and item["target_host"] == TEST_HOST for item in forwards))
-                if scheme == "socks5":
+                          any(item["scheme"] == scheme and item["target_host"] == target_host for item in forwards))
+                if scheme == "socks5" and target_host == TEST_HOST:
                     check(report, "SOCKS5 sends hostname to controlled proxy (remote resolution mode)",
                           any(item.get("address_type") == 3 for item in forwards))
                 report["browser_user_agent"] = result["user_agent"]
@@ -375,7 +385,7 @@ def main() -> int:
             "Source integration, not packaged EXE or GUI/BrowserLauncher.launch wiring.",
             "Only unauthenticated HTTP and SOCKS5 to an HTTP loopback test target; HTTPS proxy/TLS CONNECT, proxy auth prompts and commercial proxies are not tested.",
             "No fingerprint, WebRTC/UDP leak, packet-capture or all-traffic anonymity claim.",
-            "Synthetic hostname avoids Chromium's implicit localhost proxy bypass; resolver rules map only that hostname to loopback and block other DNS names.",
+            "The source-built strict proxy flags are exercised with synthetic hostname and 127.0.0.1 URL cases; successful loopback cases must be observed via the controlled proxy.",
             "Direct positive controls before and after negative cases verify the local target and hostname mapping work.",
             "Browser exit code zero alone is not a success signal: positive cases require target/proxy evidence; unavailable cases require the specific proxy error and zero target requests.",
             "All fixture forwarding is hardcoded to our own loopback target; external destinations/HTTP CONNECT are rejected.",

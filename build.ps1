@@ -16,7 +16,7 @@ $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
 if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
-if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
+if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
     throw 'This NeAntik Win release requires EngineDirectory: publish only the complete Chromium portable build.'
 }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
@@ -97,7 +97,7 @@ if (-not $PackageOnly) {
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
             $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
-            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview')) {
+            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @(Get-ChildItem -LiteralPath (Join-Path $engineSource 'locales') -File -Filter '*.pak' | Select-Object -ExpandProperty Name | Sort-Object) -join ','

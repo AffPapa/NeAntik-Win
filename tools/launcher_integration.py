@@ -1,7 +1,7 @@
 """Disposable Windows integration check for a *packaged* NeAntik browser launch.
 
 Example:
-  python tools/launcher_integration.py --portable-root C:\\path\\to\\NeAntikWin-portable-v0.6.0-preview --output C:\\path\\to\\report.json
+  python tools/launcher_integration.py --portable-root C:\\path\\to\\NeAntikWin-portable-v0.7.0-preview --output C:\\path\\to\\report.json
 
 The source portable folder is read only. Its Chromium engine is copied to a
 fresh temporary root; Storage creates only synthetic profiles there. An owned
@@ -110,6 +110,7 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         seeded_preferences = prefs_path.read_bytes()
         initial = json.loads(seeded_preferences)
         require(initial["profile"]["cookie_controls_mode"] == 1, "Third-party cookie default was not seeded")
+        require(initial["net"]["network_prediction_options"] == 2, "Preloading was not disabled")
         require(initial["profile"]["default_content_setting_values"] == EXPECTED_CONTENT_DEFAULTS,
                 "Permission defaults were not seeded")
         # BrowserLauncher has already prepared engine sandbox ACLs. The gate
@@ -151,6 +152,8 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         require(storage.get_profile(profile_id)["browser_family"] == "chromium", "Profile was not pinned to Chromium")
         web_rtc_flag = "--webrtc-ip-handling-policy=disable_non_proxied_udp"
         require((web_rtc_flag in captured) == bool(proxy_id), "WebRTC policy argument does not match proxy assignment")
+        for flag in ("--proxy-bypass-list=<-loopback>", "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", "--disable-quic"):
+            require((flag in captured) == bool(proxy_id), f"Strict proxy flag does not match assignment: {flag}")
         require(f"--user-data-dir={storage.profile_path(profile_id)}" in captured, "Browser did not receive isolated user data path")
         expected_proxy = "--proxy-server=http://127.0.0.1:9"
         require((expected_proxy in captured) == bool(proxy_id), "Proxy argument does not match saved assignment")
@@ -165,6 +168,8 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         persisted_prefs: dict[str, Any] = parsed
         require(persisted_prefs["profile"]["cookie_controls_mode"] == 1,
                 "Chromium did not retain third-party cookie default")
+        require(persisted_prefs["net"]["network_prediction_options"] == 2,
+                "Chromium did not retain disabled preloading")
         persisted_permissions = persisted_prefs["profile"]["default_content_setting_values"]
         require(all(persisted_permissions.get(key) == value for key, value in EXPECTED_CONTENT_DEFAULTS.items()),
                 "Chromium did not retain permission defaults")

@@ -19,7 +19,9 @@ import tempfile
 # components/content_settings/core/browser/content_settings_registry.cc (names)
 # components/content_settings/core/browser/website_settings_info.cc ("-" -> "_")
 # components/content_settings/core/common/content_settings.h (BLOCK=2)
+# chrome/browser/preloading/preloading_prefs.h (kDisabled=2)
 _INITIAL_PREFERENCES = {
+    "net": {"network_prediction_options": 2},
     "profile": {
         "cookie_controls_mode": 1,
         "default_content_setting_values": {

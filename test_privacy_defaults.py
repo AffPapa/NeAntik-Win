@@ -20,6 +20,7 @@ class PrivacyDefaultsTests(unittest.TestCase):
         self.assertTrue(initialize_privacy_defaults(self.root))
         prefs = json.loads((self.root / "Default" / "Preferences").read_text("utf-8"))
         self.assertEqual(prefs["profile"]["cookie_controls_mode"], 1)
+        self.assertEqual(prefs["net"]["network_prediction_options"], 2)
         self.assertEqual(prefs["profile"]["default_content_setting_values"], {
             "geolocation": 2,
             "notifications": 2,

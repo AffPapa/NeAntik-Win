@@ -2,6 +2,26 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.7.0-preview — strict proxy routing and measured cookie protection (2026-10-12)
+
+- Bundled Chromium profiles with a proxy now disable Chromium's implicit
+  localhost proxy bypass, block background name resolution except for the
+  configured proxy endpoint, disable QUIC and continue to restrict non-proxied
+  WebRTC UDP. Local websites and real-time calls may work differently. This is
+  browser-scoped, not a system firewall, VPN or proof of leak-free routing.
+- New bundled-Chromium profiles also disable network prediction/preloading.
+  Existing profile settings and later user choices remain untouched.
+- Third-party cookie blocking is now behavior-tested in real Chromium: a
+  control profile sent a cookie between two disposable HTTPS sites, while a
+  new privacy-default profile did not. A no-STUN WebRTC check found no host
+  ICE candidates with the proxy policy; it is not an external UDP/STUN test.
+- Added loopback HTTP/SOCKS5 tests for localhost routing and unreachable-proxy
+  failure, plus disposable packaged-launcher checks for the exact flags.
+  No device/browser fingerprint spoofing or anonymity guarantee is claimed.
+- Bundled Chromium remains 155.0.8059.40; Windows 10, external proxies,
+  authenticated HTTPS CONNECT, IPv6 routing and cross-machine sessions remain
+  unverified. Keep the complete old portable folder for rollback.
+
 ## 0.6.0-preview — safer new profiles and visible diagnostics (2026-10-12)
 
 - New bundled-Chromium profiles start with third-party cookies blocked and

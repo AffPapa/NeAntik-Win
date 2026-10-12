@@ -40,7 +40,30 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Privacy defaul
     try { states[name] = (await navigator.permissions.query({name})).state; }
     catch (error) { states[name] = 'error:' + String(error); }
   }
-  const result = {token, states, origin: location.origin};
+  const candidateTypes = [];
+  let iceCompleted = false;
+  try {
+    const peer = new RTCPeerConnection({iceServers: []});
+    peer.createDataChannel('probe');
+    await new Promise(async (resolve) => {
+      const timeout = setTimeout(resolve, 2500);
+      peer.onicecandidate = (event) => {
+        if (event.candidate) {
+          const type = / typ ([a-z]+)/.exec(event.candidate.candidate)?.[1] || 'unknown';
+          candidateTypes.push(type);
+        } else {
+          iceCompleted = true;
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
+      try { await peer.setLocalDescription(await peer.createOffer()); }
+      catch { clearTimeout(timeout); resolve(); }
+    });
+    peer.close();
+  } catch { /* WebRTC unavailable: record no candidate data, not a pass. */ }
+  const result = {token, states, origin: location.origin,
+    iceCompleted, candidateTypes, directHostCandidate: candidateTypes.includes('host')};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -131,7 +154,7 @@ def run(chrome: Path) -> dict:
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),
         "chrome": str(chrome.resolve()),
         "test_scope": "disposable-profile, loopback-only, headless Chromium",
-        "third_party_cookie_network_behavior": "unverified; preference presence alone is not a network behavior test",
+        "third_party_cookie_network_behavior": "not tested by this script; use cookie_integration.py with an allow-control profile",
         "status": "started",
     }
     with tempfile.TemporaryDirectory(prefix="neantik-privacy-qa-") as temporary:
@@ -154,6 +177,7 @@ def run(chrome: Path) -> dict:
                          "--no-first-run", "--no-default-browser-check",
                          "--disable-background-networking", "--disable-component-update",
                          "--disable-sync", "--disable-quic", "--metrics-recording-only",
+                         "--webrtc-ip-handling-policy=disable_non_proxied_udp",
                          f"--proxy-server=http://127.0.0.1:{server.server_port}",
                          "--proxy-bypass-list=127.0.0.1;localhost",
                          "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", url]
@@ -178,16 +202,24 @@ def run(chrome: Path) -> dict:
             if result.get("origin") != f"http://127.0.0.1:{server.server_port}":
                 raise RuntimeError("Unexpected test page origin")
             report["permission_states"] = result.get("states")
+            report["webrtc_no_stun"] = {
+                "ice_completed": result.get("iceCompleted"),
+                "candidate_types": result.get("candidateTypes"),
+                "direct_host_candidate": result.get("directHostCandidate"),
+                "scope": "no STUN/TURN configured; not a public IP or UDP leak test",
+            }
             expected = {name: "denied" for name in ("geolocation", "notifications", "camera", "microphone")}
             report["permissions_denied"] = result.get("states") == expected
             after = json.loads(preference_file.read_text("utf-8"))
             profile_preferences = after.get("profile", {})
             report["cookie_controls_mode_after_startup"] = profile_preferences.get("cookie_controls_mode")
             report["content_settings_after_startup"] = profile_preferences.get("default_content_setting_values")
+            report["network_prediction_after_startup"] = after.get("net", {}).get("network_prediction_options")
             report["preferences_survived_startup"] = (
                 profile_preferences.get("cookie_controls_mode") == initial["profile"]["cookie_controls_mode"]
                 and all(profile_preferences.get("default_content_setting_values", {}).get(key) == value
                         for key, value in initial["profile"]["default_content_setting_values"].items())
+                and report["network_prediction_after_startup"] == 2
             )
             report["blocked_external_proxy_requests"] = server.blocked_proxy_requests
             report["status"] = "passed" if (report["permissions_denied"] and report["preferences_survived_startup"]) else "failed"

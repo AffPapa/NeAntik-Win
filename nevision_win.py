@@ -291,6 +291,25 @@ def proxy_endpoint(proxy: dict[str, Any]) -> str:
     return f"{proxy['scheme']}://{host}:{int(proxy['port'])}"
 
 
+def bundled_proxy_privacy_arguments(proxy: dict[str, Any]) -> list[str]:
+    """Constrain Chromium URL bypass and background DNS for one fixed proxy.
+
+    The proxy endpoint itself must remain reachable, including when it is an
+    IP literal (Chromium's resolver rules also apply to literal endpoints).
+    This does not control other applications or prove that every
+    Chromium transport is proxied; it is deliberately scoped to the bundled
+    browser and tested with disposable loopback fixtures.
+    """
+    host = normalize_proxy_host(str(proxy["host"]))
+    resolver = f"MAP * ~NOTFOUND, EXCLUDE {host}"
+    return [
+        "--proxy-bypass-list=<-loopback>",
+        f"--host-resolver-rules={resolver}",
+        "--disable-quic",
+        "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+    ]
+
+
 def browser_family_for_executable(path: Path) -> str:
     """Accept only the stock Chrome/Edge executable names supported by this build."""
 
@@ -1588,9 +1607,7 @@ class BrowserLauncher:
                     raise NeVisionError("Chromium/Chrome/Edge не поддерживает SOCKS5 с логином/паролем. Используйте proxy с IP-авторизацией или HTTP(S). Пароль в vault хранится, но автоматически в браузер не передаётся.")
                 arguments.append(f"--proxy-server={proxy_endpoint(proxy)}")
                 if family == "chromium":
-                    # Keep WebRTC available, but do not permit direct UDP outside
-                    # the configured proxy. This is not an IP-spoofing guarantee.
-                    arguments.append("--webrtc-ip-handling-policy=disable_non_proxied_udp")
+                    arguments.extend(bundled_proxy_privacy_arguments(proxy))
             else:
                 raise NeVisionError("Назначенный proxy отсутствует. Выберите другой proxy перед запуском.")
         if extensions:
@@ -2193,7 +2210,7 @@ class SettingsDialog(BaseDialog):
         ttk.Label(body, text="Браузер", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         ttk.Label(body, text="Новые профили открываются во встроенном Chromium. Отдельный Chrome не нужен.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 5))
-        ttk.Label(body, text="Для профиля с proxy WebRTC ограничивает прямой UDP; звонки могут работать иначе. Часовой пояс остаётся системным.",
+        ttk.Label(body, text="Встроенный Chromium с proxy не обходит его для localhost, ограничивает фоновый DNS и прямой WebRTC UDP. Локальные сайты и звонки могут работать иначе; часовой пояс остаётся системным.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 9))
         self.compatibility_button = ttk.Button(body, text="Совместимость со старыми профилями ▸", style="Ghost.TButton", command=self.toggle_compatibility)
         self.compatibility_button.pack(anchor="w", pady=(0, 7))

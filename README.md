@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.6.0-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. NeAntik does not spoof device or browser fingerprint values or guarantee anonymity. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.7.0-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. NeAntik does not spoof device or browser fingerprint values or guarantee anonymity. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
 
 ## Download and start
 
@@ -16,11 +16,12 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Background browser launches with a bounded worker queue and status for externally opened profiles.
 - Atomic ZIP backup and restore into a new profile, with strict archive-path validation.
 - Native browser Extensions page for a closed profile; install only extensions you trust.
-- New bundled-Chromium profiles block third-party cookies and sensitive location/notification/camera/microphone permissions by default; old profiles and later user choices are unchanged.
+- New bundled-Chromium profiles block third-party cookies and sensitive location/notification/camera/microphone permissions and disable network prediction by default; old profiles and later user choices are unchanged. A two-site HTTPS control test confirms cookie behavior.
+- Proxy-bound bundled Chromium blocks implicit localhost bypass and background DNS except for the proxy endpoint, disables QUIC and restricts direct WebRTC UDP. This can break local websites or calls and does not certify all-traffic routing.
 - Optional [profile diagnostic page](https://nevision-win.mail782861.chatgpt.site/check.html) shows browser-visible values and, on request, the IP seen by that site. Visiting the page reveals your IP to its hosting; it is not a comprehensive leak test.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not spoof device or browser identity values. With a proxy assigned to bundled Chromium, it restricts non-proxied WebRTC UDP. Chromium security updates require a new portable release; this bundle has no automatic updater.
+The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. It does not spoof device or browser identity values. Chromium security updates require a new portable release; this bundle has no automatic updater.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 
@@ -60,7 +61,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-The 0.6.0-preview release packages a separately source-built Chromium runtime using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. It carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. No device/browser identity spoofing or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md) and [privacy research](docs/PRIVACY_RESEARCH_2026-10.md) for the scope and test gates.
+The 0.7.0-preview release packages a separately source-built Chromium runtime using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. It carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. No device/browser identity spoofing or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md) and [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md) for the scope and test gates.
 
 The public bundled-core release uses source-built stable-branch Chromium,
 not a continuous snapshot. The staging script, reviewed build-only patch and

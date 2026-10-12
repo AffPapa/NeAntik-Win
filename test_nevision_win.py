@@ -622,6 +622,7 @@ class PortableCoreRegressionTests(unittest.TestCase):
             preferences = self.storage.profile_path(profile_id) / "Default" / "Preferences"
             created = json.loads(preferences.read_text(encoding="utf-8"))
             self.assertEqual(created["profile"]["cookie_controls_mode"], 1)
+            self.assertEqual(created["net"]["network_prediction_options"], 2)
             self.assertEqual(created["profile"]["default_content_setting_values"]["geolocation"], 2)
 
             preferences.write_text('{"profile":{"cookie_controls_mode":0}}', encoding="utf-8")
@@ -645,7 +646,20 @@ class PortableCoreRegressionTests(unittest.TestCase):
         arguments = spawn.call_args.args[0]
         self.assertIn("--proxy-server=http://127.0.0.1:8080", arguments)
         self.assertIn("--webrtc-ip-handling-policy=disable_non_proxied_udp", arguments)
+        self.assertIn("--proxy-bypass-list=<-loopback>", arguments)
+        self.assertIn("--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1", arguments)
+        self.assertIn("--disable-quic", arguments)
         self.assertIn(PRIVACY_CHECK_URL, arguments)
+
+    def test_proxy_hostname_is_only_dns_exception(self):
+        from nevision_win import bundled_proxy_privacy_arguments
+        args = bundled_proxy_privacy_arguments({"host": "Proxy.Example"})
+        self.assertIn("--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE proxy.example", args)
+        self.assertNotIn("--host-resolver-rules=MAP * ~NOTFOUND", args)
+
+    def test_proxy_ip_literal_is_only_resolver_exception(self):
+        from nevision_win import bundled_proxy_privacy_arguments
+        self.assertIn("--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 2001:db8::1", bundled_proxy_privacy_arguments({"host": "2001:db8::1"}))
 
     def test_bundled_acl_grant_is_limited_to_engine_and_cached(self):
         engine = self.root / "Engine" / "Chromium"

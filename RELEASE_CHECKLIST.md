@@ -46,8 +46,8 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Verify Chromium source commit, build-only patch SHA-256, version, `LICENSE`,
   `credits.html` and exact runtime allowlist. A bundled archive must contain
   no PDBs, build intermediates, tests or user `Data/`.
-- For 0.6.0, verify only en-US/ru/th Chromium UI packs are present, record the
-  old/new ZIP size, and test English fallback before claiming a size win.
+- For 0.7.0, verify only en-US/ru/th Chromium UI packs are present; no size
+  reduction is claimed for this release.
 
 ## 4. Test the exact packaged ZIP
 
@@ -62,6 +62,8 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Test native Extensions action closed/open; do not install untrusted extensions.
 - Test invalid/missing proxy rejection, unsupported SOCKS5 auth rejection, IPv6 formatting and clear TCP-only diagnostics. Do not claim untested authenticated proxy success.
 - In a fresh bundled profile, verify real Chromium denies geolocation, notifications, camera and microphone and retains initial Preferences. Confirm a subsequent launch does not overwrite user changes; old profiles remain untouched.
+- Run `tools/cookie_integration.py` on the extracted core: require an allowing control profile and a blocking privacy-default profile on two disposable HTTPS sites.
+- Run `tools/proxy_integration.py` and `tools/launcher_integration.py`; require loopback URL requests to traverse HTTP/SOCKS5 proxies, no DIRECT fallback for unavailable proxies, and exact strict flags at the real launcher boundary. These are not public-network leak tests.
 - Open the diagnostic page in the selected profile and verify it explains that its host sees the request IP; no STUN or automatic fingerprint upload. Record external IP as a one-site observation, not a leak-free claim.
 - Exercise clipboard cleanup without overwriting newer clipboard content; keep Windows history limitation explicit.
 - Test backup/restore of a closed synthetic profile; show sensitive-data warning, validate manifest and new profile/no assigned proxy. Reject hostile/colliding archives without partial restored profiles.
