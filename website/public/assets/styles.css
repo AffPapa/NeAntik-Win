@@ -41,6 +41,8 @@
 .release-side-row.release-hash-row { grid-template-columns: 1fr; gap: 8px; }
 .release-hash-row code { min-width: 0; color: #d5ddeb; font: 11px/1.7 var(--font-mono); overflow-wrap: anywhere; }
 .download-note { margin: 22px 0 0; color: #aeb9cc; font-size: 12px; line-height: 1.7; }
+.hero .download-note { color: var(--text-muted); }
+.hero .download-note a { color: #654dcc; text-decoration: underline; text-underline-offset: 2px; }
 .update-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; margin-top: 64px; margin-bottom: 24px; }
 .update-guide h2 { margin: 0 0 20px; font-size: clamp(30px, 3vw, 42px); }
 .update-guide ol { padding-left: 22px; color: var(--text-soft); font-size: 14px; line-height: 1.75; }
@@ -331,6 +333,7 @@ h1 em, h2 em { color: var(--violet); font-style: normal; font-weight: 520; }
   .version-chip:hover { background: rgba(181, 162, 255, 0.2); border-color: rgba(181, 162, 255, 0.55); }
   .menu-button { color: var(--text); background: rgba(255,255,255,.025); }
   .hero-lead { color: #bcc5d3; }
+  .hero .download-note a { color: #c4b5ff; }
   .hero-facts dt { color: #e8edf6; }
   .hero-facts dd { color: #a0aaba; }
   .showcase-atmosphere { opacity: 0.5; mix-blend-mode: screen; }

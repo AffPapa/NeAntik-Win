@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Проверка приватности · NeAntik Win</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/check.css">
+  <script src="/check.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <a class="brand" href="/"><img src="/assets/brand.svg" alt="" width="30" height="30"> NeAntik <span>WIN</span></a>
+    <p class="eyebrow">ЛОКАЛЬНАЯ ДИАГНОСТИКА ПРОФИЛЯ</p>
+    <h1>Что видит страница</h1>
+    <p class="lead">Эта страница показывает обычные параметры, доступные сайту в открытом профиле. Она не ставит оценку «анонимности» и не отправляет показанные параметры на сервер.</p>
+    <div class="notice"><strong>Важно:</strong> хостинг уже получает ваш IP при загрузке страницы. Кнопка ниже только показывает адрес, видимый этому серверу; провайдер хостинга может хранить журналы запросов. DNS, WebRTC, UDP и маршрут всего трафика здесь не проверяются.</div>
+
+    <section class="panel" aria-labelledby="network-title">
+      <div class="section-head"><div><span class="step">01 / СЕТЬ</span><h2 id="network-title">Выходной адрес</h2></div><button id="check-ip" type="button">Показать IP</button></div>
+      <dl><div><dt>IP, видимый нашему сайту</dt><dd id="ip">Не запрашивался</dd></div><div><dt>Страна по данным хостинга</dt><dd id="country">Не запрашивалась</dd></div><div><dt>WebRTC / DNS</dt><dd>Не проверено</dd></div></dl>
+      <p class="hint">Если вы назначили прокси, сравните адрес с ожидаемым. Совпадение одной проверки не доказывает, что все соединения идут через прокси.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="device-title">
+      <div class="section-head"><div><span class="step">02 / БРАУЗЕР</span><h2 id="device-title">Доступные параметры</h2></div></div>
+      <dl><div><dt>User-Agent</dt><dd id="ua">Загрузка…</dd></div><div><dt>Языки</dt><dd id="languages">Загрузка…</dd></div><div><dt>Часовой пояс</dt><dd id="timezone">Загрузка…</dd></div><div><dt>Экран / масштаб</dt><dd id="screen">Загрузка…</dd></div><div><dt>Процессоры / память</dt><dd id="hardware">Загрузка…</dd></div><div><dt>WebGL renderer</dt><dd id="webgl">Загрузка…</dd></div></dl>
+      <p class="hint">Это не полный fingerprint: сайты могут использовать другие API и сетевые сигналы. Разные значения не означают лучшую защиту.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="permissions-title">
+      <div class="section-head"><div><span class="step">03 / ДОСТУП</span><h2 id="permissions-title">Разрешения сайта</h2></div></div>
+      <dl><div><dt>Геолокация</dt><dd id="geo">Проверка…</dd></div><div><dt>Уведомления</dt><dd id="notifications">Проверка…</dd></div><div><dt>Камера</dt><dd id="camera">Проверка…</dd></div><div><dt>Микрофон</dt><dd id="microphone">Проверка…</dd></div><div><dt>Сторонние cookies</dt><dd>Не проверено этой страницей</dd></div></dl>
+      <p class="hint">Новый профиль NeAntik Chromium блокирует эти чувствительные разрешения и сторонние cookies по умолчанию. Chromium позволяет менять настройки сайта вручную. Уже созданные профили не меняются автоматически.</p>
+    </section>
+
+    <footer><a href="/">На сайт NeAntik</a><span>Нет трекеров, STUN-запросов и автоматической отправки отчёта.</span></footer>
+  </main>
+</body>
+</html>

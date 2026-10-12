@@ -18,7 +18,7 @@ type Release = {
   changes: Change[];
 };
 
-const releaseVersion = "0.5.1-preview";
+const releaseVersion = "0.6.0-preview";
 const releaseArchive = `NeAntikWin-portable-v${releaseVersion}.zip`;
 const releaseDownload = `https://github.com/AffPapa/NeAntik-Win/releases/download/v${releaseVersion}/${releaseArchive}`;
 const releaseChecksum = `${releaseDownload}.sha256`;
@@ -27,6 +27,18 @@ const releaseManifest = `https://github.com/AffPapa/NeAntik-Win/releases/downloa
 const releases: Release[] = [
   {
     version: `v${releaseVersion}`,
+    date: "12 октября 2026",
+    status: "Приватность нового профиля · диагностика",
+    compatibility: "Windows x64 · встроенный Chromium 155 · существующие профили не меняются · схема профилей 1",
+    changes: [
+      { type: "security", label: "По умолчанию", text: "Новый пустой профиль встроенного Chromium начинает с блокировкой сторонних cookies, геолокации, уведомлений, камеры и микрофона. Позднейший выбор пользователя не перезаписывается." },
+      { type: "added", label: "Диагностика", text: "Кнопка профиля открывает страницу с видимыми сайту параметрами браузера. IP, увиденный нашим сайтом, запрашивается только по нажатию; хостинг всё равно видит адрес при открытии страницы." },
+      { type: "fixed", label: "Прозрачность", text: "Изучены функции десяти профильных браузеров. Исследование, границы защиты и результаты тестов опубликованы вместе с исходниками." },
+      { type: "security", label: "Ограничения", text: "Это не подмена device/browser fingerprint и не гарантия анонимности. Проверка страницы не доказывает отсутствие DNS, WebRTC или других утечек." },
+    ],
+  },
+  {
+    version: "v0.5.1-preview",
     date: "12 октября 2026",
     status: "Проще интерфейс · меньше portable ZIP",
     compatibility: "Windows x64 · встроенный Chromium 155 · данные 0.5.0 сохраняются · схема профилей 1",
@@ -286,7 +298,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
               <svg aria-hidden="true"><use href="/assets/icons.svg#arrow-down"></use></svg>
             </a>
           </div>
-          <p class="download-note">Новый профиль запускается во встроенном Chromium. Настройки упрощены, архив стал меньше. Подмены отпечатка устройства и гарантии анонимности нет.</p>
+          <p class="download-note">Новые профили запускаются со строгими разрешениями и блокировкой сторонних cookies. Подмены отпечатка устройства и гарантии анонимности нет. <a href="/check.html">Открыть диагностику профиля</a>.</p>
           <dl class="hero-facts" aria-label="Ключевые свойства NeAntik Win">
             <div><dt>local</dt><dd>данные не требуют облака</dd></div>
             <div><dt>DPAPI</dt><dd>защита proxy-паролей</dd></div>
@@ -469,7 +481,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
           <div>
             <p class="eyebrow"><span></span> NeAntik Win · Windows x64 · v${releaseVersion}</p>
             <h2 id="release-title">Скачайте.<br /><em>Распакуйте. Запустите.</em></h2>
-            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Для профилей с proxy ограничен прямой WebRTC UDP, но весь сетевой маршрут этим не проверяется.</p>
+            <p>Установка не нужна. Скачайте один ZIP, распакуйте его целиком в доступную для записи папку NTFS и откройте NeAntikWin.exe. Chromium уже внутри; отдельно устанавливать Chrome не требуется. Новый профиль получает приватные разрешения по умолчанию, а встроенная кнопка «Диагностика» поможет увидеть параметры браузера. Для профилей с proxy ограничен прямой WebRTC UDP, но весь сетевой маршрут этим не проверяется.</p>
           </div>
         </div>
         <aside class="release-side reveal reveal-delay-one" id="release-details">
@@ -488,6 +500,7 @@ const pageMarkup = String.raw`<a class="skip-link" href="#main">К содерж�
             <a class="text-link" href="${releaseManifest}" target="_blank" rel="noopener noreferrer">Manifest сборки</a>
             <a class="text-link" href="https://github.com/AffPapa/NeAntik-Win/releases/tag/v${releaseVersion}" target="_blank" rel="noopener noreferrer">Все файлы релиза</a>
             <a class="text-link" href="/CHANGELOG.md">Что изменилось</a>
+            <a class="text-link" href="/check.html">Проверить браузер</a>
           </div>
           <p class="download-note">SHA-256 проверяет целостность файла и не заменяет цифровую подпись. Если Windows показывает предупреждение, проверьте источник загрузки и checksum.</p>
         </aside>

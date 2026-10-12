@@ -1,0 +1,33 @@
+:root { color-scheme: light dark; font-family: "Segoe UI", system-ui, sans-serif; background: #f7f7f2; color: #171a23; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.shell { max-width: 920px; margin: 0 auto; padding: 30px 22px 70px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; font-size: 19px; font-weight: 750; }
+.brand span { color: #7666dd; font-size: 11px; letter-spacing: .12em; }
+.eyebrow, .step { color: #7966d9; font-size: 11px; letter-spacing: .13em; font-weight: 750; }
+.eyebrow { margin: 60px 0 12px; }
+h1 { font-size: clamp(34px, 6vw, 58px); letter-spacing: -.04em; margin: 0 0 12px; }
+.lead { max-width: 730px; color: #5d6171; line-height: 1.6; font-size: 17px; }
+.notice { background: #eee9ff; border: 1px solid #d6caff; border-radius: 13px; padding: 16px 18px; margin: 26px 0 32px; line-height: 1.55; }
+.panel { background: #fff; border: 1px solid #e1e4ec; border-radius: 16px; padding: 24px; margin-top: 18px; box-shadow: 0 10px 32px #22243a08; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+h2 { font-size: 25px; letter-spacing: -.025em; margin: 7px 0 17px; }
+button { border: 0; border-radius: 9px; color: #151721; background: #c9fa57; padding: 11px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+button:hover { background: #b8ef3a; }
+button:disabled { opacity: .65; cursor: wait; }
+button:focus-visible, a:focus-visible { outline: 3px solid #7765e7; outline-offset: 3px; }
+dl { margin: 0; }
+dl > div { display: grid; grid-template-columns: minmax(140px, 210px) minmax(0, 1fr); gap: 18px; padding: 11px 0; border-top: 1px solid #edf0f4; }
+dt { color: #646879; }
+dd { margin: 0; overflow-wrap: anywhere; font-weight: 620; }
+.hint { color: #666b7d; line-height: 1.55; margin: 20px 0 0; }
+footer { display: flex; justify-content: space-between; gap: 15px; color: #777c8d; font-size: 13px; margin-top: 35px; }
+footer a { color: #7966d9; }
+@media (max-width: 600px) { .shell { padding: 20px 16px 45px; } .eyebrow { margin-top: 44px; } .panel { padding: 18px; } dl > div { grid-template-columns: 1fr; gap: 3px; } .section-head { align-items: flex-start; flex-direction: column; } footer { flex-direction: column; } }
+@media (prefers-color-scheme: dark) {
+  :root { background: #0e111a; color: #f1f2f8; }
+  .lead, .hint, dt, footer { color: #a1a8ba; }
+  .notice { background: #24203b; border-color: #3b3562; }
+  .panel { background: #171c29; border-color: #30384a; box-shadow: none; }
+  dl > div { border-color: #2b3443; }
+}
