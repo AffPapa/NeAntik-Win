@@ -19,6 +19,13 @@ sources without changing that checkout. Modified Chromium files retain their
 upstream BSD-style license; new Chromium-tree files declare the same license.
 No public binary has been built or released from this exported patch yet.
 
+The local staging tool now accepts this patch only with its exact approved
+SHA-256 and exact public patch bytes. A development-core staging run recorded
+the compiled `--neantik-core-info` handshake and matched the built `chrome.dll`
+hash; the staged core passed the disposable Canvas probe and the six-context
+CPU/memory/timezone audit. This is **not** a clean-from-scratch rebuild or a
+portable release. The manager still cannot create or launch native personas.
+
 ## What was measured on one Windows 11 x64 computer
 
 The local Chromium 155 development build reports a compiled native capability
@@ -46,9 +53,10 @@ untouched. Cross-API and real-site compatibility are not yet established.
 
 ## Gates before any public release
 
-1. Patch export and byte-for-byte source reconstruction are done. Before a
-   release, rebuild from a clean application of this patch, verify license
-   notices and record exact source/build hashes in the engine and ZIP receipts.
+1. Patch export, byte-for-byte source reconstruction and development-core
+   staging with a compiled capability handshake are done. Before a release,
+   rebuild from a clean application of this patch, verify license notices and
+   record exact source/build hashes in the engine and ZIP receipts.
 2. Choose the privacy model using empirical cohort and linkability testing.
    Do not enable stable per-profile variation merely because different hashes
    look like successful spoofing. Prefer coordinated, understandable defaults.

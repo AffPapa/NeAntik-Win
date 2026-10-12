@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -59,12 +61,15 @@ class SourceBuildStageTests(unittest.TestCase):
         (self.build / "locales" / "en-US.pak.info").write_bytes(b"build metadata, not runtime")
 
     def args(self, approved: str | None = None, privacy: str | None = None,
-             patch_file: Path | None = None) -> argparse.Namespace:
+             patch_file: Path | None = None, native: str | None = None,
+             native_file: Path | None = None) -> argparse.Namespace:
         return argparse.Namespace(source_root=str(self.source), build_root=str(self.build),
                                   output=str(self.root / "staged"), commit=self.commit,
                                   version="155.0.8059.40", approved_build_patch_sha256=approved,
                                   approved_privacy_patch_sha256=privacy,
-                                  privacy_patch_file=str(patch_file) if patch_file else None)
+                                  privacy_patch_file=str(patch_file) if patch_file else None,
+                                  approved_native_patch_sha256=native,
+                                  native_patch_file=str(native_file) if native_file else None)
 
     @patch.object(staging, "extract_credits", return_value=b"<!DOCTYPE html>" + b"C" * 110_000)
     def test_clean_source_stages_runtime_and_credits(self, _extract) -> None:
@@ -118,6 +123,38 @@ class SourceBuildStageTests(unittest.TestCase):
         path.write_text("// Untracked runtime code must not be hidden in a build.\n", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "Unapproved untracked Chromium source files"):
             staging.stage(self.args())
+
+    @patch.object(staging, "probe_native_core", return_value={"engine_id": "neantik-chromium", "schema": 1})
+    @patch.object(staging, "extract_credits", return_value=b"<!DOCTYPE html>" + b"C" * 110_000)
+    @patch.object(staging, "export_native_persona_patch", return_value=b"native source patch\n")
+    def test_native_persona_stage_requires_exact_public_patch(self, _export, _credits, _probe) -> None:
+        expected = b"native source patch\n"
+        digest = hashlib.sha256(expected).hexdigest()
+        patch_file = self.root / "native.patch"
+        patch_file.write_bytes(expected + b"extra")
+        with self.assertRaisesRegex(ValueError, "Published native persona patch differs"):
+            staging.stage(self.args(native=digest, native_file=patch_file))
+        patch_file.write_bytes(expected)
+        receipt = staging.stage(self.args(native=digest, native_file=patch_file))
+        self.assertEqual(receipt["native_persona_patch_sha256"], digest)
+        self.assertEqual(receipt["privacy_patch_sha256"], digest)
+        self.assertEqual(receipt["native_persona_core_info"]["engine_id"], "neantik-chromium")
+
+    def test_native_core_probe_rejects_missing_capability(self) -> None:
+        info = {"engine_id": "neantik-chromium", "schema": 1, "version": "155.0.8059.40",
+                "source_commit": self.commit,
+                "capabilities": {"stable_seed": True, "hardware_concurrency": True,
+                                 "device_memory": True, "canvas_opaque_srgb_uint8": False,
+                                 "timezone": True}}
+
+        def fake_run(arguments, **_kwargs):
+            output = next(item.split("=", 1)[1] for item in arguments if item.startswith("--neantik-core-info="))
+            Path(output).write_text(json.dumps(info), encoding="utf-8")
+            return SimpleNamespace(returncode=0)
+
+        with patch.object(staging.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(ValueError, "lacks required compiled capabilities"):
+                staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit)
 
 
 if __name__ == "__main__":

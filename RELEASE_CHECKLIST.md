@@ -50,6 +50,10 @@ snapshot may be used only for a local `-dev` archive, never a public release.
   patch; require the published privacy patch file to equal the approved diff
   byte-for-byte. Repeated staging of identical source/build inputs should
   produce identical file hashes, including the normalized offline credits.
+- If using the experimental native-persona patch, require the exact separate
+  patch hash and a compiled `--neantik-core-info` capability handshake; never
+  stack it with the 0.8.x baseline patch. Development staging alone is not a
+  clean rebuild, packaged QA or permission to advertise the feature.
 - For 0.7.0, verify only en-US/ru/th Chromium UI packs are present; no size
   reduction is claimed for this release.
 

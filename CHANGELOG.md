@@ -32,6 +32,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Removed a timestamped `chrome://theme` link from the offline Chromium credits
   copy at staging time. The credits content remains intact while repeated
   staging of identical sources can produce identical credits bytes.
+- Added a strict experimental native-persona staging path: exact patch hash,
+  exact public bytes, and a compiled capability handshake. A local staged core
+  passed disposable Canvas and six-context CPU/memory/timezone checks; it is
+  not a public portable release.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
