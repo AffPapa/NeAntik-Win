@@ -6,11 +6,15 @@ opt-in preview profile mode gated on an exact staged-core receipt and compiled
 capability report; the downloadable manager does not offer it. Do not describe
 the current release as providing per-profile Canvas or timezone changes.
 
-The complete [experimental Chromium patch](chromium-native-persona-prototype.patch)
+The revised [experimental Chromium patch](chromium-native-persona-prototype-v2.patch)
 is now public for review. It is based on upstream commit
 `cfaadc5a132d78e1828635aa8405a499f3e14864`, contains 14 modified
 runtime/test files and 15 added source/web-test files, and has SHA-256
-`7ec3200a9ce0c0c8bb0cab8e7070a7be39a6b5e08704d92c45d1dd4c4f35d133`.
+`7c8b82c79ad8ab06f510729561fb4671e6bbddb3536ec888135be506fa806032`.
+The original prototype patch remains in Git for comparison and must not be
+mixed with this revision. V2 bounds exposed CPU count and memory to the stock
+host values, with synthetic low-end tests; a second physical host is still a
+release gate.
 It excludes the separate build-only compatibility patch. It supersedes the
 0.8.x CPU/memory baseline for development; **do not apply both patches**.
 The [export verifier](../tools/export_native_persona_patch.py) checks the
@@ -58,11 +62,11 @@ fingerprint uniqueness. The present prototype changes opaque sRGB uint8
 Canvas2D readbacks only; translucent content, wide-gamut/float16 paths,
 WebGL/WebGPU, AudioContext, fonts, TLS, IP and many other surfaces remain
 untouched. Cross-API and real-site compatibility are not yet established.
-Code review also found that the prototype currently returns the requested
-CPU-thread and memory bucket values without clamping them to a smaller real
-machine. A four-core/eight-GiB persona on a lower-end host could therefore be
-implausible. This must be corrected and tested on a second hardware class
-before any release.
+Code review found that V1 could return CPU-thread and memory bucket values
+larger than those of the host. V2 now bounds both values by stock Chromium's
+observed host values, including the shared HTTP device-memory hint source.
+The revised code still needs a completed rebuild, cross-context runtime test
+and validation on a second hardware class before any release.
 
 ## Gates before any public release
 

@@ -54,6 +54,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Added archive-level native patch/capability provenance checks and negative
   fixtures. A public package carrying the experimental core must state its
   exact native patch hash; malformed capability receipts are rejected.
+- Published a second experimental native patch revision that bounds requested
+  CPU and memory values by stock Chromium's host values. Synthetic low-end
+  tests cover the bound; full runtime rebuild and second-machine QA are still
+  pending, so the public download remains 0.8.1-preview.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
