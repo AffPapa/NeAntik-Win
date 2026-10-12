@@ -6,14 +6,16 @@ opt-in preview profile mode gated on an exact staged-core receipt and compiled
 capability report; the downloadable manager does not offer it. Do not describe
 the current release as providing per-profile Canvas or timezone changes.
 
-The revised [experimental Chromium patch](chromium-native-persona-prototype-v2.patch)
+The revised [experimental Chromium patch](chromium-native-persona-prototype-v3.patch)
 is now public for review. It is based on upstream commit
 `cfaadc5a132d78e1828635aa8405a499f3e14864`, contains 14 modified
 runtime/test files and 15 added source/web-test files, and has SHA-256
-`7c8b82c79ad8ab06f510729561fb4671e6bbddb3536ec888135be506fa806032`.
-The original prototype patch remains in Git for comparison and must not be
-mixed with this revision. V2 bounds exposed CPU count and memory to the stock
-host values, with synthetic low-end tests; a second physical host is still a
+`40aeda86ee42b9c6b56227effd3842be3dd58aa4ee06bd337513641856ac0193`.
+V1 and V2 remain in Git for comparison and must not be mixed with this revision.
+V3 bounds exposed CPU count and memory to the stock host values and increments
+the compiled-core handshake schema to 2. The staging tool rejects older
+schema-1 binaries even when they advertise the same named capabilities.
+Synthetic low-end tests cover the bound; a second physical host is still a
 release gate.
 It excludes the separate build-only compatibility patch. It supersedes the
 0.8.x CPU/memory baseline for development; **do not apply both patches**.
@@ -63,7 +65,7 @@ Canvas2D readbacks only; translucent content, wide-gamut/float16 paths,
 WebGL/WebGPU, AudioContext, fonts, TLS, IP and many other surfaces remain
 untouched. Cross-API and real-site compatibility are not yet established.
 Code review found that V1 could return CPU-thread and memory bucket values
-larger than those of the host. V2 now bounds both values by stock Chromium's
+larger than those of the host. V3 bounds both values by stock Chromium's
 observed host values, including the shared HTTP device-memory hint source.
 The revised code still needs a completed rebuild, cross-context runtime test
 and validation on a second hardware class before any release.

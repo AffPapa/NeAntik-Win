@@ -105,7 +105,7 @@ if (-not $PackageOnly) {
             if ($nativePersonaPatch) {
                 $coreInfo = $engineReceipt.native_persona_core_info
                 if ($nativePersonaPatch -ne $privacyPatch -or $null -eq $coreInfo -or $coreInfo.engine_id -ne 'neantik-chromium' -or
-                    $coreInfo.schema -ne 1 -or $coreInfo.version -ne $engineReceipt.chromium_version -or
+                    $coreInfo.schema -ne 2 -or $coreInfo.version -ne $engineReceipt.chromium_version -or
                     $coreInfo.source_commit -ne $engineReceipt.source_commit -or
                     $coreInfo.capabilities.stable_seed -ne $true -or $coreInfo.capabilities.hardware_concurrency -ne $true -or
                     $coreInfo.capabilities.device_memory -ne $true -or $coreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $true -or

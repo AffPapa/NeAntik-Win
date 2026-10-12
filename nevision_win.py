@@ -76,7 +76,7 @@ NATIVE_JOURNAL_FORMAT = "neantik-operation-v3"
 NATIVE_BACKUP_FORMAT = "neantik-profile-backup-v3"
 SCHEMA_VERSION = "1"
 DB_BUSY_TIMEOUT_MS = 8_000
-NATIVE_PREVIEW_PATCH_SHA256 = "7c8b82c79ad8ab06f510729561fb4671e6bbddb3536ec888135be506fa806032"
+NATIVE_PREVIEW_PATCH_SHA256 = "40aeda86ee42b9c6b56227effd3842be3dd58aa4ee06bd337513641856ac0193"
 
 THEME_SYSTEM = "system"
 THEME_LIGHT = "light"
@@ -1542,7 +1542,7 @@ class BrowserLauncher:
                     receipt.get("privacy_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
                     receipt.get("native_persona_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
                     not isinstance(info, dict) or info.get("engine_id") != "neantik-chromium" or
-                    info.get("schema") != 1 or info.get("version") != receipt.get("chromium_version") or
+                    info.get("schema") != 2 or info.get("version") != receipt.get("chromium_version") or
                     info.get("source_commit") != receipt.get("source_commit") or
                     not isinstance(capabilities, dict) or
                     not all(capabilities.get(key) is True for key in required)):

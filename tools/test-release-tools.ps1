@@ -84,11 +84,12 @@ function New-TestArchive([string]$Mode) {
             if ($Mode -like 'chromium-source-privacy*') { $engineReceipt.privacy_patch_sha256 = 'f' * 64 }
             if ($Mode -like 'chromium-source-privacy-native*') {
                 $engineReceipt.native_persona_patch_sha256 = 'f' * 64
-                $engineReceipt.native_persona_core_info = [ordered]@{ engine_id = 'neantik-chromium'; schema = 1;
+                $engineReceipt.native_persona_core_info = [ordered]@{ engine_id = 'neantik-chromium'; schema = 2;
                     version = '155.0.8059.40'; source_commit = 'a' * 40;
                     capabilities = [ordered]@{ stable_seed = $true; hardware_concurrency = $true; device_memory = $true;
                         canvas_opaque_srgb_uint8 = $true; timezone = $true } }
                 if ($Mode -eq 'chromium-source-privacy-native-bad-info') { $engineReceipt.native_persona_core_info.capabilities.timezone = $false }
+                if ($Mode -eq 'chromium-source-privacy-native-old-schema') { $engineReceipt.native_persona_core_info.schema = 1 }
             }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
@@ -191,7 +192,7 @@ $script:passed++
 $chromiumNative = New-TestArchive 'chromium-source-privacy-native'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumNative
 $script:passed++
-foreach ($case in @('chromium-source-privacy-native-mismatch', 'chromium-source-privacy-native-bad-info')) {
+foreach ($case in @('chromium-source-privacy-native-mismatch', 'chromium-source-privacy-native-bad-info', 'chromium-source-privacy-native-old-schema')) {
     $archive = New-TestArchive $case
     Expect-Failure "archive $case rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } 'Native persona provenance'
 }

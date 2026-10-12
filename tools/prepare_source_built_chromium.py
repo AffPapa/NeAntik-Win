@@ -78,7 +78,7 @@ def probe_native_core(chrome: Path, version: str, commit: str) -> dict[str, obje
         if result.returncode != 0 or not output.is_file():
             raise ValueError("Built Chromium lacks the native persona core handshake")
         info = json.loads(output.read_text(encoding="utf-8"))
-    if not isinstance(info, dict) or info.get("engine_id") != "neantik-chromium" or info.get("schema") != 1:
+    if not isinstance(info, dict) or info.get("engine_id") != "neantik-chromium" or info.get("schema") != 2:
         raise ValueError("Invalid native persona core identity")
     if info.get("version") != version or info.get("source_commit") != commit:
         raise ValueError("Native persona core version or source commit differs")

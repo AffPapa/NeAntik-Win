@@ -24,7 +24,7 @@ class OrdinaryIdentityTests(unittest.TestCase):
         if native:
             receipt["native_persona_patch_sha256"] = NATIVE_PREVIEW_PATCH_SHA256
             receipt["native_persona_core_info"] = {
-                "engine_id": "neantik-chromium", "schema": 1,
+                "engine_id": "neantik-chromium", "schema": 2,
                 "version": receipt["chromium_version"], "source_commit": receipt["source_commit"],
                 "capabilities": {key: True for key in ("stable_seed", "hardware_concurrency",
                                                   "device_memory", "canvas_opaque_srgb_uint8", "timezone")}}
@@ -114,6 +114,17 @@ class OrdinaryIdentityTests(unittest.TestCase):
                 with self.assertRaisesRegex(NeVisionError, "проверенное встроенное ядро"):
                     launcher.launch(storage.get_profile(profile_id))
             spawn.assert_not_called()
+
+    def test_native_preview_rejects_previous_handshake_schema(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-native-schema-guard-") as temporary:
+            root = Path(temporary)
+            storage = Storage(AppPaths(root))
+            engine = self.fake_bundled_core(root, native=True)
+            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["native_persona_core_info"]["schema"] = 1
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
 
     def test_native_preview_uses_only_verified_bundled_core(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-launch-") as temporary:

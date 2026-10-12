@@ -140,7 +140,7 @@ try {
             if ($receiptNativePatch) {
                 if ($receiptNativePatch -ne $receiptPrivacyPatch -or $manifestNativePatch -ne $receiptNativePatch -or
                     $null -eq $nativeCoreInfo -or $nativeCoreInfo.engine_id -ne 'neantik-chromium' -or
-                    ($nativeCoreInfo.schema -isnot [int] -and $nativeCoreInfo.schema -isnot [long]) -or $nativeCoreInfo.schema -ne 1 -or
+                    ($nativeCoreInfo.schema -isnot [int] -and $nativeCoreInfo.schema -isnot [long]) -or $nativeCoreInfo.schema -ne 2 -or
                     $nativeCoreInfo.version -ne $engineReceipt.chromium_version -or
                     $nativeCoreInfo.source_commit -ne $engineReceipt.source_commit -or
                     $nativeCoreInfo.capabilities.stable_seed -isnot [bool] -or $nativeCoreInfo.capabilities.stable_seed -ne $true -or
