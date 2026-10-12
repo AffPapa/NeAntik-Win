@@ -48,6 +48,21 @@ def extract_credits(chrome: Path) -> bytes:
     return result.stdout
 
 
+_DYNAMIC_CREDITS_THEME = re.compile(
+    rb'<link href="chrome://theme/colors\.css\?sets=ui%2Cchrome&amp;version=[0-9]+" '
+    rb'rel="stylesheet" type="text/css">'
+)
+
+
+def normalize_credits_html(credits: bytes) -> bytes:
+    """Remove Chromium's per-run theme URL from the offline credits copy."""
+    theme_marker = b'chrome://theme/colors.css?'
+    matches = _DYNAMIC_CREDITS_THEME.findall(credits)
+    if theme_marker in credits and len(matches) != 1:
+        raise ValueError("Unexpected dynamic Chromium theme URL in credits")
+    return _DYNAMIC_CREDITS_THEME.sub(b"", credits)
+
+
 def grant_sandbox_read_access(engine: Path) -> None:
     """Let Windows AppContainer children read public engine files, not Data/."""
     if sys.platform != "win32":
@@ -72,6 +87,9 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
         raise ValueError("Chromium checkout is not at the pinned source commit")
     if git(source, "diff", "--cached", "--name-only"):
         raise ValueError("Chromium checkout has staged source changes")
+    untracked = set(filter(None, git(source, "ls-files", "--others", "--exclude-standard").splitlines()))
+    if untracked:
+        raise ValueError(f"Unapproved untracked Chromium source files: {sorted(untracked)}")
     changed = set(filter(None, git(source, "diff", "HEAD", "--name-only").splitlines()))
     if changed - (BUILD_PATCH_FILES | PRIVACY_PATCH_FILES):
         raise ValueError(f"Unapproved Chromium source changes: {sorted(changed)}")
@@ -87,6 +105,8 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
         if not args.privacy_patch_file:
             raise ValueError("A public privacy patch file is required for modified browser runtime")
         patch_file = Path(args.privacy_patch_file).resolve(strict=True)
+        if patch_file.read_bytes() != privacy_bytes:
+            raise ValueError("Public privacy patch bytes differ from the approved source diff")
         subprocess.run(["git", "-C", str(source), "apply", "--reverse", "--check", str(patch_file)],
                        check=True, capture_output=True)
     elif args.privacy_patch_file:
@@ -136,7 +156,7 @@ def stage(args: argparse.Namespace) -> dict[str, object]:
             shutil.copy2(item, destination)
         shutil.copy2(source / "LICENSE", staged / "LICENSE")
         grant_sandbox_read_access(staged)
-        credits = extract_credits(staged / "chrome.exe")
+        credits = normalize_credits_html(extract_credits(staged / "chrome.exe"))
         if len(credits) < 100_000 or b"<!DOCTYPE html" not in credits[:1000]:
             raise ValueError("Could not extract Chromium third-party credits")
         (staged / "credits.html").write_bytes(credits)

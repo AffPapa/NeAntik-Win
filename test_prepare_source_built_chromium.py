@@ -16,6 +16,18 @@ import prepare_source_built_chromium as staging
 
 
 class SourceBuildStageTests(unittest.TestCase):
+    def test_dynamic_credits_theme_is_removed_deterministically(self) -> None:
+        prefix = b'<!DOCTYPE html><html><body>credits'
+        suffix = b'</body></html>'
+        theme = (b'<link href="chrome://theme/colors.css?sets=ui%2Cchrome&amp;version='
+                 b'123456" rel="stylesheet" type="text/css">')
+        first = staging.normalize_credits_html(prefix + theme + suffix)
+        second = staging.normalize_credits_html(prefix + theme.replace(b'123456', b'987654') + suffix)
+        self.assertEqual(first, second)
+        self.assertEqual(first, prefix + suffix)
+        with self.assertRaisesRegex(ValueError, "Unexpected dynamic"):
+            staging.normalize_credits_html(prefix + theme.replace(b'123456', b'bad') + suffix)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="neantik-source-stage-test-")
         self.addCleanup(self.temp.cleanup)
@@ -88,12 +100,23 @@ class SourceBuildStageTests(unittest.TestCase):
             staging.stage(self.args())
         with self.assertRaisesRegex(ValueError, "public privacy patch file"):
             staging.stage(self.args(privacy=hashlib.sha256(patch_bytes).hexdigest()))
+        patch_file.write_bytes(patch_bytes + b"\n")
+        with self.assertRaisesRegex(ValueError, "patch bytes differ"):
+            staging.stage(self.args(privacy=hashlib.sha256(patch_bytes).hexdigest(), patch_file=patch_file))
+        patch_file.write_bytes(patch_bytes)
         receipt = staging.stage(self.args(privacy=hashlib.sha256(patch_bytes).hexdigest(), patch_file=patch_file))
         self.assertEqual(receipt["privacy_patch_sha256"], hashlib.sha256(patch_bytes).hexdigest())
 
     def test_runtime_source_change_is_rejected(self) -> None:
         (self.source / "chrome" / "VERSION").write_text("MAJOR=156\nMINOR=0\nBUILD=1\nPATCH=0\n", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "Unapproved Chromium source changes"):
+            staging.stage(self.args())
+
+    def test_untracked_runtime_source_is_rejected(self) -> None:
+        path = self.source / "third_party" / "blink" / "renderer" / "surprise.cc"
+        path.parent.mkdir(parents=True)
+        path.write_text("// Untracked runtime code must not be hidden in a build.\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Unapproved untracked Chromium source files"):
             staging.stage(self.args())
 
 

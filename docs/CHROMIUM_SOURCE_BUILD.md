@@ -86,9 +86,13 @@ hash as `--approved-build-patch-sha256` to
 0.8.0-preview, additionally pass the exact hash and file of the separate
 [privacy baseline patch](CHROMIUM_PRIVACY_BASELINE.md) as
 `--approved-privacy-patch-sha256` and `--privacy-patch-file`. The staging tool
-rejects changed tracked files outside the approved build and privacy inputs,
+rejects changed tracked **and untracked** files outside the approved build and privacy inputs,
+and requires the published privacy patch bytes to equal the approved diff,
 checks the pinned commit and version, curates runtime files, and extracts
-`chrome://credits` from the staged browser. The runtime set includes the
+`chrome://credits` from the staged browser. A per-run Chromium theme URL is
+removed from the offline credits copy; two local staging runs of the same
+source/build input produced matching hashes for all 39 staged files. The
+runtime set includes the
 versioned Windows Side-by-Side manifest and unmodified x64 Visual C++
 redistributable DLLs. The 0.5.1 portable stage retains only `en-US`, `ru` and
 `th` Chromium UI packs; other locales fall back to English. This reduces the

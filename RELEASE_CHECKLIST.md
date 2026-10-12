@@ -46,6 +46,10 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Verify Chromium source commit, build-only patch SHA-256, version, `LICENSE`,
   `credits.html` and exact runtime allowlist. A bundled archive must contain
   no PDBs, build intermediates, tests or user `Data/`.
+- Reject staged and untracked Chromium source edits outside the approved
+  patch; require the published privacy patch file to equal the approved diff
+  byte-for-byte. Repeated staging of identical source/build inputs should
+  produce identical file hashes, including the normalized offline credits.
 - For 0.7.0, verify only en-US/ru/th Chromium UI packs are present; no size
   reduction is claimed for this release.
 

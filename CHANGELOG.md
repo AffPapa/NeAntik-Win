@@ -24,6 +24,14 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Exported the complete experimental Chromium patch with an exact upstream
   commit and deterministic verifier. This is source for review, not a release
   of the experimental browser core.
+- Hardened source-built Chromium staging to reject untracked source files;
+  previously the provenance gate checked only tracked changes. This prevents
+  an experimental new source file from entering a build under an incomplete
+  patch receipt. The public runtime patch must also match the approved diff
+  byte-for-byte, not merely reverse-apply successfully.
+- Removed a timestamped `chrome://theme` link from the offline Chromium credits
+  copy at staging time. The credits content remains intact while repeated
+  staging of identical sources can produce identical credits bytes.
 
 ## 0.8.1-preview — clean source provenance correction (2026-10-13)
 
