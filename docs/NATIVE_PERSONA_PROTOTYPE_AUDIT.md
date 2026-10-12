@@ -46,7 +46,10 @@ passed seven checks: six JavaScript contexts and the Device-Memory Client Hint
 agreed, the same seed repeated, different seeds left common CPU/RAM/timezone
 surfaces unchanged, and CPU/memory did not exceed the observed stock host.
 The audit uses only loopback content and writes raw device observations outside
-Git. It is not a clean release build, cross-machine test or anonymity score.
+Git. The patched development checkout also passed 19 native fingerprint parser/
+bounds tests, five native Canvas readback tests and three renderer-preference
+tests. These are not a clean release build, cross-machine test or anonymity
+score.
 
 ## What was measured on one Windows 11 x64 computer
 
