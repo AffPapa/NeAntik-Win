@@ -38,13 +38,13 @@
     },
     {
       "path": "ARCHITECTURE.md",
-      "size_bytes": 7228,
-      "sha256": "ee195d194f75230c2f8058992156d6f442d674a9be8ad5974d1693eeb57e861c"
+      "size_bytes": 7380,
+      "sha256": "c6b17cb26855845951e42647f5ada09a975a836500b4edf247af49fd6e50b1d4"
     },
     {
       "path": "CHANGELOG.md",
-      "size_bytes": 8986,
-      "sha256": "c1bc77f9d0dc579de69b809a55f09260ef38f98d855f7a063235c4bc3248693e"
+      "size_bytes": 9589,
+      "sha256": "356427c33390874d8ac3487eec335c5ae3195bafd8e98760dae90475445e5892"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -58,8 +58,8 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 6314,
-      "sha256": "015284fe0051b24687b72fab58cced42d526a46dda8df471e8c288a22c54711f"
+      "size_bytes": 6736,
+      "sha256": "8774a9d236ce97cb770225dbbaf39adee061a4feb354e8d23ac743687d2e1bca"
     },
     {
       "path": "RELEASE_CHECKLIST.md",
@@ -118,8 +118,13 @@
     },
     {
       "path": "build.ps1",
-      "size_bytes": 8922,
-      "sha256": "e2db6b65d8d347feb4b00e80432833aba98e6ab34c8f73c1343d0c1cbabfd8e7"
+      "size_bytes": 11839,
+      "sha256": "5cd70d0fc66a8de885247edb8f61862a2130a273bcd60c2c0fb932035ce56cfb"
+    },
+    {
+      "path": "docs/BUNDLED_BROWSER_RESEARCH.md",
+      "size_bytes": 10397,
+      "sha256": "c95b2c7ead83eb8f5825aadf9dc8e49c5ca9a3ca44482bcdb2c6fcd39f34a881"
     },
     {
       "path": "docs/CYCLE_PLAN.md",
@@ -153,8 +158,8 @@
     },
     {
       "path": "nevision_win.py",
-      "size_bytes": 165500,
-      "sha256": "33ef472ec18d00c50e8e25ed34d290884eae9583c052bec49abcf797f4b9eded"
+      "size_bytes": 167531,
+      "sha256": "ce44094287a5aa62f640a6ccb67af8f88bd42c9fd0d3adf9283cd9459b5648a1"
     },
     {
       "path": "profile_identity.py",
@@ -163,8 +168,8 @@
     },
     {
       "path": "release-version.json",
-      "size_bytes": 89,
-      "sha256": "2f8e58b620c77047b8137acb4dfc4963a3f8ce8f2ecd22eea0431683080aec40"
+      "size_bytes": 81,
+      "sha256": "42f5143d97bfd401be0b2dfd5cab588564187b92ce2a288eb4672e66dbcaa9df"
     },
     {
       "path": "requirements-build.txt",
@@ -178,8 +183,8 @@
     },
     {
       "path": "test_nevision_win.py",
-      "size_bytes": 44476,
-      "sha256": "d9042b6cc6fe9048e26161bda037d826eb1177e44b7e218908a34760a181af7f"
+      "size_bytes": 46791,
+      "sha256": "a75e73b54f01616c9ff6cec39af6a4d81af515e0416108b1b87362357cb8f3df"
     },
     {
       "path": "test_profile_identity.py",
@@ -232,6 +237,11 @@
       "sha256": "8936d15627a8a95f8dcbb6d7fed14758f23f4a3c41025294470ed2a666dd4c34"
     },
     {
+      "path": "tools/prepare_bundled_chromium.py",
+      "size_bytes": 7878,
+      "sha256": "8d6a3dab3a50630bf1587468bda727ef28c07d3b274eeb30d94d908281898025"
+    },
+    {
       "path": "tools/proxy_integration.py",
       "size_bytes": 20118,
       "sha256": "9cd32237a9fea68084be5a5806dceee1ba4cbe08949d25b1faeae9a072431a36"
@@ -248,8 +258,8 @@
     },
     {
       "path": "tools/test-release-tools.ps1",
-      "size_bytes": 11605,
-      "sha256": "379cb8c0fbc30b6f765d167a4893ad8ce63ced7f3ffd447d75f15a332923ac41"
+      "size_bytes": 13122,
+      "sha256": "6db13863c28157a9831e860ed56d762799a8bcabf483e579e9ab0e120be09d08"
     },
     {
       "path": "tools/test_public_source_export.py",
@@ -258,8 +268,8 @@
     },
     {
       "path": "tools/verify-release-archive.ps1",
-      "size_bytes": 8422,
-      "sha256": "6f927689a4479eec5c8c11fdd75e1cd596372fc5b10b3abd5f8f7538e348f2cf"
+      "size_bytes": 11059,
+      "sha256": "937a1950eb3edef924552a3b7ad3a048ef5de9d079fe2125ccf7acd1594cddb2"
     },
     {
       "path": "website/CHANGELOG.md",

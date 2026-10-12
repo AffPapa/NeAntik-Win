@@ -20,8 +20,9 @@ function Expect-Failure([string]$Name, [scriptblock]$Action, [string]$Pattern) {
 }
 
 function New-TestArchive([string]$Mode) {
-    $folder = 'NeVisionWin-portable-v0.2.0-preview'
-    $version = '{"version":"0.2.0-preview","file_version":[0,2,0,0],"channel":"preview"}'
+    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } else { '0.2.0-preview' }
+    $folder = "NeVisionWin-portable-v$testVersion"
+    $version = "{`"version`":`"$testVersion`",`"file_version`":[0,2,0,0],`"channel`":`"preview`"}"
     $payload = [ordered]@{
         'NeVisionWin.exe' = 'fixture executable, never launched'
         'release-version.json' = $version
@@ -61,8 +62,18 @@ function New-TestArchive([string]$Mode) {
         if ($Mode -eq 'native-schema-bool') { $coreManifest.schema = $true }
         $payload['Engine/NeAntikChromium/core-manifest.json'] = $coreManifest | ConvertTo-Json -Depth 8 -Compress
     }
+    $chromiumMode = $Mode.StartsWith('chromium')
+    if ($chromiumMode) {
+        foreach ($member in @('chrome.exe', 'chrome.dll', 'icudtl.dat', 'resources.pak', 'LICENSE')) {
+            $payload["Engine/Chromium/$member"] = "Synthetic Chromium fixture $member"
+        }
+        $payload['Engine/Chromium/credits.html'] = '<!DOCTYPE html>' + ('C' * 110000)
+        $engineReceipt = [ordered]@{ format = 'neantik-chromium-snapshot-stage-v1'; chromium_version = '157.0.8101.0';
+            channel = 'continuous-snapshot-not-stable'; source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
+        $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
+    }
     $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
-    $manifest = [ordered]@{ format = 'nevision-release-v1'; version = '0.2.0-preview'; files = $files }
+    $manifest = [ordered]@{ format = 'nevision-release-v1'; version = $testVersion; files = $files }
     if ($nativeMode) {
         $manifest.native_core_bundled = $true
         $manifest.engine = [ordered]@{ engine_id = 'neantik-chromium'; version = '155.0.8059.40';
@@ -74,6 +85,11 @@ function New-TestArchive([string]$Mode) {
         if ($Mode -eq 'native-manifest-hash') { $manifest.engine.manifest_sha256 = '0' * 64 }
         if ($Mode -eq 'native-qa') { $manifest.engine.qa_status = 'failed' }
         if ($Mode -eq 'native-flag-type') { $manifest.native_core_bundled = 'true' }
+    }
+    if ($chromiumMode) {
+        $manifest.native_core_bundled = $true
+        $manifest.engine = [ordered]@{ name = 'Chromium'; version = '157.0.8101.0'; channel = 'continuous-snapshot-not-stable';
+            source_commit = 'a' * 40; snapshot_sha256 = 'b' * 64 }
     }
     if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
     if ($Mode -eq 'neantik') {
@@ -120,7 +136,12 @@ $valid = New-TestArchive 'valid'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $valid
 $script:passed++
 $native = New-TestArchive 'native-valid'
-Expect-Failure 'custom engine release rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $native } 'Custom browser engines'
+Expect-Failure 'unrecognized custom engine release rejected' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $native } 'engine|browser|core|native'
+$chromiumDev = New-TestArchive 'chromium-dev'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumDev
+$script:passed++
+$chromiumPreview = New-TestArchive 'chromium-preview'
+Expect-Failure 'development core cannot be public preview' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumPreview } 'Development Chromium snapshot'
 $launcherOnly = New-TestArchive 'launcher-only'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $launcherOnly
 $script:passed++
@@ -131,11 +152,11 @@ foreach ($case in @(@('data', 'Forbidden'), @('hash', 'mismatch'), @('missing-li
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
 }
-foreach ($case in @(@('native-hash', 'Custom browser engines'), @('native-path', 'Custom browser engines'),
-    @('native-license', 'Custom browser engines'), @('native-unlisted', 'Custom browser engines'), @('native-identity', 'Custom browser engines'),
-    @('native-undeclared', 'Custom browser engines'), @('native-false', 'Custom browser engines'), @('native-manifest-hash', 'Custom browser engines'),
-    @('native-qa', 'Custom browser engines'), @('native-flag-type', 'Custom browser engines'), @('native-schema-string', 'Custom browser engines'),
-    @('native-schema-fraction', 'Custom browser engines'), @('native-schema-bool', 'Custom browser engines'))) {
+foreach ($case in @(@('native-hash', 'engine|browser|core|native'), @('native-path', 'engine|browser|core|native'),
+    @('native-license', 'engine|browser|core|native'), @('native-unlisted', 'engine|browser|core|native'), @('native-identity', 'engine|browser|core|native'),
+    @('native-undeclared', 'engine|browser|core|native'), @('native-false', 'engine|browser|core|native'), @('native-manifest-hash', 'engine|browser|core|native'),
+    @('native-qa', 'engine|browser|core|native'), @('native-flag-type', 'engine|browser|core|native'), @('native-schema-string', 'engine|browser|core|native'),
+    @('native-schema-fraction', 'engine|browser|core|native'), @('native-schema-bool', 'engine|browser|core|native'))) {
     $archive = New-TestArchive $case[0]
     Expect-Failure "archive $($case[0]) rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } $case[1]
 }

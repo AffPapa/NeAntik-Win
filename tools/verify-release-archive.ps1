@@ -81,14 +81,41 @@ try {
     foreach ($license in $runtime.licenses) {
         if (-not $entries.ContainsKey("$root/licenses/$license")) { throw "Runtime license is missing: $license" }
     }
-    # This product edition is deliberately ordinary-browser-only. The release
-    # verifier refuses a custom engine regardless of accompanying metadata.
     $engineEntries = @($entries.Keys | Where-Object { $_ -match ('^' + [regex]::Escape($root) + '/Engine/') })
-    if ($engineEntries.Count) { throw 'Custom browser engines are not part of this ordinary-browser release.' }
     $hasNativeField = $manifest.PSObject.Properties.Name -contains 'native_core_bundled'
     if ($hasNativeField -and $manifest.native_core_bundled -isnot [bool]) { throw 'native_core_bundled must be a boolean.' }
-    if ($hasNativeField -and $manifest.native_core_bundled) { throw 'Native browser cores are not part of this ordinary-browser release.' }
-    if ($manifest.PSObject.Properties.Name -contains 'engine') { throw 'Custom browser engine metadata is not accepted in this release.' }
+    if ($engineEntries.Count -gt 0) {
+        if (-not $hasNativeField -or -not $manifest.native_core_bundled -or -not ($manifest.PSObject.Properties.Name -contains 'engine')) { throw 'Bundled Chromium requires explicit engine provenance.' }
+        $prefix = "$root/Engine/Chromium/"
+        if ($engineEntries | Where-Object { -not $_.StartsWith($prefix, [StringComparison]::Ordinal) }) { throw 'Unexpected engine folder.' }
+        $allowedRoot = @('chrome.exe', 'chrome.dll', 'chrome_elf.dll', 'chrome_wer.dll', 'chrome_100_percent.pak',
+            'chrome_200_percent.pak', 'resources.pak', 'icudtl.dat', 'v8_context_snapshot.bin', 'libEGL.dll',
+            'libGLESv2.dll', 'D3DCompiler_47.dll', 'dxcompiler.dll', 'vulkan-1.dll', 'vk_swiftshader.dll',
+            'vk_swiftshader_icd.json', 'chrome_proxy.exe', 'chrome_pwa_launcher.exe', 'elevated_tracing_service.exe',
+            'elevation_service.exe', 'notification_helper.exe', 'eventlog_provider.dll', 'First Run',
+            'LICENSE', 'credits.html', 'ENGINE_PROVENANCE.json')
+        foreach ($enginePath in $engineEntries) {
+            $relative = $enginePath.Substring($prefix.Length)
+            if ($relative -notmatch '/') {
+                if ($relative -notin $allowedRoot -and $relative -notmatch '^\d+\.\d+\.\d+\.\d+\.manifest$') { throw "Unexpected engine file: $relative" }
+            } else {
+                $segments = $relative.Split('/')
+                if ($segments[0] -notin @('locales', 'MEIPreload', 'IwaKeyDistribution') -or $relative -notmatch '\.(pak|pb|json)$') { throw "Unexpected engine resource: $relative" }
+            }
+        }
+        foreach ($required in @('chrome.exe', 'chrome.dll', 'icudtl.dat', 'resources.pak', 'LICENSE', 'credits.html', 'ENGINE_PROVENANCE.json')) {
+            if (-not $entries.ContainsKey("$prefix$required")) { throw "Bundled browser is missing $required" }
+        }
+        if ($engineEntries | Where-Object { $_ -match '\.(pdb|obj|ilk|lib)$' -or $_ -match '/(setup|interactive_ui_tests|unit_tests)\.exe$' }) { throw 'Build/test files are forbidden in the portable engine.' }
+        $engineReceipt = Read-ArchiveText $entries["${prefix}ENGINE_PROVENANCE.json"] | ConvertFrom-Json
+        if ($engineReceipt.format -ne 'neantik-chromium-snapshot-stage-v1' -or $manifest.engine.name -ne 'Chromium' -or
+            $manifest.engine.version -ne $engineReceipt.chromium_version -or $manifest.engine.channel -ne $engineReceipt.channel -or
+            $manifest.engine.source_commit -ne $engineReceipt.source_commit -or $manifest.engine.snapshot_sha256 -ne $engineReceipt.snapshot_sha256) { throw 'Browser provenance does not match release manifest.' }
+        if ($engineReceipt.channel -ne 'stable' -and $manifest.version -notmatch '-dev$') { throw 'Development Chromium snapshot cannot be a public preview/stable release.' }
+        if ($entries["${prefix}credits.html"].Length -lt 100KB) { throw 'Browser third-party credits are incomplete.' }
+    } elseif (($hasNativeField -and $manifest.native_core_bundled) -or ($manifest.PSObject.Properties.Name -contains 'engine')) {
+        throw 'Engine metadata is present without a bundled browser.'
+    }
     $hasFingerprintField = $manifest.PSObject.Properties.Name -contains 'fingerprint_modification'
     if ($hasFingerprintField -and $manifest.fingerprint_modification -isnot [bool]) { throw 'fingerprint_modification must be a boolean.' }
     if ($hasFingerprintField -and $manifest.fingerprint_modification) { throw 'Fingerprint modification is not part of this release.' }

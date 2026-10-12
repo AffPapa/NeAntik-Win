@@ -2,6 +2,16 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.5.0-dev — local bundled-Chromium prototype (not published)
+
+- Added a bundled Chromium discovery path for new local profiles while keeping
+  existing Chrome/Edge profiles pinned to their original browser family.
+- Added a snapshot staging tool with SHA-256, upstream revision, license and
+  third-party credits checks; dev-only release tooling can package that engine.
+- This is not a public release. The tested official snapshot is a development
+  build, not the latest stable security branch. Proxy routing still does not
+  guarantee anonymity; automatic timezone changes are not implemented.
+
 ## 0.4.1-preview — portable reliability and usability (2026-10-12)
 
 - Profiles now remember whether their local browser data belongs to Chrome or Edge.

@@ -318,7 +318,7 @@ def proxy_choices(proxies: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
 
 
 def validated_browser_family(value: Any) -> str:
-    if type(value) is not str or value not in {"", "chrome", "edge"}:
+    if type(value) is not str or value not in {"", "chrome", "edge", "chromium"}:
         raise NeVisionError("Backup или профиль содержит неподдерживаемую привязку браузера.")
     return value
 
@@ -798,7 +798,7 @@ class Storage:
             self.log_in_db(db, "profile.launched", profile_id)
 
     def pin_browser_family(self, profile_id: str, family: str) -> None:
-        if family not in {"chrome", "edge"}:
+        if family not in {"chrome", "edge", "chromium"}:
             raise NeVisionError("Неподдерживаемый браузер для профиля.")
         with self.connection() as db:
             updated = db.execute(
@@ -810,7 +810,7 @@ class Storage:
                 if row is None:
                     raise NeVisionError("Профиль больше не существует.")
                 if row["browser_family"] != family:
-                    raise NeVisionError("Профиль закреплён за другим браузером. Верните прежний Chrome/Edge в Настройках или создайте чистую копию профиля.")
+                    raise NeVisionError("Профиль закреплён за другим браузером. Верните прежнее ядро или создайте чистую копию профиля.")
 
     def touch_profile_exit(self, profile_id: str, exit_code: int | None) -> None:
         now = timestamp()
@@ -1428,7 +1428,9 @@ def human_size(size: int) -> str:
 
 
 class BrowserLauncher:
-    """Launches a stock installed browser with one independent user-data directory."""
+    """Launches a bundled Chromium or installed browser with isolated user data."""
+
+    BUNDLED_RELATIVE = Path("Engine") / "Chromium" / "chrome.exe"
 
     KNOWN_BROWSERS = (
         ("Google Chrome", Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")),
@@ -1440,11 +1442,28 @@ class BrowserLauncher:
     def __init__(self, storage: Storage):
         self.storage = storage
 
+    def bundled_browser(self) -> Path | None:
+        engine = self.storage.paths.root / self.BUNDLED_RELATIVE
+        # A lone chrome.exe is not a usable portable browser. Require its main
+        # runtime payload before offering it as the default.
+        if all(path.is_file() for path in (engine, engine.parent / "chrome.dll", engine.parent / "icudtl.dat")):
+            return engine
+        return None
+
+    def browser_family(self, path: Path) -> str:
+        bundled = self.bundled_browser()
+        if bundled is not None and path.resolve() == bundled.resolve():
+            return "chromium"
+        return browser_family_for_executable(path)
+
     def available_browsers(self) -> list[tuple[str, Path]]:
         discovered: list[tuple[str, Path]] = []
         custom = self.storage.get_setting("browser_path")
         if custom and Path(custom).is_file() and Path(custom).name.casefold() in {"chrome.exe", "msedge.exe"}:
             discovered.append(("Выбранный браузер", Path(custom)))
+        bundled = self.bundled_browser()
+        if bundled is not None and bundled not in [item[1] for item in discovered]:
+            discovered.append(("NeAntik Chromium · встроенный", bundled))
         candidates = list(self.KNOWN_BROWSERS)
         local = os.environ.get("LOCALAPPDATA")
         if local:
@@ -1466,7 +1485,7 @@ class BrowserLauncher:
     def resolve_browser(self) -> Path:
         browsers = self.available_browsers()
         if not browsers:
-            raise NeVisionError("Не найден Chrome или Microsoft Edge. Укажите путь к Chromium-браузеру в Настройках.")
+            raise NeVisionError("Не найден встроенный Chromium, Chrome или Microsoft Edge. Проверьте целостность portable-папки либо выберите браузер в Настройках.")
         return browsers[0][1]
 
     def launch(self, profile: dict[str, Any], extensions: bool = False) -> subprocess.Popen[bytes]:
@@ -1485,12 +1504,20 @@ class BrowserLauncher:
         if fingerprint["mode"] != "ordinary":
             raise NeVisionError("Этот старый экспериментальный профиль нельзя запускать в выпуске без native-ядра. Данные профиля сохранены.")
         executable = self.resolve_browser()
-        family = browser_family_for_executable(executable)
+        family = self.browser_family(executable)
         pinned_family = validated_browser_family(profile.get("browser_family", ""))
+        # Existing 0.4.x profiles stay on their original browser even after a
+        # bundled core becomes the default for new profiles.
+        if family == "chromium" and pinned_family in {"chrome", "edge"} and not self.storage.get_setting("browser_path"):
+            for _, candidate in self.available_browsers():
+                if self.browser_family(candidate) == pinned_family:
+                    executable, family = candidate, pinned_family
+                    break
         if pinned_family and pinned_family != family:
+            browser_label = {"chrome": "Chrome", "edge": "Edge", "chromium": "встроенным Chromium"}[pinned_family]
             raise NeVisionError(
-                f"Профиль закреплён за {'Chrome' if pinned_family == 'chrome' else 'Edge'}. "
-                "Выберите этот браузер в Настройках или создайте чистую копию профиля."
+                f"Профиль закреплён за {browser_label}. "
+                "Верните нужный браузер в portable-папку или выберите его в Настройках; альтернативно создайте чистую копию профиля."
             )
         self.storage.ensure_profile_closed(profile_id)
         profile_dir = self.storage.profile_path(profile_id)
@@ -2044,7 +2071,7 @@ class SettingsDialog(BaseDialog):
             wraplength=520,
         ).pack(anchor="w", pady=(0, 16))
         ttk.Separator(body).pack(fill="x", pady=(0, 14))
-        ttk.Label(body, text="Путь к Chromium-браузеру", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+        ttk.Label(body, text="Браузер для новых профилей", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         row = ttk.Frame(body, style="Panel.TFrame")
         row.pack(fill="x", pady=(0, 5))
         self.path = ttk.Entry(row, style="Input.TEntry")
@@ -2054,6 +2081,7 @@ class SettingsDialog(BaseDialog):
         discovered = app.launcher.available_browsers()
         available = ", ".join(f"{name}: {path}" for name, path in discovered) or "не найдены"
         ttk.Label(body, text=f"Обнаружено: {available}", style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 16))
+        ttk.Label(body, text="Если поле пустое, встроенный Chromium выбирается первым. Уже запущенные профили сохраняют привязку к прежнему Chrome/Edge; путь выше — ручное переопределение.", style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 10))
         ttk.Separator(body).pack(fill="x", pady=8)
         ttk.Label(body, text="Portable режим", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
         ttk.Label(body, text="База данных, профили, backups и логи создаются в папке Data рядом с NeAntikWin.exe. Переносить можно всю папку; сохранённые proxy-пароли защищены Windows DPAPI и на другом Windows-пользователе потребуют повторного ввода.", style="Hint.TLabel", wraplength=520).pack(anchor="w")

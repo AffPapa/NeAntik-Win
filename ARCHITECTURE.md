@@ -2,7 +2,7 @@
 
 ## Lightweight local runtime
 
-NeVision is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata; stock installed Chrome/Edge provides the browser engine. No Electron runtime, embedded Chromium fork, cloud account service or web application server is required.
+NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata. Published 0.4.1 uses installed stock Chrome/Edge; unpublished 0.5.0-dev can prefer an explicitly staged unmodified Chromium runtime in the portable directory. No Electron runtime, cloud account service or web application server is required. No bundled-core public release has passed the stable-engine security gate.
 
 `release-version.json` is the single application/build version source and is bundled in the executable distribution.
 

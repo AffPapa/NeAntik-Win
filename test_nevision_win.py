@@ -600,6 +600,41 @@ class PortableCoreRegressionTests(unittest.TestCase):
         with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), patch("nevision_win.winreg", None):
             self.assertEqual([path for _, path in launcher.available_browsers()], browsers)
 
+    def test_bundled_chromium_is_default_without_installed_browser(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat"):
+            (engine / name).touch()
+        launcher = BrowserLauncher(self.storage)
+        with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
+            self.assertEqual(launcher.resolve_browser(), engine / "chrome.exe")
+            self.assertEqual(launcher.browser_family(engine / "chrome.exe"), "chromium")
+            profile_id = self.storage.save_profile({"name": "Portable"})
+            process = MagicMock()
+            process.poll.return_value = None
+            with patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
+                launcher.launch(self.storage.get_profile(profile_id))
+            self.assertEqual(spawn.call_args.args[0][0], str(engine / "chrome.exe"))
+            self.assertEqual(self.storage.get_profile(profile_id)["browser_family"], "chromium")
+
+    def test_existing_chrome_profile_prefers_installed_chrome_over_new_bundled_core(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat"):
+            (engine / name).touch()
+        installed = self.root / "Installed" / "chrome.exe"
+        installed.parent.mkdir()
+        installed.touch()
+        profile_id = self.storage.save_profile({"name": "Legacy"})
+        self.storage.pin_browser_family(profile_id, "chrome")
+        launcher = BrowserLauncher(self.storage)
+        with patch.object(launcher, "KNOWN_BROWSERS", (("Chrome", installed),)), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None):
+            process = MagicMock()
+            process.poll.return_value = None
+            with patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
+                launcher.launch(self.storage.get_profile(profile_id))
+            self.assertEqual(spawn.call_args.args[0][0], str(installed))
+
     def test_registry_discovery_deduplicates_paths_and_keeps_custom_choice_first(self):
         custom = self.root / "Chosen Browser" / "chrome.exe"
         registered = self.root / "Registered Browser" / "msedge.exe"

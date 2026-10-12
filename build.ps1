@@ -3,6 +3,7 @@ param(
     # Every normal build now uses a new empty workspace; retained for compatibility.
     [switch]$Clean,
     [switch]$PackageOnly,
+    [string]$EngineDirectory,
     [string]$OutputDirectory
 )
 
@@ -14,6 +15,7 @@ $release = Get-Content -LiteralPath (Join-Path $projectRoot 'release-version.jso
 $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
+if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
 $releaseParent = [System.IO.Path]::GetFullPath($OutputDirectory)
 $releaseName = "NeAntikWin-portable-v$releaseVersion"
@@ -65,6 +67,26 @@ if (-not $PackageOnly) {
     }
     Copy-Item -LiteralPath (Join-Path $metadataRoot 'licenses') -Destination $releaseRoot -Recurse
     Copy-Item -LiteralPath (Join-Path $metadataRoot 'runtime-components.json') -Destination $releaseRoot
+    if ($EngineDirectory) {
+        $engineSource = (Resolve-Path -LiteralPath $EngineDirectory -ErrorAction Stop).Path
+        $engineItem = Get-Item -LiteralPath $engineSource -Force
+        if (-not $engineItem.PSIsContainer -or ($engineItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { throw 'EngineDirectory must be a real directory.' }
+        $engineEntries = @(Get-ChildItem -LiteralPath $engineSource -Recurse -Force)
+        if ($engineEntries | Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint }) { throw 'EngineDirectory contains a reparse point.' }
+        foreach ($required in @('chrome.exe', 'chrome.dll', 'icudtl.dat', 'resources.pak', 'LICENSE', 'credits.html', 'ENGINE_PROVENANCE.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $engineSource $required) -PathType Leaf)) { throw "Browser engine is missing $required" }
+        }
+        $engineReceipt = Get-Content -LiteralPath (Join-Path $engineSource 'ENGINE_PROVENANCE.json') -Raw | ConvertFrom-Json
+        if ($engineReceipt.format -ne 'neantik-chromium-snapshot-stage-v1') { throw 'Unknown browser engine provenance format.' }
+        if ($engineReceipt.channel -ne 'stable' -and $releaseVersion -notmatch '-dev$') { throw 'A non-stable Chromium snapshot can only be packaged in a local -dev build.' }
+        $actualCoreVersion = (Get-Item -LiteralPath (Join-Path $engineSource 'chrome.exe')).VersionInfo.ProductVersion
+        if ($actualCoreVersion -ne $engineReceipt.chromium_version) { throw 'Browser engine version does not match its provenance.' }
+        $actualCreditsHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'credits.html') -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualCreditsHash -ne $engineReceipt.credits_sha256) { throw 'Browser engine credits do not match provenance.' }
+        $engineParent = Join-Path $releaseRoot 'Engine'
+        New-Item -ItemType Directory -Path $engineParent | Out-Null
+        Copy-Item -LiteralPath $engineSource -Destination (Join-Path $engineParent 'Chromium') -Recurse
+    }
     $sourceFiles = @(Get-ReleaseTreeManifest $sourceRoot)
     $sourceHash = Get-ReleaseTextHash ($sourceFiles | ConvertTo-Json -Depth 5 -Compress)
     $commit = & git -C $projectRoot rev-parse --quiet --verify HEAD
@@ -81,7 +103,12 @@ $packagedVersion = Get-Content -LiteralPath (Join-Path $releaseRoot '_internal/r
 if ($packagedVersion.version -ne $releaseVersion) { throw 'Bundled application version disagrees with release.' }
 $provenance = Get-Content -LiteralPath (Join-Path $releaseRoot 'build-provenance.json') -Raw | ConvertFrom-Json
 $runtime = Get-Content -LiteralPath (Join-Path $releaseRoot 'runtime-components.json') -Raw | ConvertFrom-Json
-if (Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine')) { throw 'This edition is ordinary-browser-only; custom browser engines are not accepted in the release.' }
+$hasEngine = Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine/Chromium/chrome.exe') -PathType Leaf
+if ($hasEngine) {
+    $engineReceipt = Get-Content -LiteralPath (Join-Path $releaseRoot 'Engine/Chromium/ENGINE_PROVENANCE.json') -Raw | ConvertFrom-Json
+} elseif (Test-Path -LiteralPath (Join-Path $releaseRoot 'Engine')) {
+    throw 'Incomplete browser engine folder.'
+}
 $files = @(Get-ReleaseTreeManifest $releaseRoot @('release-manifest.json', 'SHA256SUMS.txt'))
 $manifest = [ordered]@{
     format = 'nevision-release-v1'; product = 'NeAntik Win'; executable = 'NeAntikWin.exe'; version = $releaseVersion; channel = $release.channel
@@ -89,12 +116,15 @@ $manifest = [ordered]@{
     source_commit = $provenance.source_commit; source_state = $provenance.source_state; source_tree_sha256 = $provenance.source_tree_sha256
     operating_systems = @('Windows x64')
     tested_os = 'Windows 11 Pro x64 10.0.26200'; unverified_os = @('Windows 10', 'Windows ARM64')
-    browser_strategy = 'Portable local profile manager; launches installed stock Chrome or Edge. No custom engine or fingerprint modification is included.'
-    native_core_bundled = $false
+    browser_strategy = if ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
+    native_core_bundled = [bool]$hasEngine
     fingerprint_modification = $false
     schema_version = '1'; backup_format = 'nevision-profile-backup-v1 (ordinary profiles only)'
     signature_status = [string](Get-AuthenticodeSignature -LiteralPath $exePath).Status
     release_notes = 'CHANGELOG.md'; runtime = $runtime; files = $files
+}
+if ($hasEngine) {
+    $manifest.engine = [ordered]@{ name = 'Chromium'; version = [string]$engineReceipt.chromium_version; channel = [string]$engineReceipt.channel; source_commit = [string]$engineReceipt.source_commit; snapshot_sha256 = [string]$engineReceipt.snapshot_sha256 }
 }
 Write-ReleaseJson $manifest (Join-Path $releaseRoot 'release-manifest.json')
 $hashLines = @($files | ForEach-Object { "$($_.sha256)  $($_.path)" })

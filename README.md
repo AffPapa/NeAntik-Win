@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.4.1-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. It does not bundle a browser engine, provide a standalone browser, or alter browser fingerprint signals. Each profile is pinned to its browser family on first launch so Chrome and Edge do not reuse the same data directory. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The published `0.4.1-preview` edition creates isolated local profiles and launches installed stock Google Chrome or Microsoft Edge. The **unpublished `0.5.0-dev` source branch** can prefer a staged, unmodified Chromium runtime in `Engine/Chromium`; no stable bundled-core release has passed the security gate yet. Neither edition alters browser fingerprint signals or guarantees anonymity. Each profile is pinned to its browser family on first launch so different engines do not reuse the same data directory. Legacy experimental engine-profile records are non-runnable in this edition and their data is left intact.
 
 ## Download and start
 
@@ -58,7 +58,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-This project does not build or bundle Chromium. Every profile uses the installed stock browser; no fingerprint configuration or launch flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to Chrome/Edge. A clean profile clone copies no cookies or browser session data.
+The published 0.4.1 ZIP does not bundle Chromium. In the unpublished 0.5.0-dev branch, `build.ps1 -EngineDirectory` can add a separately staged Chromium snapshot **only** to a `-dev` archive; the repository never commits the large engine binary. No fingerprint configuration or override flags are created. Legacy experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md) for the security and portability gates.
 
 The source freeze checkpoint passed 44 core tests, 7 Tk checks, 13 release-tool checks and the source self-test. This is not evidence that a later artifact passed packaged or public-download QA: follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for each release.
 
