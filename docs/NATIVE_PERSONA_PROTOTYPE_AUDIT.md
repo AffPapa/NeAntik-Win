@@ -38,6 +38,16 @@ in the local database, passed in the browser command line and included in an
 unencrypted v3 backup. It is a stable identifier, **not** a secret or an
 anonymity guarantee. A clean clone gets a new seed; restore preserves it.
 
+After the V3 schema-2 revision, an **incremental development-core rebuild**
+completed on this Windows 11 host. Its compiled handshake reports schema 2,
+Chromium `155.0.8059.40` and the pinned upstream commit. The disposable Canvas
+probe passed again. The new [native context audit](../tools/native_persona_context_audit.py)
+passed seven checks: six JavaScript contexts and the Device-Memory Client Hint
+agreed, the same seed repeated, different seeds left common CPU/RAM/timezone
+surfaces unchanged, and CPU/memory did not exceed the observed stock host.
+The audit uses only loopback content and writes raw device observations outside
+Git. It is not a clean release build, cross-machine test or anonymity score.
+
 ## What was measured on one Windows 11 x64 computer
 
 The local Chromium 155 development build reports a compiled native capability
@@ -67,8 +77,9 @@ untouched. Cross-API and real-site compatibility are not yet established.
 Code review found that V1 could return CPU-thread and memory bucket values
 larger than those of the host. V3 bounds both values by stock Chromium's
 observed host values, including the shared HTTP device-memory hint source.
-The revised code still needs a completed rebuild, cross-context runtime test
-and validation on a second hardware class before any release.
+The revised code still needs a completed clean-from-scratch rebuild, broader
+cross-API and real-site compatibility tests, and validation on a second
+hardware class before any release.
 
 ## Gates before any public release
 
