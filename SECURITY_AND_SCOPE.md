@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.8.0-preview portable Chromium edition.
+Applies to NeAntik Win 0.8.1-preview portable Chromium edition.
 
 ## Product boundary
 
@@ -36,9 +36,9 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.8.0-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
+This matrix describes the **0.8.1-preview portable Chromium binary**. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
 
-| Surface | 0.8.0-preview behavior | Evidence / limitation |
+| Surface | 0.8.1-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build/privacy patch hashes are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Bundled Chromium caps `navigator.hardwareConcurrency` at 4 and device memory at 8 GiB; UA and other hints remain browser-supplied | Loopback comparison saw CPU 16→4 and memory/Device-Memory CH 32→8 on one Windows machine; no external cohort or anti-correlation proof |

@@ -73,10 +73,10 @@ archive in place.
 
 ## Current status (2026-10-12)
 
-The 0.8.0-preview baseline bundles source-built Chromium, keeps ordinary
+The 0.8.1-preview baseline bundles source-built Chromium, keeps ordinary
 profiles separate and applies tested first-launch cookie/permission defaults.
 Some proxy routing and local WebRTC behavior has been tested. Phase 0 licensing
-shipped in 0.7.1-preview; the 0.8.0-preview native patch reduces two exposed
+shipped in 0.7.1-preview; the 0.8.x-preview native patch reduces two exposed
 hardware signals (logical CPU count and approximated memory) with public source
 and a matched build receipt. Full network leak coverage, comprehensive and
 cohort-tested fingerprint reduction, independent anonymity validation,

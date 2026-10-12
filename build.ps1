@@ -16,8 +16,12 @@ $releaseVersion = [string]$release.version
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release-version.json.' }
 if ($Clean -and $PackageOnly) { throw '-Clean and -PackageOnly cannot be used together.' }
 if ($PackageOnly -and $EngineDirectory) { throw '-EngineDirectory is only valid for a fresh build.' }
-if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
+if ($releaseVersion -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview', '0.8.1-preview') -and -not $EngineDirectory -and -not $PackageOnly) {
     throw 'This NeAntik Win release requires EngineDirectory: publish only the complete Chromium portable build.'
+}
+if ($releaseVersion -eq '0.8.1-preview' -and -not $PackageOnly) {
+    $prebuildStatus = & git -C $projectRoot status --porcelain --untracked-files=normal
+    if ($LASTEXITCODE -ne 0 -or $prebuildStatus) { throw '0.8.1-preview requires a clean committed source tree before packaging.' }
 }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'release' }
 $releaseParent = [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -97,10 +101,10 @@ if (-not $PackageOnly) {
                 ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
             $privacyPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$engineReceipt.privacy_patch_sha256 } else { '' }
             if ($privacyPatch -and $privacyPatch -notmatch '^[0-9a-f]{64}$') { throw 'Browser privacy patch provenance is invalid.' }
-            if ($releaseVersion -eq '0.8.0-preview' -and -not $privacyPatch) { throw 'This release requires the reviewed native privacy patch.' }
+            if ($releaseVersion -in @('0.8.0-preview', '0.8.1-preview') -and -not $privacyPatch) { throw 'This release requires the reviewed native privacy patch.' }
             $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
-            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview')) {
+            if ($releaseVersion -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview', '0.8.1-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @(Get-ChildItem -LiteralPath (Join-Path $engineSource 'locales') -File -Filter '*.pak' | Select-Object -ExpandProperty Name | Sort-Object) -join ','
@@ -118,6 +122,7 @@ if (-not $PackageOnly) {
     $gitStatus = & git -C $projectRoot status --porcelain --untracked-files=normal
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read source Git state.' }
     $sourceState = if (-not $commit) { 'uncommitted' } elseif ($gitStatus) { 'modified' } else { 'clean' }
+    if ($releaseVersion -eq '0.8.1-preview' -and $sourceState -ne 'clean') { throw '0.8.1-preview source changed while packaging.' }
     Write-ReleaseJson ([ordered]@{ source_commit = $commit; source_state = $sourceState; source_tree_sha256 = $sourceHash; source_files = $sourceFiles }) (Join-Path $releaseRoot 'build-provenance.json')
 }
 

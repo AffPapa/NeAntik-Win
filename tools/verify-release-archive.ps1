@@ -54,7 +54,8 @@ try {
     $version = Read-ArchiveText $entries["$root/release-version.json"] | ConvertFrom-Json
     $frozen = Read-ArchiveText $entries["$root/_internal/release-version.json"] | ConvertFrom-Json
     if ($manifest.format -ne 'nevision-release-v1' -or $manifest.version -ne $version.version -or $version.version -ne $frozen.version) { throw 'Inconsistent release manifest or version.' }
-    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
+    if ($version.version -eq '0.8.1-preview' -and ($manifest.source_state -ne 'clean' -or $manifest.source_commit -notmatch '^[0-9a-f]{40}$')) { throw '0.8.1-preview requires clean committed public source provenance.' }
+    if ($version.version -in @('0.5.0-preview', '0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview', '0.8.1-preview') -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
     $productBase = [System.IO.Path]::GetFileNameWithoutExtension($exeName)
     if ($root -ne "$productBase-portable-v$($version.version)") { throw 'Archive root does not match release version.' }
     $listed = @{}
@@ -134,8 +135,8 @@ try {
             if ($receiptPrivacyPatch -ne $manifestPrivacyPatch -or
                 ($receiptPrivacyPatch -and $receiptPrivacyPatch -notmatch '^[0-9a-f]{64}$')) { throw 'Browser privacy patch provenance is invalid.' }
             $hasApprovedFingerprintPatch = [bool]$receiptPrivacyPatch
-            if ($manifest.version -eq '0.8.0-preview' -and -not $hasApprovedFingerprintPatch) { throw 'This release requires the reviewed native privacy patch.' }
-            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview')) {
+            if ($manifest.version -in @('0.8.0-preview', '0.8.1-preview') -and -not $hasApprovedFingerprintPatch) { throw 'This release requires the reviewed native privacy patch.' }
+            if ($manifest.version -in @('0.5.1-preview', '0.6.0-preview', '0.7.0-preview', '0.7.1-preview', '0.8.0-preview', '0.8.1-preview')) {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
                 $actualLocales = @($engineEntries | Where-Object { $_ -match '/locales/[^/]+\.pak$' } | ForEach-Object { ($_ -split '/')[-1] } | Sort-Object) -join ','

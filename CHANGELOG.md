@@ -2,6 +2,16 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.1-preview — clean source provenance correction (2026-10-13)
+
+- Rebuilt the same limited native privacy baseline from a committed, clean
+  public source tree. The 0.8.0-preview binary was built before its source
+  commit and recorded `source_state: modified`; its bytes remain available
+  for audit but it is superseded for downloads. No profile-data migration or
+  functional behavior change is intended.
+- Repeated packaged EXE, browser-surface, cookie, proxy and launcher checks.
+  The scope remains two capped CPU/memory signals, **not** full anonymity.
+
 ## 0.8.0-preview — limited native fingerprint reduction (2026-10-12)
 
 - Built Chromium 155.0.8059.40 from the pinned source with a published, hashed
