@@ -1,10 +1,10 @@
 # Security, privacy and scope
 
-Applies to NeVision Win 0.2.1-preview.
+Applies to NeAntik Win 0.3.0-preview portable profile manager edition.
 
 ## Product boundary
 
-NeVision manages local directories and launches installed stock Chrome/Edge. It does not patch a browser engine, spoof fingerprints, hide automation, guarantee anonymity, bypass anti-fraud systems or guarantee account outcomes. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user.
+This downloadable edition manages local directories and launches installed stock Chrome/Edge. It does not bundle the experimental native Chromium core or modify browser fingerprint signals. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user.
 
 Only Windows 11 x64 build 26200 has been exercised for this release. The portable executable is unsigned. A checksum verifies bytes, not publisher identity.
 

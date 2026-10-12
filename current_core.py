@@ -36,6 +36,15 @@ def ordinary_identity() -> dict[str, Any]:
     return {"schema": 1, "mode": "ordinary"}
 
 
+def native_core_manifest_exists(portable_root: Path) -> bool:
+    """Return whether this portable folder contains the optional native core manifest.
+
+    This is a presentation gate only. Native launches still verify the full
+    manifest, every file hash and the compiled core handshake in CoreResolver.
+    """
+    return (Path(portable_root) / ENGINE_DIRECTORY / MANIFEST_NAME).is_file()
+
+
 def new_identity(*, cpu: int = 8, memory: str = "8", timezone: str = "system") -> dict[str, Any]:
     return validate_identity({"schema": 1, "mode": "native", "engine_id": ENGINE_ID,
                               "seed": 1 + secrets.randbelow(0xFFFFFFFFFFFFFFFF),

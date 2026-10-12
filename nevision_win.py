@@ -33,7 +33,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
-from current_core import ENGINE_DIRECTORY, MANIFEST_NAME, CoreError, CoreResolver, identity_arguments, new_identity, ordinary_identity, serialize_identity, validate_identity
+from current_core import ENGINE_DIRECTORY, MANIFEST_NAME, CoreError, CoreResolver, identity_arguments, native_core_manifest_exists, new_identity, ordinary_identity, serialize_identity, validate_identity
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -1777,7 +1777,12 @@ class ProfileDialog(BaseDialog):
     def __init__(self, app: "NeVisionApp", profile: dict[str, Any] | None = None):
         super().__init__(app, "Новый профиль" if not profile else "Изменить профиль", "560x650")
         self.profile = profile
-        self.identity = profile.get("fingerprint", ordinary_identity()) if profile else new_identity()
+        self.native_available = native_core_manifest_exists(app.storage.paths.root)
+        self.identity = profile.get("fingerprint", ordinary_identity()) if profile else (new_identity() if self.native_available else ordinary_identity())
+        if self.identity["mode"] == "native" and not self.native_available:
+            messagebox.showerror(APP_NAME, "Этот portable-выпуск работает с обычными профилями Chrome/Edge. Для изменения native-профиля нужен отдельный выпуск с проверенным ядром.", parent=self)
+            self.destroy()
+            return
         viewport = ttk.Frame(self, style="Panel.TFrame")
         viewport.pack(fill="both", expand=True)
         canvas = tk.Canvas(viewport, bg=app.colors["panel"], highlightthickness=0)
@@ -1803,32 +1808,35 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=list(self.proxy_map), style="Input.TCombobox", state="readonly")
         self.proxy.set(selected_label)
         self.proxy.pack(fill="x", pady=(0, 14))
-        ttk.Label(body, text="Режим браузера", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-        self.mode = ttk.Combobox(body, values=("Native fingerprint · ядро NeAntik", "Обычный Chrome / Edge"), state="readonly", style="Input.TCombobox")
-        self.mode.current(0 if self.identity["mode"] == "native" else 1)
-        self.mode.pack(fill="x", pady=(0, 10))
-        current_hardware = (self.identity.get("hardware_concurrency", 8), self.identity.get("device_memory", "8"))
-        self.hardware_presets = {"4 потока · 4 GB": (4, "4"), "8 потоков · 8 GB": (8, "8"), "16 потоков · 16 GB": (16, "16")}
-        hardware_label = next((label for label, values in self.hardware_presets.items() if values == current_hardware), f"{current_hardware[0]} потоков · {current_hardware[1]} GB")
-        self.hardware_presets[hardware_label] = current_hardware
-        self.hardware = ttk.Combobox(body, values=list(self.hardware_presets), state="readonly", style="Input.TCombobox")
-        self.hardware.set(hardware_label)
-        self.hardware.pack(fill="x", pady=(0, 7))
-        ttk.Label(body, text="Часовой пояс", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
-        self.timezone_presets = {"Системный (без подмены)": "system", "UTC": "UTC", "Europe/Berlin": "Europe/Berlin", "Europe/London": "Europe/London", "America/New_York": "America/New_York", "Asia/Bangkok": "Asia/Bangkok"}
-        current_timezone = self.identity.get("timezone", "system")
-        timezone_label = next((label for label, value in self.timezone_presets.items() if value == current_timezone), current_timezone)
-        self.timezone_presets[timezone_label] = current_timezone
-        self.timezone = ttk.Combobox(body, values=list(self.timezone_presets), state="readonly", style="Input.TCombobox")
-        self.timezone.set(timezone_label)
-        self.timezone.pack(fill="x", pady=(0, 7))
-        def mode_changed(_event: Any = None) -> None:
-            state = "readonly" if self.mode.current() == 0 else "disabled"
-            self.hardware.configure(state=state)
-            self.timezone.configure(state=state)
-        self.mode.bind("<<ComboboxSelected>>", mode_changed)
-        mode_changed()
-        ttk.Label(body, text="Native требует собственного ядра NeAntik. Старые профили сохраняют обычный режим.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        if self.native_available:
+            ttk.Label(body, text="Режим браузера", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+            self.mode = ttk.Combobox(body, values=("Native fingerprint · ядро NeAntik", "Обычный Chrome / Edge"), state="readonly", style="Input.TCombobox")
+            self.mode.current(0 if self.identity["mode"] == "native" else 1)
+            self.mode.pack(fill="x", pady=(0, 10))
+            current_hardware = (self.identity.get("hardware_concurrency", 8), self.identity.get("device_memory", "8"))
+            self.hardware_presets = {"4 потока · 4 GB": (4, "4"), "8 потоков · 8 GB": (8, "8"), "16 потоков · 16 GB": (16, "16")}
+            hardware_label = next((label for label, values in self.hardware_presets.items() if values == current_hardware), f"{current_hardware[0]} потоков · {current_hardware[1]} GB")
+            self.hardware_presets[hardware_label] = current_hardware
+            self.hardware = ttk.Combobox(body, values=list(self.hardware_presets), state="readonly", style="Input.TCombobox")
+            self.hardware.set(hardware_label)
+            self.hardware.pack(fill="x", pady=(0, 7))
+            ttk.Label(body, text="Часовой пояс", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
+            self.timezone_presets = {"Системный (без подмены)": "system", "UTC": "UTC", "Europe/Berlin": "Europe/Berlin", "Europe/London": "Europe/London", "America/New_York": "America/New_York", "Asia/Bangkok": "Asia/Bangkok"}
+            current_timezone = self.identity.get("timezone", "system")
+            timezone_label = next((label for label, value in self.timezone_presets.items() if value == current_timezone), current_timezone)
+            self.timezone_presets[timezone_label] = current_timezone
+            self.timezone = ttk.Combobox(body, values=list(self.timezone_presets), state="readonly", style="Input.TCombobox")
+            self.timezone.set(timezone_label)
+            self.timezone.pack(fill="x", pady=(0, 7))
+            def mode_changed(_event: Any = None) -> None:
+                state = "readonly" if self.mode.current() == 0 else "disabled"
+                self.hardware.configure(state=state)
+                self.timezone.configure(state=state)
+            self.mode.bind("<<ComboboxSelected>>", mode_changed)
+            mode_changed()
+            ttk.Label(body, text="Native-профили требуют отдельное проверенное Chromium-ядро.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
+        else:
+            ttk.Label(body, text="Обычный Chrome / Edge · браузер сообщает реальные системные параметры. В этом выпуске native-ядро не включено.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
         ttk.Label(body, text="Заметка", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.notes = tk.Text(
             body,
@@ -1849,7 +1857,7 @@ class ProfileDialog(BaseDialog):
 
     def save(self) -> None:
         try:
-            if self.mode.current() == 0:
+            if self.native_available and self.mode.current() == 0:
                 cpu, memory = self.hardware_presets[self.hardware.get()]
                 identity = dict(self.identity) if self.identity["mode"] == "native" else new_identity()
                 identity.update(hardware_concurrency=cpu, device_memory=memory, timezone=self.timezone_presets[self.timezone.get()])
@@ -2626,6 +2634,9 @@ class NeVisionApp:
         profile = self.selected_profile()
         if not profile:
             return
+        if profile["fingerprint"]["mode"] == "native" and not native_core_manifest_exists(self.storage.paths.root):
+            messagebox.showerror(APP_NAME, "Этот portable-выпуск не содержит native-ядро и не может клонировать native-профиль. Существующий профиль и его данные не изменены.", parent=self.root)
+            return
         copy_name = f"Копия · {profile['name']}"
         try:
             new_id = self.storage.save_profile(
@@ -2871,9 +2882,13 @@ class NeVisionApp:
             messagebox.showinfo(APP_NAME, "Changelog доступен в репозитории проекта.", parent=self.root)
 
     def show_about(self) -> None:
+        if native_core_manifest_exists(self.paths.root):
+            scope = "Profiles can use the optional verified native Chromium core or installed Chrome/Edge. Native surfaces and limitations are documented in the release notes."
+        else:
+            scope = "This portable edition uses installed Chrome/Edge and reports their actual browser values. The optional native core is not included."
         messagebox.showinfo(
             APP_NAME,
-            f"{APP_NAME} {APP_VERSION}\n\nЛокальные изолированные профили для Windows: Native на собственном проверяемом ядре Chromium или обычные Chrome/Edge.\n\nВключает Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.\n\nNative требует отдельного проверенного комплекта ядра; наличие ядра и поддержка CPU, памяти, часового пояса и ограниченной Canvas-подмены проверяются перед запуском. Это не гарантия прохождения антифрод-проверок. Автоматизация аккаунтов не предусмотрена.",
+            f"{APP_NAME} {APP_VERSION}\n\nЛокальные изолированные профили для Windows. {scope}\n\nВключает Windows DPAPI vault, proxy-настройки, backup/restore и журнал действий.",
             parent=self.root,
         )
 

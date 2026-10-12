@@ -111,7 +111,7 @@ $manifest = [ordered]@{
     source_commit = $provenance.source_commit; source_state = $provenance.source_state; source_tree_sha256 = $provenance.source_tree_sha256
     operating_systems = @('Windows x64')
     tested_os = 'Windows 11 Pro x64 10.0.26200'; unverified_os = @('Windows 10', 'Windows ARM64')
-    browser_strategy = if ($bundledNative) { 'Bundled own Chromium 155 for native profiles; installed Chrome/Edge only for explicit ordinary profiles' } else { 'Launcher-only QA build: native engine absent; explicit ordinary profiles use installed Chrome/Edge' }
+    browser_strategy = if ($bundledNative) { 'Bundled own Chromium 155 for native profiles; installed Chrome/Edge only for explicit ordinary profiles' } else { 'Portable profile manager edition: installed Chrome or Edge only; native core and fingerprint-modification runtime are not bundled' }
     native_core_bundled = [bool]$bundledNative
     schema_version = '1'; backup_format = if ($bundledNative) { 'neantik-profile-backup-v2 (native), nevision-profile-backup-v1 (ordinary)' } else { 'nevision-profile-backup-v1 (ordinary), neantik-profile-backup-v2 metadata support' }
     signature_status = [string](Get-AuthenticodeSignature -LiteralPath $exePath).Status

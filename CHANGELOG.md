@@ -2,26 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
-## 0.3.0-preview — release candidate (2026-10-12, not yet published)
+## 0.3.0-preview — portable profile manager edition (2026-10-12)
 
 - Renamed the product to NeAntik Win and published reviewed sources at
   https://github.com/AffPapa/NeAntik-Win; personal runtime data is excluded.
-- Bundles the project's own Chromium 155.0.8059.40 with native profile seed,
-  CPU/deviceMemory, ICU timezone and narrowly scoped opaque sRGB uint8 Canvas
-  readback behavior. Release QA is limited to the recorded test matrix; this is
-  not a claim of undetectability or compatibility with every fingerprint test.
-- Added native/ordinary profile choice, compact CPU/memory/timezone controls and
-  explicit missing-core errors without falling back to ordinary Chrome.
-- Native backup/restore retains the persona; clean cloning uses a fresh seed.
-  Existing ordinary profiles and legacy backup identifiers remain compatible.
-- The first native-core check grants Windows AppContainer package groups
-  read/execute (not write) access to the verified bundled engine, required by
-  Chromium's network sandbox after ordinary ZIP extraction.
-- WebRTC QA checks owned endpoints and proxy scenarios. This host's NetLog shows
-  OS-accepted STUN sends but its local listener received none; no packet capture
-  verified delivery outside the OS. Worker Device-Memory Client Hints are not
-  emitted by Chromium's current WorkerFetchContext; worker JS surfaces are tested
-  separately.
+- The downloadable portable artifact is a local profile manager that launches
+  installed Chrome or Edge. It contains no native Chromium binary and no
+  fingerprint-modification runtime.
+- Profile creation in this edition exposes only the ordinary browser mode.
+  Existing native profiles are kept on disk; this edition does not edit, clone
+  or launch them without the matching separate native bundle.
+- The repository's own Chromium 155 implementation and its native QA artifacts
+  remain research/build sources, separate from this downloadable package.
+- Ordinary profile metadata and legacy backup identifiers remain compatible.
 - **Preview only.** Back up `Data/` before first launch or upgrading. Chromium
   profiles may be upgraded and may not be usable by an older browser afterward.
 - The artifact remains unsigned; Windows SmartScreen may warn. Other Windows

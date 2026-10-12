@@ -14,6 +14,15 @@ from nevision_win import AppPaths, BrowserLauncher, NeVisionApp, NeVisionError, 
 
 
 class IdentityTests(unittest.TestCase):
+    def test_manager_only_build_hides_native_profile_mode_without_bundled_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertFalse(core.native_core_manifest_exists(root))
+            manifest = root / core.ENGINE_DIRECTORY / core.MANIFEST_NAME
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text("{}", encoding="utf-8")
+            self.assertTrue(core.native_core_manifest_exists(root))
+
     def test_windows155_memory_values_and_rejected_drafts_are_not_clamped(self):
         self.assertEqual(core.MEMORY_OPTIONS, ("2", "4", "8", "16", "32"))
         for memory in core.MEMORY_OPTIONS:
@@ -98,6 +107,9 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.storage.get_profile(profile)["fingerprint"], core.ordinary_identity())
 
     def test_clean_clone_gets_new_seed_and_no_browser_data(self):
+        manifest = self.paths.root / core.ENGINE_DIRECTORY / core.MANIFEST_NAME
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("{}", encoding="utf-8")
         (self.storage.profile_path(self.profile_id) / "synthetic-cookie.txt").write_bytes(b"synthetic")
         view = SimpleNamespace(storage=self.storage, selected_profile=lambda: self.storage.get_profile(self.profile_id),
                                set_status=lambda _: None, refresh_profiles=lambda **_: None)
@@ -164,6 +176,9 @@ class ProfileFormTests(unittest.TestCase):
     def test_native_controls_fixed_footer_and_actual_save(self):
         with tempfile.TemporaryDirectory(prefix="neantik-profile-form-") as temporary:
             paths = AppPaths(Path(temporary))
+            manifest = paths.root / core.ENGINE_DIRECTORY / core.MANIFEST_NAME
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text("{}", encoding="utf-8")
             storage = Storage(paths)
             try:
                 app = NeVisionApp(storage, paths)
