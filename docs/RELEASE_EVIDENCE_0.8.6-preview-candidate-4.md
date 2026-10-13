@@ -1,6 +1,6 @@
 # 0.8.6-preview candidate-4 — local release evidence (2026-10-13)
 
-This is evidence for one **local, unpublished** portable ZIP, not a public-download or anonymity claim. Reports contain synthetic data and stay outside Git.
+This is the pre-publication evidence for one portable ZIP, not an anonymity claim. The same bytes were later published and verified separately in [RELEASE_PUBLICATION_0.8.6-preview.md](RELEASE_PUBLICATION_0.8.6-preview.md). Reports contain synthetic data and stay outside Git.
 
 ## Exact artifact and host
 
@@ -26,11 +26,11 @@ This is evidence for one **local, unpublished** portable ZIP, not a public-downl
 - Microsoft Defender CLI custom scan of this exact ZIP exited 0 and reported no threats; Defender was enabled and antivirus signatures were last updated 2026-10-12 16:06:44 UTC. One scanner result is not a safety certificate.
 - GitHub Windows CI for source commit `3934773840210c519817dce381d7ad8066cf3c61`: completed successfully.
 
-## INCONCLUSIVE / NOT RUN / NOT PUBLISHED
+## INCONCLUSIVE / NOT RUN / publication gate at report time
 
 - **INCONCLUSIVE:** previous Computer Use attempts to bind the launched Chromium window rejected its returned owner; candidate-4 browser process path and launcher status were verified, but visual browser-content inspection was not repeated without a new tool hypothesis. This is not evidence of a browser defect.
 - **NOT RUN on candidate-4:** full manual keyboard/accessibility and light/dark review, profile edit and GUI backup/restore/update, migration of passwords/history/extensions, additional security scanners, and a second Windows version/machine. Prior candidate-3 results do not transfer to this ZIP.
 - **NOT RUN:** independent external DNS/IPv6/STUN/TURN observer, statistical unlinkability, WebGL/WebGPU protection and real-site compatibility. No full anonymity or leak-free claim is supported.
-- **NOT PUBLISHED:** GitHub Release ZIP/checksum and site still show 0.8.5-preview. Publication requires explicit release-scope review, immutable GitHub assets, repeat download/hash/launch verification, and matching site release metadata.
+- **At report time, NOT PUBLISHED:** GitHub Release ZIP/checksum and site still showed 0.8.5-preview. The later publication and repeat-download verification are recorded separately in [RELEASE_PUBLICATION_0.8.6-preview.md](RELEASE_PUBLICATION_0.8.6-preview.md).
 
-Before publishing, retain this exact ZIP unchanged, review the remaining risks for a clearly labeled Windows 11-only experimental preview, then verify the public asset and site separately. Do not overwrite a versioned release.
+The publication gate was subsequently checked against the same ZIP; see the separate publication record. Do not overwrite a versioned release.
