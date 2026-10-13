@@ -32,6 +32,7 @@ from unittest.mock import patch
 REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 from nevision_win import APP_VERSION, AppPaths, BrowserLauncher, Storage  # noqa: E402
+from profile_identity import identity_arguments, native_preview_identity  # noqa: E402
 from browser_integration import GATED_CHROME_CODE, HarnessError, OwnedJob, require  # noqa: E402
 
 ORIGINAL_POPEN = subprocess.Popen
@@ -89,8 +90,12 @@ def image_path(pid: int) -> Path | None:
 
 
 def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
-                engine: Path, proxy_id: str | None) -> dict[str, Any]:
-    profile_id = storage.save_profile({"name": f"Disposable launcher QA {name}", "proxy_id": proxy_id})
+                engine: Path, proxy_id: str | None,
+                native_preview: bool = False) -> dict[str, Any]:
+    profile_data: dict[str, Any] = {"name": f"Disposable launcher QA {name}", "proxy_id": proxy_id}
+    if native_preview:
+        profile_data["fingerprint"] = native_preview_identity(987654321)
+    profile_id = storage.save_profile(profile_data)
     profile = storage.get_profile(profile_id)
     require(profile is not None, "Synthetic profile was not saved")
     job = OwnedJob()
@@ -132,7 +137,8 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
             raise
         return helper
 
-    observation: dict[str, Any] = {"case": name, "profile_id": profile_id, "proxy_assigned": bool(proxy_id)}
+    observation: dict[str, Any] = {"case": name, "profile_id": profile_id,
+                                   "proxy_assigned": bool(proxy_id), "native_preview": native_preview}
     try:
         with patch("nevision_win.subprocess.Popen", side_effect=owned_popen):
             process = launcher.launch(profile)
@@ -157,6 +163,10 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         require(f"--user-data-dir={storage.profile_path(profile_id)}" in captured, "Browser did not receive isolated user data path")
         expected_proxy = "--proxy-server=http://127.0.0.1:9"
         require((expected_proxy in captured) == bool(proxy_id), "Proxy argument does not match saved assignment")
+        persona_flags = identity_arguments(profile_data["fingerprint"]) if native_preview else []
+        require(all(flag in captured for flag in persona_flags), "Native persona arguments are missing")
+        require(("--neantik-fingerprint-seed=987654321" in captured) == native_preview,
+                "Native persona seed leaked into an ordinary profile or was omitted")
         require(seeded_preferences is not None, "Initial Preferences were not captured")
         prefs_path = storage.profile_path(profile_id) / "Default" / "Preferences"
         prefs_deadline = time.monotonic() + 3
@@ -200,6 +210,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--portable-root", required=True, type=Path, help="Unpacked release folder; it is never modified")
     parser.add_argument("--output", required=True, type=Path, help="New JSON report path")
+    parser.add_argument("--native-persona", action="store_true",
+                        help="Also test an opt-in persona against an exact staged schema-2 core")
     args = parser.parse_args()
     if os.name != "nt":
         parser.error("This integration check requires Windows")
@@ -227,10 +239,18 @@ def main() -> int:
             storage = Storage(AppPaths(qa_root))
             launcher = BrowserLauncher(storage)
             require(launcher.resolve_browser() == target_engine / "chrome.exe", "Copied portable engine was not discovered")
+            if args.native_persona:
+                require(launcher.native_persona_capabilities() is not None,
+                        "Bundled engine does not have a verified schema-2 native persona receipt")
             launcher.ensure_bundled_sandbox_access(target_engine)
             report["cases"].append(launch_case(storage, launcher, "without_proxy", target_engine / "chrome.exe", None))
             proxy_id = storage.save_proxy({"name": "Unreachable local QA proxy", "scheme": "http", "host": "127.0.0.1", "port": 9})
             report["cases"].append(launch_case(storage, launcher, "with_proxy", target_engine / "chrome.exe", proxy_id))
+            if args.native_persona:
+                report["cases"].append(launch_case(storage, launcher, "native_without_proxy",
+                                                   target_engine / "chrome.exe", None, True))
+                report["cases"].append(launch_case(storage, launcher, "native_with_proxy",
+                                                   target_engine / "chrome.exe", proxy_id, True))
             report["cleanup"] = "Only a new disposable QA root was removed; source portable folder was read-only."
         report["status"] = "passed"
     except Exception as exc:

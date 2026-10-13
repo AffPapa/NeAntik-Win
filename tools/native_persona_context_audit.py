@@ -12,10 +12,13 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
 from fingerprint_surface_audit import audit_profile, evaluate
+from launcher_integration import check_engine_tree
+from nevision_win import AppPaths, BrowserLauncher, Storage
 from profile_identity import identity_arguments, native_preview_identity
 
 
@@ -64,6 +67,19 @@ def read_core_info(chrome: Path, root: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def prepare_disposable_engine(chrome: Path, root: Path) -> Path:
+    """Give an extracted portable core sandbox access only in a QA copy."""
+    if not (chrome.parent / "ENGINE_PROVENANCE.json").is_file():
+        return chrome
+    check_engine_tree(chrome.parent)
+    portable_root = root / "qa-portable"
+    engine = portable_root / "Engine" / "Chromium"
+    engine.parent.mkdir(parents=True)
+    shutil.copytree(chrome.parent, engine)
+    BrowserLauncher(Storage(AppPaths(portable_root))).ensure_bundled_sandbox_access(engine)
+    return engine / "chrome.exe"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -76,6 +92,7 @@ def main() -> int:
         parser.error("Output path must be new and its parent must exist")
     with tempfile.TemporaryDirectory(prefix="neantik-native-context-qa-") as temporary:
         root = Path(temporary)
+        chrome = prepare_disposable_engine(chrome, root)
         core_info = read_core_info(chrome, root)
         baseline = audit_profile(chrome, root / "ordinary")
         seeds = (1, 1, 2)

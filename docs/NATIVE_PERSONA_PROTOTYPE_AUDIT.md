@@ -51,6 +51,18 @@ bounds tests, five native Canvas readback tests and three renderer-preference
 tests. These are not a clean release build, cross-machine test or anonymity
 score.
 
+An **internal-only QA ZIP** was then packaged from the incremental core in a
+separate build directory. Its archive verifier passed, the extracted EXE's
+`--self-test` returned zero, four disposable launcher cases passed (ordinary
+and native profiles, with and without a local proxy), and seven context checks
+passed against the packaged core. Direct browser probes must first grant the
+Windows AppContainer read permission to a **disposable copy** of the bundled
+engine, exactly as the launcher does; omitting that step initially caused the
+direct probe to fail. The audit tool now copies and prepares the core itself.
+This QA ZIP deliberately reuses the source's current version number and is
+**not publishable**: it is an incremental test artifact, not an immutable new
+release from the clean build.
+
 ## What was measured on one Windows 11 x64 computer
 
 The local Chromium 155 development build reports a compiled native capability
