@@ -121,8 +121,14 @@ __P13_JS__
   };
   const surface = async (view) => {
     const audio = await p13Audio(view);
+    const uaHighEntropy = view.navigator.userAgentData
+      ? await view.navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion'])
+      : null;
     return ({
     userAgent: view.navigator.userAgent,
+    uaBrands: view.navigator.userAgentData?.brands ?? null,
+    uaPlatform: view.navigator.userAgentData?.platform ?? null,
+    uaHighEntropy,
     platform: view.navigator.platform,
     language: view.navigator.language,
     languages: Array.from(view.navigator.languages || []),
@@ -305,8 +311,13 @@ const webgl = gl ? {
   unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
 } : null;
 const audio = await p13Audio(window);
+const uaHighEntropy = navigator.userAgentData
+  ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion']) : null;
 const surface = {
   userAgent: navigator.userAgent,
+  uaBrands: navigator.userAgentData?.brands ?? null,
+  uaPlatform: navigator.userAgentData?.platform ?? null,
+  uaHighEntropy,
   platform: navigator.platform,
   language: navigator.language,
   languages: Array.from(navigator.languages || []),
@@ -479,7 +490,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
         surfaces = {key: result[key] for key in ("main", "iframe", "crossOriginFrame",
                                                    "worker", "sharedWorker", "serviceWorker")}
         return {"surfaces": surfaces, "http": server.headers_seen,
-                "measurement_version": 3,
+                "measurement_version": 4,
                 "client_hints": server.hints_seen,
                 "ua_high_entropy": result.get("uaHighEntropy"),
                 "ua_brands": result.get("uaBrands"),
@@ -592,6 +603,21 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "ua_platform_hint_parity": ua_platform_matches,
             "ua_platform_version_hint_parity": ua_platform_version_matches,
         }
+        if report.get("measurement_version", 1) >= 4:
+            for context, name in (("main", "main"), ("iframe", "iframe"),
+                                  ("crossOriginFrame", "cross_origin_iframe")):
+                frame = surfaces[context]
+                frame_high = frame.get("uaHighEntropy")
+                checks[f"ua_data_{name}_parity"] = (
+                    low_brands_match and ua_platform_matches
+                    and ua_full_version_matches and ua_platform_version_matches
+                    and isinstance(frame.get("uaBrands"), list)
+                    and frame["uaBrands"] == low_brands
+                    and isinstance(frame.get("uaPlatform"), str)
+                    and frame["uaPlatform"] == report.get("ua_platform")
+                    and isinstance(frame_high, dict)
+                    and frame_high.get("fullVersionList") == ua_data.get("fullVersionList")
+                    and frame_high.get("platformVersion") == ua_data.get("platformVersion"))
         if report.get("measurement_version", 1) >= 3:
             for context, name in (("worker", "dedicated_worker"),
                                   ("sharedWorker", "shared_worker"),
@@ -664,6 +690,20 @@ def observation_statuses(reports: list[dict]) -> list[str | None]:
     """Return only bounded state labels, never measured hashes or traits."""
     statuses = []
     for report in reports:
+        if report.get("measurement_version", 1) >= 4:
+            for context in ("main", "iframe", "crossOriginFrame"):
+                surface = report["surfaces"][context]
+                high = surface.get("uaHighEntropy")
+                if (not isinstance(surface.get("uaBrands"), list)
+                        or not surface["uaBrands"]
+                        or not isinstance(surface.get("uaPlatform"), str)
+                        or not surface["uaPlatform"]
+                        or not isinstance(high, dict)
+                        or not isinstance(high.get("fullVersionList"), list)
+                        or not high["fullVersionList"]
+                        or not isinstance(high.get("platformVersion"), str)
+                        or not high["platformVersion"]):
+                    statuses.append("missing_ua_frame")
         for context in ("main", "iframe", "crossOriginFrame"):
             surface = report["surfaces"][context]
             for field in ("webglPixel", "textMetrics", "audioSampleRate"):
@@ -714,7 +754,8 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     statuses = observation_statuses([report for pair in launches for report in pair])
-    inconclusive = any(status in ("unsupported", "timeout") for status in statuses)
+    inconclusive = any(status in ("unsupported", "timeout", "missing_ua_frame")
+                       for status in statuses)
     checks = [profile_consistency, *consistency, *repeat_consistency,
               *repeat_context_consistency]
     status = "INCONCLUSIVE" if inconclusive else (

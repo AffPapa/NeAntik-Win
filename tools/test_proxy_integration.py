@@ -9,7 +9,8 @@ import unittest
 
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 from proxy_integration import (Evidence, HTTPProxy, IPv6SocksServer, LocalHTTPServer,
-                               LocalIPv6HTTPServer, SocksProxy, Target, TEST_HOST, case_plan,
+                               LocalIPv6HTTPServer, SocksProxy, Target, TEST_HOST,
+                               INVALID_PROXY_HOST, case_plan,
                                receive_exact)
 
 
@@ -31,7 +32,15 @@ class ProxyIntegrationTests(unittest.TestCase):
             self.assertIn("--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ::1", flags)
             self.assertIn("--proxy-bypass-list=<-loopback>", flags)
             self.assertFalse(any("DIRECT" in flag.upper() for flag in flags))
-        self.assertTrue(all(case[2] in (None, "127.0.0.1", "::1") for case in cases))
+        for name, scheme in (("http_proxy_hostname_invalid", "http"),
+                             ("socks5_proxy_hostname_invalid", "socks5")):
+            self.assertEqual(by_name[name], (name, scheme, INVALID_PROXY_HOST, 43001, TEST_HOST))
+            proxy = {"scheme": scheme, "host": INVALID_PROXY_HOST, "port": 43001}
+            self.assertEqual(proxy_endpoint(proxy), f"{scheme}://{INVALID_PROXY_HOST}:43001")
+            self.assertIn(f"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE {INVALID_PROXY_HOST}",
+                          bundled_proxy_privacy_arguments(proxy))
+        self.assertTrue(all(case[2] in (None, "127.0.0.1", "::1", INVALID_PROXY_HOST) for case in cases))
+        self.assertEqual(sum(case[2] == INVALID_PROXY_HOST for case in cases), 2)
         self.assertTrue(all(case[4] in (TEST_HOST, "127.0.0.1", "::1") for case in cases))
 
     def test_ipv6_http_proxy_fixture_forwards_only_owned_target(self) -> None:

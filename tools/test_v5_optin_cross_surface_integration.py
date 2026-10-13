@@ -62,6 +62,20 @@ def version_three_reports() -> list[dict]:
     return reports
 
 
+def version_four_reports() -> list[dict]:
+    reports = version_three_reports()
+    for item in reports:
+        item["measurement_version"] = 4
+        for context in FRAMES:
+            item["surfaces"][context].update({
+                "uaBrands": [{"brand": "Synthetic", "version": "155"}],
+                "uaPlatform": "Windows",
+                "uaHighEntropy": {"fullVersionList": [{"brand": "Synthetic", "version": "155.0"}],
+                                  "platformVersion": "15.0"},
+            })
+    return reports
+
+
 class AssessmentTests(unittest.TestCase):
     def assess(self, reports: list[dict]) -> dict:
         return assess_reports(reports, [{"synthetic_context": True} for _ in reports])
@@ -76,6 +90,23 @@ class AssessmentTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASS")
         self.assertTrue(all(result["checks"].values()))
 
+    def test_version_four_frame_ua_control_passes(self) -> None:
+        result = self.assess(version_four_reports())
+        self.assertEqual(result["status"], "PASS")
+        self.assertTrue(all(result["checks"].values()))
+
+    def test_version_four_missing_frame_ua_observation_is_inconclusive(self) -> None:
+        reports = version_four_reports()
+        del reports[2]["surfaces"]["crossOriginFrame"]["uaHighEntropy"]
+        with self.assertRaises(ObservationUnavailable):
+            self.assess(reports)
+
+    def test_version_four_empty_frame_ua_observation_is_inconclusive(self) -> None:
+        reports = version_four_reports()
+        reports[2]["surfaces"]["crossOriginFrame"]["uaHighEntropy"]["fullVersionList"] = []
+        with self.assertRaises(ObservationUnavailable):
+            self.assess(reports)
+
     def test_version_three_missing_worker_ua_observation_is_inconclusive(self) -> None:
         reports = version_three_reports()
         del reports[2]["surfaces"]["serviceWorker"]["uaHighEntropy"]
@@ -84,7 +115,7 @@ class AssessmentTests(unittest.TestCase):
 
     def test_unknown_measurement_version_is_inconclusive(self) -> None:
         reports = version_three_reports()
-        reports[0]["measurement_version"] = 4
+        reports[0]["measurement_version"] = 5
         with self.assertRaises(ObservationUnavailable):
             self.assess(reports)
 

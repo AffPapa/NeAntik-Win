@@ -92,7 +92,7 @@ def _field(report: dict, context: str, name: str):
 
 def _observed(report: dict) -> None:
     measurement_version = report.get("measurement_version")
-    if (type(measurement_version) is not int or measurement_version not in (2, 3)
+    if (type(measurement_version) is not int or measurement_version not in (2, 3, 4)
             or type(report.get("blocked_external_requests")) is not int
             or report["blocked_external_requests"] < 0):
         raise ObservationUnavailable("incomplete_measurement")
@@ -119,7 +119,7 @@ def _observed(report: dict) -> None:
     for field in ("http", "client_hints", "ua_high_entropy", "ua_brands", "ua_platform"):
         if report.get(field) is None:
             raise ObservationUnavailable("missing_http_or_ua_observation")
-    if measurement_version == 3:
+    if measurement_version >= 3:
         for context in ("worker", "sharedWorker", "serviceWorker"):
             worker = _surface(report, context)
             high = worker.get("uaHighEntropy")
@@ -129,6 +129,20 @@ def _observed(report: dict) -> None:
                     or not isinstance(high.get("fullVersionList"), list)
                     or not isinstance(high.get("platformVersion"), str)):
                 raise ObservationUnavailable("worker_ua_data_unavailable")
+    if measurement_version >= 4:
+        for context in FRAMES:
+            frame = _surface(report, context)
+            high = frame.get("uaHighEntropy")
+            if (not isinstance(frame.get("uaBrands"), list)
+                    or not frame["uaBrands"]
+                    or not isinstance(frame.get("uaPlatform"), str)
+                    or not frame["uaPlatform"]
+                    or not isinstance(high, dict)
+                    or not isinstance(high.get("fullVersionList"), list)
+                    or not high["fullVersionList"]
+                    or not isinstance(high.get("platformVersion"), str)
+                    or not high["platformVersion"]):
+                raise ObservationUnavailable("frame_ua_data_unavailable")
 
 
 def assess_reports(reports: list[dict], context_checks: list[dict[str, bool]]) -> dict:

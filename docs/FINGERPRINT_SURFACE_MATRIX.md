@@ -123,6 +123,21 @@ on one Windows 11 host, not a cohort, cross-machine, real-site or anonymity
 result. Historical version-2 reports remain evaluable without claiming these
 new worker checks.
 
+### Iframe UA Client Hints measurement, 2026-10-14
+
+Version 4 extends that loopback measurement to low- and selected high-entropy
+`userAgentData` in the main document and same-/cross-origin iframes. Missing
+or empty frame observations are inconclusive; mismatches fail parity. Synthetic
+negative tests and the V5 consumer tests passed. On a hash-identical copy of
+the Chromium core in public 0.8.11-preview, the two-profile/two-launch audit
+passed **170/170** checks and the stock-vs-opt-in V5 gate passed **16/16**.
+The exact ZIP SHA-256 is
+`97343ef069797b833138ae6ae1c754c3d830d2f340b632f42c26c0f7d368be7c`;
+`chrome.exe` SHA-256 is
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
+Raw traits stay in a private QA report. This is selected parity on one host,
+not a cross-machine, real-site, entropy-reduction or anonymity result.
+
 ## Public 0.8.7-preview follow-up, 2026-10-13
 
 Three fresh loopback-only audits were run against the Chromium binary extracted

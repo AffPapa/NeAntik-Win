@@ -40,6 +40,7 @@ from native_persona_context_audit import prepare_disposable_engine
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 
 TEST_HOST = "nevision-qa.invalid"
+INVALID_PROXY_HOST = "neantik-proxy-unresolvable.invalid"
 
 
 class Evidence:
@@ -297,9 +298,11 @@ def case_plan(http_port: int, socks_port: int, http_v6_port: int, socks_v6_port:
         ("http", "http", "127.0.0.1", http_port, TEST_HOST),
         ("http_loopback", "http", "127.0.0.1", http_port, "127.0.0.1"),
         ("http_unavailable", "http", "127.0.0.1", dead_port, TEST_HOST),
+        ("http_proxy_hostname_invalid", "http", INVALID_PROXY_HOST, dead_port, TEST_HOST),
         ("socks5", "socks5", "127.0.0.1", socks_port, TEST_HOST),
         ("socks5_loopback", "socks5", "127.0.0.1", socks_port, "127.0.0.1"),
         ("socks5_unavailable", "socks5", "127.0.0.1", dead_port, TEST_HOST),
+        ("socks5_proxy_hostname_invalid", "socks5", INVALID_PROXY_HOST, dead_port, TEST_HOST),
         ("direct_v6", None, None, None, "::1"),
         ("http_v6", "http", "127.0.0.1", http_port, "::1"),
         ("socks5_v6", "socks5", "127.0.0.1", socks_port, "::1"),
@@ -368,8 +371,9 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 proxy_id = storage.save_proxy({"name": name, "scheme": scheme, "host": proxy_host, "port": port})
                 profile["proxy_id"] = proxy_id
                 endpoint = proxy_endpoint(storage.get_proxy(proxy_id))
+                formatted_host = "[::1]" if proxy_host == "::1" else proxy_host
                 check(report, f"{name}: endpoint formats proxy host", endpoint ==
-                      f"{scheme}://{'[::1]' if proxy_host == '::1' else '127.0.0.1'}:{port}")
+                      f"{scheme}://{formatted_host}:{port}")
             profile_id = storage.save_profile(profile)
             target_port = ipv6_target.server_port if target_host == "::1" else target.server_port
             url_host = f"[{target_host}]" if target_host == "::1" else target_host
@@ -381,7 +385,7 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
             step = report["launches"][-1]
             step["target_requests"] = requests
             step["proxy_forwards"] = forwards
-            if name.endswith("_unavailable"):
+            if name.endswith(("_unavailable", "_invalid")):
                 marker = "ERR_PROXY_CONNECTION_FAILED"
                 # Current headless Chrome reports failed navigations on stderr
                 # and may dump an empty DOM instead of a visual error page.
@@ -449,6 +453,7 @@ def main() -> int:
             "No fingerprint, WebRTC/UDP leak, packet-capture or all-traffic anonymity claim.",
             "The source-built strict proxy flags are exercised with synthetic hostname and 127.0.0.1 URL cases; successful loopback cases must be observed via the controlled proxy.",
             "IPv6 coverage uses ::1 target and HTTP/SOCKS5 proxy endpoint positive and unavailable controls; it does not observe external IPv6 egress or DNS.",
+            "Reserved .invalid proxy-host failure cases can trigger a benign OS DNS lookup; they test no DIRECT fallback, not resolver identity or absence of DNS packets.",
             "Direct positive controls before and after negative cases verify the local target and hostname mapping work.",
             "Browser exit code zero alone is not a success signal: positive cases require target/proxy evidence; unavailable cases require the specific proxy error and zero target requests.",
             "All fixture forwarding is hardcoded to our own loopback target; external destinations/HTTP CONNECT are rejected.",
