@@ -46,23 +46,28 @@ def classify(direct: dict, proxy: dict) -> dict:
     direct_types, proxy_types = types(direct), types(proxy)
     direct_udp = direct.get("netlog", {}).get("all_udp_sends")
     proxy_udp = proxy.get("netlog", {}).get("all_udp_sends")
+    route_count = proxy.get("route_control_requests")
     if (type(direct_udp) is not int or direct_udp < 0 or
-            type(proxy_udp) is not int or proxy_udp < 0):
-        raise ValueError("NetLog UDP counters missing")
+            type(proxy_udp) is not int or proxy_udp < 0 or
+            type(route_count) is not int or route_count < 0):
+        raise ValueError("STUN, UDP or route-control measurement missing")
     checks = {
         "direct_external_stun_response_observed": "srflx" in direct_types and direct_udp > 0,
         "proxy_no_ice_candidates_observed": not proxy_types,
         "proxy_no_udp_sends_observed": proxy_udp == 0,
+        "proxy_route_control_observed": route_count > 0,
     }
     if not checks["proxy_no_ice_candidates_observed"] or not checks["proxy_no_udp_sends_observed"]:
         status = "FAIL"
-    elif checks["direct_external_stun_response_observed"]:
+    elif (checks["direct_external_stun_response_observed"] and
+          checks["proxy_route_control_observed"]):
         status = "PASS"
     else:
         status = "INCONCLUSIVE"
     return {"status": status, "checks": checks,
             "direct_candidate_types": direct_types, "proxy_candidate_types": proxy_types,
-            "direct_udp_sends": direct_udp, "proxy_udp_sends": proxy_udp}
+            "direct_udp_sends": direct_udp, "proxy_udp_sends": proxy_udp,
+            "proxy_route_control_count": route_count}
 
 
 def sha256(path: Path) -> str:
@@ -99,7 +104,7 @@ def main() -> int:
                 direct = run_case(disposable_chrome, root, False, STUN_HOST,
                                   force_default_policy=True, remote_sink=endpoint)
                 proxy = run_case(disposable_chrome, root, True, STUN_HOST,
-                                 remote_sink=endpoint)
+                                 remote_sink=endpoint, verify_proxy_route=True)
         report.update(classify(direct, proxy))
     except Exception as error:
         # Browser exceptions may embed URLs or addresses; retain only the class.

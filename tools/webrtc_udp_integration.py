@@ -41,6 +41,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head><body>
     await peer.setLocalDescription(await peer.createOffer());
     await new Promise(resolve => setTimeout(resolve, 4000));
   } catch (caught) { error = String(caught); }
+  __PROXY_ROUTE_PROBE__
   const result = {token, error, candidateTypes: candidates};
   peer.close();
   document.getElementById('result').textContent = JSON.stringify(result);
@@ -127,6 +128,8 @@ class ProbeServer(ThreadingHTTPServer):
         self.ready = threading.Event()
         self.result: dict | None = None
         self.rejected_external_requests = 0
+        self.route_control_requests = 0
+        self.verify_proxy_route = False
 
 
 class ProbeHandler(BaseHTTPRequestHandler):
@@ -151,6 +154,8 @@ class ProbeHandler(BaseHTTPRequestHandler):
         if parsed.scheme or parsed.netloc:
             if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != self.server.server_port:
                 self.server.rejected_external_requests += 1
+                if parsed.hostname == "neantik-route-control.invalid":
+                    self.server.route_control_requests += 1
                 return None
         if parse_qs(parsed.query).get("token") != [self.server.token]:
             return None
@@ -165,7 +170,10 @@ class ProbeHandler(BaseHTTPRequestHandler):
         if route == "/case":
             page = (PAGE.replace("__TOKEN__", self.server.token)
                     .replace("__STUN_HOST__", self.server.stun_host)
-                    .replace("__STUN_PORT__", str(self.server.stun_port)))
+                    .replace("__STUN_PORT__", str(self.server.stun_port))
+                    .replace("__PROXY_ROUTE_PROBE__",
+                             "await fetch('http://neantik-route-control.invalid/', {mode: 'no-cors'}).catch(() => {});"
+                             if self.server.verify_proxy_route else ""))
             self.reply(200, page.encode(), "text/html; charset=utf-8")
         elif route == "/barrier":
             self.server.ready.wait(20)
@@ -194,12 +202,16 @@ class ProbeHandler(BaseHTTPRequestHandler):
 def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
              force_default_policy: bool = False, net_log_dir: Path | None = None,
              diagnostic_disable_network_sandbox: bool = False,
-             remote_sink: object | None = None) -> dict:
+             remote_sink: object | None = None,
+             verify_proxy_route: bool = False) -> dict:
+    if verify_proxy_route and not proxy_bound:
+        raise ValueError("Proxy route control requires a proxy-bound case")
     token = uuid.uuid4().hex
     stun = remote_sink if remote_sink is not None else StunSink(stun_host)
     if remote_sink is not None:
         stun.reset()
     server = ProbeServer(token, stun_host, stun.port)
+    server.verify_proxy_route = verify_proxy_route
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     job = OwnedJob()
@@ -239,7 +251,8 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
                 "all_udp_datagrams": receiver["all_udp_datagrams"],
                 "netlog": netlog_udp_summary(net_log_path, stun_host, stun.port),
                 "candidate_types": server.result.get("candidateTypes", []),
-                "rejected_external_requests": server.rejected_external_requests}
+                "rejected_external_requests": server.rejected_external_requests,
+                "route_control_requests": server.route_control_requests}
     finally:
         if process is not None and process.poll() is None:
             process.terminate()

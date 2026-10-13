@@ -281,6 +281,16 @@ counts, status and binary hashes, never candidate addresses or raw NetLog.
 This narrow comparison **PASSed** on one Windows host. Four synthetic unit
 tests cover success, negative and missing-measurement classification.
 
+The audit was then tightened with an explicit reserved `.invalid` route
+control. In the proxy case the loopback rejector must observe that one
+synthetic request; without it the result is `INCONCLUSIVE`, even if ICE and
+UDP appear quiet. On the same public 0.8.6 core the repeated control passed:
+direct had a `srflx` candidate and 19 NetLog UDP sends; proxy had zero ICE
+candidates, zero NetLog UDP sends and one observed route-control request.
+The report `public-stun-route-control-v2.json` remains outside Git. This
+checks proxy assignment only for the synthetic request, not the routing of
+arbitrary external traffic.
+
 An external `srflx` response confirms the direct positive control reached a
 public STUN service. It does **not** supply Cloudflare-side logs for the proxy
 case, independent packet capture, system DNS evidence, IPv6, TURN, a working
