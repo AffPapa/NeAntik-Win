@@ -143,6 +143,22 @@ class StorageTests(unittest.TestCase):
                 self.storage.backup_profile(profile_id)
         self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
 
+    def test_backup_rejects_hardlink_to_file_outside_profile(self):
+        profile_id = self.storage.save_profile({"name": "Hardlink boundary"})
+        outside = self.root / "outside-synthetic.txt"
+        outside.write_text("synthetic content outside profile", encoding="utf-8")
+        linked = self.storage.profile_path(profile_id) / "linked.txt"
+        try:
+            os.link(outside, linked)
+        except (NotImplementedError, OSError) as exc:
+            self.skipTest(f"Hardlinks unavailable: {exc}")
+
+        with self.assertRaisesRegex(NeVisionError, "hardlink"):
+            self.storage.backup_profile(profile_id)
+        self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
+        self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
+        self.assertEqual(outside.read_text(encoding="utf-8"), "synthetic content outside profile")
+
     @unittest.skipUnless(os.name == "nt", "Windows Chromium lockfile semantics")
     def test_backup_and_delete_refuse_an_externally_locked_chromium_profile(self):
         profile_id = self._profile_with_file("Locked profile")

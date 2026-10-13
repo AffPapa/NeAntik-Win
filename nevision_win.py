@@ -1220,6 +1220,11 @@ class Storage:
                     raise NeVisionError(f"Не удалось прочитать файл профиля для backup: {file_path.name}: {exc}") from exc
                 if not stat.S_ISREG(file_stat.st_mode):
                     continue
+                if file_stat.st_nlink > 1:
+                    raise NeVisionError(
+                        "Backup не поддерживает hardlink в данных профиля: "
+                        f"{file_path.name}. Удалите ссылку или сохраните отдельную копию файла."
+                    )
                 if len(files_to_archive) >= MAX_BACKUP_FILES:
                     raise NeVisionError(f"Профиль содержит слишком много файлов для backup (лимит: {MAX_BACKUP_FILES}).")
                 total_size += file_stat.st_size
