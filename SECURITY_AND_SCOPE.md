@@ -1,12 +1,14 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.8.2-preview portable Chromium edition.
+Applies to NeAntik Win 0.8.3-preview portable Chromium edition.
 
 ## Product boundary
 
 This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source and a published native privacy patch. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. The patch caps exposed logical CPU count and approximated device memory; it does not create a coherent per-profile identity or establish anonymity. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, and disable network prediction/preloading. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. Existing profiles, installed Chrome and Edge do not receive them retroactively.
+
+New bundled-Chromium profiles also receive a private `Downloads` folder inside their profile. The launcher stores a small marker to rebase **only this managed path** after a portable move or backup restore; a download directory chosen by the user in Chromium is respected. Older profiles without the marker and installed Chrome/Edge profiles are not changed. Browser downloads and backup ZIPs containing them are ordinary sensitive files, not encrypted or sandboxed from software running as the same Windows account. The profile backup's 8 GB / 20,000-file limits can reject a large Downloads folder.
 
 Chromium's Windows sandbox needs read/execute access to its own runtime files. Because ZIP extraction drops NTFS ACLs, the first bundled-browser launch grants the Windows `ALL APPLICATION PACKAGES` group that access to `Engine/Chromium` only. It does not grant access to `Data/`, backups or proxy secrets. A writable NTFS folder is tested; a filesystem without Windows ACL support is not validated. The browser sandbox remains enabled.
 
@@ -36,9 +38,9 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.8.2-preview portable Chromium binary**, unchanged from 0.8.1-preview. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
+This matrix describes the **0.8.3-preview portable Chromium binary**, unchanged from 0.8.2-preview. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
 
-| Surface | 0.8.2-preview behavior | Evidence / limitation |
+| Surface | 0.8.3-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build/privacy patch hashes are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Bundled Chromium caps `navigator.hardwareConcurrency` at 4 and device memory at 8 GiB; UA and other hints remain browser-supplied | Loopback comparison saw CPU 16→4 and memory/Device-Memory CH 32→8 on one Windows machine; no external cohort or anti-correlation proof |
@@ -46,6 +48,7 @@ This matrix describes the **0.8.2-preview portable Chromium binary**, unchanged 
 | Canvas, WebGL/WebGPU, audio, fonts and layout metrics | Not modified by the manager | No surface-level fingerprint probes or equality guarantees |
 | Frames and workers | Native Blink accessors used by measured main frame, same-origin and cross-origin iframe, dedicated/shared/service workers; no injected JavaScript | Expanded loopback QA on one Windows 11 machine after the 0.8.1 build; other hardware, cross-site HTTPS and browser modes remain unverified |
 | Cookies, history and web storage | Stored by the selected browser inside each profile's separate user-data directory; new bundled profiles start with third-party cookies blocked and network prediction disabled | In two disposable HTTPS sites, an allow-control profile sent the third-party cookie and the new default profile did not. Additional loopback QA after release found cookie/localStorage/IndexedDB/Cache Storage/service-worker state isolated across two profiles, persistent after restart and restored in one account; arbitrary sites and cross-PC restore are not exhaustively tested |
+| Downloads | New bundled profiles use a private `Downloads` directory inside the profile; managed paths rebase after a portable move or same-machine restore | Synthetic files downloaded in real Chromium into two distinct profiles and after moving one. Old profiles and custom download paths are not changed; backup includes files and may hit size limits |
 | Geolocation, notifications, camera and microphone | New bundled profiles start with Chromium default permission set to Block; existing profiles and later user settings are untouched | Real Chromium `Permissions.query` returns `denied` for the four defaults in a disposable test; site-specific changes remain possible |
 | Proxy routing, DNS and WebRTC | Bundled Chromium with proxy blocks implicit loopback bypass/background DNS, disables QUIC and restricts non-proxied WebRTC UDP | Real loopback HTTP/SOCKS tests and no-STUN ICE test pass; public IP, external DNS/UDP, authenticated CONNECT, IPv6 and full leak resistance are not certified |
 | Extensions | Uses the browser's native extension manager and browser policy | No automatic installation or extension permission audit |

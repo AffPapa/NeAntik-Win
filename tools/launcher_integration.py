@@ -118,6 +118,11 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         require(initial["net"]["network_prediction_options"] == 2, "Preloading was not disabled")
         require(initial["profile"]["default_content_setting_values"] == EXPECTED_CONTENT_DEFAULTS,
                 "Permission defaults were not seeded")
+        expected_downloads = str(storage.profile_path(profile_id).resolve() / "Downloads")
+        require(initial.get("download", {}).get("default_directory") == expected_downloads,
+                "Managed per-profile download directory was not seeded")
+        require((storage.profile_path(profile_id) / "Downloads").is_dir(),
+                "Managed per-profile download folder is missing")
         # BrowserLauncher has already prepared engine sandbox ACLs. The gate
         # ensures Chromium is born *after* the helper has joined the owned job.
         helper = ORIGINAL_POPEN(
@@ -183,6 +188,9 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
         persisted_permissions = persisted_prefs["profile"]["default_content_setting_values"]
         require(all(persisted_permissions.get(key) == value for key, value in EXPECTED_CONTENT_DEFAULTS.items()),
                 "Chromium did not retain permission defaults")
+        require(persisted_prefs.get("download", {}).get("default_directory") ==
+                str(storage.profile_path(profile_id).resolve() / "Downloads"),
+                "Chromium did not retain managed profile download directory")
         observation.update({"status": "passed", "helper_pid": helper.pid, "engine_pids": engine_pids,
                             "chromium_lock_active": True, "browser_family": "chromium",
                             "web_rtc_policy_argument": web_rtc_flag in captured,
@@ -191,6 +199,7 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
                                 "seeded_before_browser_spawn": True,
                                 "file_present_after_launch": True,
                                 "cookie_controls_mode": persisted_prefs["profile"]["cookie_controls_mode"],
+                                "managed_downloads": True,
                                 "permission_defaults": {key: persisted_permissions[key] for key in EXPECTED_CONTENT_DEFAULTS},
                                 "webrtc_keys": sorted((persisted_prefs.get("webrtc") or {}).keys())
                                 if isinstance(persisted_prefs.get("webrtc"), dict) else []}})

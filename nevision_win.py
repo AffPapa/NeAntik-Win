@@ -37,7 +37,7 @@ from typing import Any, Iterable
 from profile_identity import (CoreError, LEGACY_UNAVAILABLE, NATIVE_PREVIEW,
                               identity_arguments, native_preview_identity,
                               ordinary_identity, serialize_identity, validate_identity)
-from privacy_defaults import initialize_privacy_defaults
+from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -1685,8 +1685,9 @@ class BrowserLauncher:
         if family == "chromium":
             try:
                 initialize_privacy_defaults(browser_data_dir)
+                ensure_managed_download_directory(browser_data_dir)
             except (OSError, ValueError) as exc:
-                raise NeVisionError("Не удалось безопасно создать настройки приватности нового профиля Chromium. Проверьте доступ к Data и отсутствие ссылок/junction.") from exc
+                raise NeVisionError("Не удалось безопасно подготовить настройки нового профиля Chromium или папку загрузок. Проверьте доступ к Data и отсутствие ссылок/junction.") from exc
         try:
             process = subprocess.Popen(arguments, cwd=str(profile_dir), creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         except OSError as exc:
@@ -2318,7 +2319,7 @@ class SettingsDialog(BaseDialog):
             self.toggle_compatibility()
         ttk.Separator(body).pack(fill="x", pady=8)
         ttk.Label(body, text="Где мои данные?", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
-        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Для переноса копируйте всю папку; proxy-пароли Windows DPAPI на другом ПК могут потребовать повторного ввода.",
+        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Новые профили встроенного Chromium сохраняют загрузки в папке Downloads своего профиля; backup включает эти файлы и может стать большим. Для переноса копируйте всю папку; proxy-пароли Windows DPAPI на другом ПК могут потребовать повторного ввода.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w")
         self.footer(body, self.save, "Сохранить")
 
@@ -3266,6 +3267,7 @@ class NeVisionApp:
             "1. Распакуйте весь ZIP в доступную для записи папку NTFS и запустите NeAntikWin.exe.\n"
             "2. Создайте профиль. Новый профиль откроется во встроенном Chromium со своими cookies и историей.\n"
             "3. Proxy добавьте через Vault и назначьте профилю. TCP-проверка не подтверждает внешний IP или отсутствие утечек.\n"
+            "   Загрузки новых профилей встроенного Chromium находятся в папке Downloads профиля; откройте её через меню «Профиль → Папка профиля».\n"
             "4. Перед переносом или обновлением закройте браузер и сохраните всю папку Data. Backup ZIP содержит незашифрованные данные сайтов.\n"
             "5. На другом компьютере сохранённые proxy-пароли могут потребовать повторного ввода из-за Windows DPAPI.\n\n"
             "Наведите курсор на кнопку или выделите её клавишей Tab — появится подсказка.",

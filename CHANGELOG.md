@@ -2,6 +2,25 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.3-preview — portable profile downloads (2026-10-13)
+
+- New bundled-Chromium profiles save downloads into their own
+  `Data/Profiles/<profile-id>/Downloads` folder instead of the shared Windows
+  Downloads folder. The existing **Profile → Profile folder** action opens
+  the parent folder. Installed Chrome/Edge and previously used profiles keep
+  their existing download settings; user-selected custom folders are respected.
+- A small per-profile marker lets the launcher rebase only its managed
+  download path after moving the portable directory or restoring a backup.
+  The Chromium Preferences path is browser-visible, not the internal Windows
+  `\\?\` filesystem alias. No profile-data schema migration is required.
+- Profile backup ZIPs include these downloaded files. They remain unencrypted
+  and subject to the existing 8 GB / 20,000-file limits; keep them private.
+- Real Chromium loopback QA downloaded distinct synthetic files in two
+  profiles and again after moving one profile. The launcher boundary and
+  backup/restore rebasing have separate tests. This is not a network-leak or
+  anonymity certificate. The bundled Chromium and narrow CPU/RAM patch are
+  unchanged from 0.8.2; EXE remains unsigned, Windows 11 x64 is the tested OS.
+
 ## 0.8.2-preview — proxy DNS disclosure (2026-10-13)
 
 - The proxy form now explains that a proxy **hostname** may be resolved locally.

@@ -38,6 +38,7 @@ from nevision_win import (
     proxy_choices,
     resolve_theme,
 )
+from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
 
 
 class StorageTests(unittest.TestCase):
@@ -60,6 +61,20 @@ class StorageTests(unittest.TestCase):
         restored = self.storage.restore_profile(archive, "B")
         self.assertEqual((self.storage.profile_path(restored) / "Default" / "state.txt").read_text(encoding="utf-8"), "state")
         self.assertIsNone(self.storage.get_profile(restored)["proxy_id"])
+
+    def test_backup_restore_rebases_managed_downloads_without_losing_files(self):
+        profile_id = self.storage.save_profile({"name": "Portable downloads QA"})
+        source = self.storage.profile_path(profile_id)
+        self.assertTrue(initialize_privacy_defaults(source))
+        (source / "Downloads" / "synthetic.txt").write_text("owned test file", encoding="utf-8")
+        archive = self.storage.backup_profile(profile_id)
+        restored_id = self.storage.restore_profile(archive, "Restored downloads QA")
+        restored = self.storage.profile_path(restored_id)
+        self.assertNotEqual(source, restored)
+        self.assertTrue(ensure_managed_download_directory(restored))
+        self.assertEqual((restored / "Downloads" / "synthetic.txt").read_text(encoding="utf-8"), "owned test file")
+        prefs = json.loads((restored / "Default" / "Preferences").read_text(encoding="utf-8"))
+        self.assertEqual(prefs["download"]["default_directory"], str(restored.resolve() / "Downloads"))
 
     def test_restore_rejects_zip_path_traversal_before_creating_profile(self):
         archive = self.storage.paths.backups / "unsafe.zip"
@@ -646,6 +661,9 @@ class PortableCoreRegressionTests(unittest.TestCase):
             self.assertEqual(created["profile"]["cookie_controls_mode"], 1)
             self.assertEqual(created["net"]["network_prediction_options"], 2)
             self.assertEqual(created["profile"]["default_content_setting_values"]["geolocation"], 2)
+            self.assertEqual(created["download"]["default_directory"],
+                             str(self.storage.profile_path(profile_id).resolve() / "Downloads"))
+            self.assertTrue((self.storage.profile_path(profile_id) / "Downloads").is_dir())
 
             preferences.write_text('{"profile":{"cookie_controls_mode":0}}', encoding="utf-8")
             with patch.object(self.storage, "wait_for_chromium_lock"), patch.object(launcher, "ensure_bundled_sandbox_access"), patch("nevision_win.subprocess.Popen", return_value=process):
