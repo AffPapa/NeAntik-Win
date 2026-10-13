@@ -33,6 +33,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   local evidence only; external DNS/IPv6/WebRTC routes remain unverified.
 - Repeated the startup/proxy probe on the byte-verified public 0.8.1 core;
   the same local proxy-route invariants passed. No released ZIP was changed.
+- Added a consented external HTTPS positive/negative control against the
+  project's no-store endpoint. Direct response, rejecting-proxy refusal,
+  proxy observation and loopback-only TCP/zero UDP NetLog checks passed on
+  both public 0.8.1 and clean V3. This is not a general leak certificate.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

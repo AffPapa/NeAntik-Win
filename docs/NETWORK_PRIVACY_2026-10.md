@@ -95,6 +95,7 @@ network-performance **test** switch and affects services including upgrade
 detection and Safe Browsing configuration. It is not a safe blanket fix for a
 distributed browser. Any startup change needs repeat measurements, an update
 strategy and a way to respect the user's session-restore choice.
+
 In a separate disposable GUI check, writing `session.restore_on_startup=4`
 and `session.startup_urls=["about:blank"]` into initial Preferences did **not**
 replace the new-tab page on first or second launch. Passing `about:blank` as
@@ -113,6 +114,7 @@ summary. This is a positive local route check, not packet-capture evidence
 that every transport on every network fails closed. A third-party extension,
 IPv6, external DNS resolver, real WebRTC/TURN server or other Windows process
 is outside this test.
+
 The same startup/proxy probe also passed against the extracted **public
 0.8.1-preview** engine: its local release ZIP matched the published SHA-256
 `2b43c3ffad3e16754d376ebb49d45530a670f7540d580fa2939ebf2c649fc70e`,
@@ -120,3 +122,23 @@ and the extracted `chrome.exe` matched the release manifest. The proxy case
 again observed eight requests, eight loopback TCP endpoints and zero NetLog
 UDP sends. This extends local evidence to the downloadable binary, but does
 not close the external-network gate.
+
+## Consented external HTTPS fail-closed control — 13 October 2026
+
+The [external route probe](../tools/external_proxy_fail_closed_audit.py)
+used the project's public, no-store `/api/headers` endpoint with two fresh
+profiles. In the direct case, the browser rendered the endpoint's JSON. In
+the proxy-bound case, an intentionally rejecting loopback HTTP proxy observed
+the request to that exact hostname, while the browser did **not** render the
+JSON. NetLog showed only loopback TCP endpoints and zero UDP sends for this
+proxy-bound run. Seven explicit assertions passed on both the extracted,
+byte-verified public 0.8.1 core and the clean V3 development core. The proxy
+never forwarded traffic; the report records no response body, public IP,
+cookie, full URL path or query string.
+
+This is a useful external positive control plus a negative fail-closed test
+for **one HTTPS destination, one proxy type and one Windows/network topology**.
+It does not prove that DNS, IPv6, WebRTC/STUN/TURN, extension traffic or all
+other destinations are routed correctly, nor can Chromium NetLog replace
+independent packet capture or server-side observation from a separate egress
+node. The P2 release gate remains open.

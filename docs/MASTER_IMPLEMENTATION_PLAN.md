@@ -93,6 +93,11 @@ cookies, localStorage, IndexedDB, Cache Storage и регистрации Servic
 отвергающий loopback proxy и сверяет TCP/UDP события Chromium NetLog; два
 прогона дали только loopback TCP и ноль UDP в proxy-режиме. Это не доказывает
 маршрут в публичной сети и не закрывает Gate P2.
+Отдельный внешний HTTPS-контроль на нашем no-store endpoint теперь проходит:
+direct-профиль получил ответ, а proxy-профиль с отвергающим локальным proxy
+его не получил; proxy видел запрос, NetLog — только loopback TCP и ноль UDP.
+Результат повторён на выпущенном 0.8.1 и чистом V3, но не охватывает DNS,
+IPv6, WebRTC/TURN или другой egress-узел.
 
 ### P0 — измерительная основа (следующий обязательный цикл)
 
