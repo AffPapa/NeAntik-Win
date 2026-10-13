@@ -1,15 +1,13 @@
-# NeAntik Win 0.8.15-preview — candidate evidence (not published)
+# NeAntik Win 0.8.15-preview — public release evidence
 
-Status checked 2026-10-14: the portable candidate is locally built and tested,
-but **not publicly released**. The current GitHub Release endpoint returns
-HTTP 404 for `v0.8.15-preview`; the public Site still serves 0.8.14-preview.
-Do not describe this candidate as available for download.
+Status checked 2026-10-14: the GitHub prerelease is public and the live Site
+serves the same archive. The annotated tag `v0.8.15-preview` resolves to the
+binary/source commit below. This report separates local tests, public asset
+integrity, and live Site verification; none establishes full anonymity.
 
-**This exact ZIP is now superseded:** after it was built, `main` gained a
-profile-root junction/reparse guard before Chromium launch. That fix is covered
-by source tests and is included in the rebuilt candidate below. Do not publish
-the earlier hash `8e3d1ff6…dbbab7`; the new archive is the only candidate to
-consider for release.
+An earlier local ZIP with SHA-256 `8e3d1ff6…dbbab7` was superseded before
+publication. It was not attached to the public release. Only the verified ZIP
+below is the download for tag `v0.8.15-preview`.
 
 ## Source and artifact
 
@@ -33,7 +31,7 @@ consider for release.
 - Public repository guard: 208 files — **PASS**.
 - Portable archive verifier: 1,066 files — **PASS**.
 - Packaged executable `--self-test` — **PASS**.
-- Exact candidate Chromium engine loopback proxy-loss/recovery gate — **PASS**,
+- Exact bundled Chromium engine loopback proxy-loss/recovery gate — **PASS**,
   10/10 checks. `chrome.exe` SHA-256
   `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`;
   `chrome.dll` SHA-256
@@ -43,7 +41,7 @@ consider for release.
   the same process routed through the proxy again. NetLog showed TCP only to
   `127.0.0.1` and zero UDP. The harness did not launch the NeAntik GUI and this
   does not prove external DNS, IPv6, TURN or public-network routing.
-- The exact extracted candidate Chromium also passed the synthetic profile
+- The exact released Chromium also passed the synthetic profile
   storage/permissions/backup/clone gate: 21/21 assertions over seven real
   visits. A first attempt omitted the AppContainer read/execute ACL because
   this harness launches Chromium directly rather than through the product's
@@ -57,24 +55,36 @@ consider for release.
 - Manual GUI, Windows 10, second consumer PC/account, external DNS/IPv6/UDP/TURN,
   and broad site compatibility — **NOT RUN** for this candidate.
 
-## Site state
+## Public GitHub release
 
-Site source for 0.8.15 was pushed at
-`32a909d9d78b264a4df505feeb4fa374c3f9ad04`; typecheck and build passed and
-Site version 48 was saved for the superseded ZIP. It must not be deployed or
-reused. Live `release.json` still
-reports the 0.8.14 ZIP (262,397,107 bytes; SHA-256
-`44fef435ec5a46fa52d8441ac7e6d951e0577f611a16a21628a4a33ddcf61284`).
-After the new immutable GitHub asset is created and hash-verified, update the
-site source to this new hash, save a fresh Site version, and deploy that version.
+- GitHub Release: [v0.8.15-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.15-preview), `draft=false`, `prerelease=true`.
+- The annotated tag resolves to binary/source commit
+  `5434718dd14a5ea0edc20c440c801a873c9fbcf4`.
+- Three uploaded assets report state `uploaded`; GitHub's ZIP digest and size
+  match the local archive. A fresh public download also matched the `.sha256`
+  sidecar, manifest version/source/hash, size (262,401,905 bytes), and SHA-256
+  `fd9eedf2b9f6b9f3b42b51eb5ce29608e41b165c7ec2d282e17926c4f2b44ead`.
+- Sidecar file: 106 bytes, SHA-256
+  `afb2ed2013047bcd5e3daccb12f1ebea74b2458d6918bf6c3aaa68cb7b577114`.
+- Manifest file: 197,363 bytes, SHA-256
+  `2f3fbb5995b696da172bc21378c5ea192eeb34998ff87e13942c232287f6bbeb`.
 
-## Remaining publication gates
+## Production Site verification
 
-1. Create immutable GitHub prerelease `v0.8.15-preview` at the binary source
-   commit and upload the ZIP, `.sha256` sidecar, and manifest.
-2. Download the public ZIP and sidecars again; compare bytes, SHA-256, manifest,
-   and source commit with this record.
-3. Deploy the saved Site version only after gate 2 passes.
-4. Verify live `/release.json`, page download link, HTTP response and downloaded
-   asset size/SHA-256. Then update this record from candidate evidence to the
-   exact publication evidence.
+- Source commit `28e90eb18114c43726d403927068cdd846c5fef1` passed TypeScript
+  typecheck and production build. Saved Site version 49 contains that commit
+  and the packaged archive; deployment completed with status `succeeded`.
+- Live `https://nevision-win.mail782861.chatgpt.site/release.json` reports
+  version 0.8.15-preview, source commit `5434718…`, ZIP size 262,401,905 bytes,
+  and the exact SHA-256 above. Live landing page returned HTTP 200 and contains
+  the current version/download. GitHub ZIP HEAD returned HTTP 200 with the
+  expected Content-Length.
+
+## Remaining verification gaps
+
+Manual GUI, Windows 10/ARM64, a consumer second PC/account, external DNS/IPv6/
+UDP/TURN/public-network routing, and broad site compatibility remain
+**NOT RUN** for this release. The preview is unsigned and Chromium does not
+auto-update. The optional experimental fingerprint-related behavior remains
+limited; this release does not establish anonymity or comprehensive
+anti-detection.
