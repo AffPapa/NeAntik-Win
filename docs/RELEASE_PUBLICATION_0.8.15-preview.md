@@ -7,27 +7,30 @@ Do not describe this candidate as available for download.
 
 **This exact ZIP is now superseded:** after it was built, `main` gained a
 profile-root junction/reparse guard before Chromium launch. That fix is covered
-by source tests but is not in this ZIP. Do not publish this hash; rebuild a new
-clean 0.8.15 candidate before creating the immutable release.
+by source tests and is included in the rebuilt candidate below. Do not publish
+the earlier hash `8e3d1ff6…dbbab7`; the new archive is the only candidate to
+consider for release.
 
 ## Source and artifact
 
-- Binary/source commit: `ec0de9cad0f26cb9aec90ef6cbbb59df7174ff23` on `main`.
-- GitHub Actions CI run [38460588326](https://github.com/AffPapa/NeAntik-Win/actions/runs/38460588326)
+- Binary/source commit: `5434718dd14a5ea0edc20c440c801a873c9fbcf4` on `main`.
+- GitHub Actions CI run [38463083866](https://github.com/AffPapa/NeAntik-Win/actions/runs/38463083866)
   completed with conclusion `success` on that exact commit.
 - Local portable ZIP:
-  `NeAntikWin-portable-v0.8.15-preview.zip`, 262,397,892 bytes,
-  SHA-256 `8e3d1ff6a1cd99fedf3e11ca7095ed61acd78160a6ade3af4c3d2f3396dbbab7`.
+  `NeAntikWin-portable-v0.8.15-preview.zip`, 262,401,905 bytes,
+  SHA-256 `fd9eedf2b9f6b9f3b42b51eb5ce29608e41b165c7ec2d282e17926c4f2b44ead`.
+- Packaged `NeAntikWin.exe` SHA-256:
+  `6392a400aea47912792ac266cf9cf9044acc7a7ec7fce0fc82cce7e94fbecef2`.
 - Candidate manifest says unsigned (`NotSigned`); Windows 10 and ARM64 are
   unverified. Experimental fingerprint-related behavior remains partial and
   must not be described as anonymity or comprehensive anti-detection.
 
 ## Local evidence at the binary source commit
 
-- Python unittest suite: 261 tests, 3 skips — **PASS**.
+- Python unittest suite: 262 tests, 3 skips — **PASS**.
 - Source `--self-test` — **PASS**.
 - Release-tool tests: 55 checks — **PASS**.
-- Public repository guard: 207 files — **PASS**.
+- Public repository guard: 208 files — **PASS**.
 - Portable archive verifier: 1,066 files — **PASS**.
 - Packaged executable `--self-test` — **PASS**.
 - Exact candidate Chromium engine loopback proxy-loss/recovery gate — **PASS**,
@@ -40,6 +43,10 @@ clean 0.8.15 candidate before creating the immutable release.
   the same process routed through the proxy again. NetLog showed TCP only to
   `127.0.0.1` and zero UDP. The harness did not launch the NeAntik GUI and this
   does not prove external DNS, IPv6, TURN or public-network routing.
+- The rebuilt source rejects a linked/reparse-point `Data`, `Profiles` or
+  profile root before browser selection/pinning/process creation. A real
+  Windows junction regression test passed; it confirms this one launch path,
+  not protection from same-user malware or a concurrent path-swap race.
 - Manual GUI, Windows 10, second consumer PC/account, external DNS/IPv6/UDP/TURN,
   and broad site compatibility — **NOT RUN** for this candidate.
 
@@ -47,11 +54,12 @@ clean 0.8.15 candidate before creating the immutable release.
 
 Site source for 0.8.15 was pushed at
 `32a909d9d78b264a4df505feeb4fa374c3f9ad04`; typecheck and build passed and
-Site version 48 was saved. Saving did not deploy it. Live `release.json` still
+Site version 48 was saved for the superseded ZIP. It must not be deployed or
+reused. Live `release.json` still
 reports the 0.8.14 ZIP (262,397,107 bytes; SHA-256
 `44fef435ec5a46fa52d8441ac7e6d951e0577f611a16a21628a4a33ddcf61284`).
-Version 48 must not be deployed until the matching immutable GitHub asset
-exists and has been downloaded back and hash-verified.
+After the new immutable GitHub asset is created and hash-verified, update the
+site source to this new hash, save a fresh Site version, and deploy that version.
 
 ## Remaining publication gates
 
