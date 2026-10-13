@@ -121,9 +121,10 @@ class OrdinaryIdentityTests(unittest.TestCase):
             path_b.mkdir(parents=True)
             junction = path_a
             os.rmdir(junction)
+            command = Path(os.environ["WINDIR"]) / "System32" / "cmd.exe"
             result = subprocess.run(
-                f'mklink /J "{junction}" "{path_b}"',
-                shell=True, capture_output=True, text=True, timeout=10, check=False,
+                [str(command), "/d", "/c", "mklink", "/J", str(junction), str(path_b)],
+                capture_output=True, text=True, timeout=10, check=False,
             )
             try:
                 self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
