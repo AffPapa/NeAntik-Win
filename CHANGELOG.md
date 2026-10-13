@@ -10,6 +10,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   EXE self-test and four ordinary/native launch cases passed. This did **not**
   replace or update the public 0.8.1-preview download; multi-device,
   cross-API, external-network and privacy-benefit gates remain open.
+- Published a surface-by-surface measurement matrix for HTTP/JS/worker,
+  graphics, media, network and profile-state behavior, with explicit controls
+  and criteria for evaluating whether fingerprint changes actually help.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-
