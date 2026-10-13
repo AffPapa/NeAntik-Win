@@ -5,7 +5,7 @@
 
 - Исходный commit бинарника: `d2e6eac9a50f5edfa474ec72aff9ace64c2e8801`.
   Тег `v0.8.7-preview` указывает на него. GitHub CI для исходного commit и
-  последующей документации `ab7eb1daee2d283424e0cbd9004beeaa324f5c03`
+  последующей документации `67f9fbc4327d8efe7437d523e68ac166102784ff`
   завершился успешно.
 - [GitHub Release](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.7-preview)
   помечен Pre-release. Доступны portable ZIP, `.zip.sha256` и standalone
@@ -26,7 +26,8 @@
   главная страница, desktop и мобильный блок скачивания.
 
 Открыто: GUI создание профиля и GUI backup — INCONCLUSIVE из-за ввода
-автоматизации; локальный STUN — INCONCLUSIVE из-за отсутствующего
-положительного контроля. Внешние DNS/IPv6/TURN, второй компьютер, полная
+автоматизации; Windows loopback STUN — INCONCLUSIVE, хотя отдельный
+WSL-network-namespace контроль на том же Chromium и штатном sandbox прошёл.
+Внешние DNS/IPv6/TURN, второй компьютер, полная
 защита fingerprint и доказательство анонимности — NOT RUN. Подробный протокол
 локального кандидата: `RELEASE_EVIDENCE_0.8.7-preview-candidate-2.md`.

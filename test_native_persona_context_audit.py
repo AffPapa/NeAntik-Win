@@ -13,7 +13,7 @@ from native_persona_context_audit import REQUIRED_CAPABILITIES, check_reports  #
 def report(cpu: int, memory: float, timezone: str = "UTC", canvas: str = "a") -> dict:
     main = {
         "userAgent": "test-UA", "platform": "test-platform", "language": "en-US",
-        "languages": ["en-US"], "hardwareConcurrency": cpu,
+        "languages": ["en-US"], "intlLocale": "en-US", "hardwareConcurrency": cpu,
         "deviceMemory": memory, "timezone": timezone,
         "timezoneOffsetMinutes": 0 if timezone == "UTC" else -420,
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
@@ -24,7 +24,7 @@ def report(cpu: int, memory: float, timezone: str = "UTC", canvas: str = "a") ->
                   "unmaskedRenderer": None},
     }
     worker = {key: main[key] for key in (
-        "userAgent", "platform", "language", "languages",
+        "userAgent", "platform", "language", "languages", "intlLocale",
         "hardwareConcurrency", "deviceMemory", "timezone", "timezoneOffsetMinutes",
     )}
     worker["canvasPixelSha256"] = main["canvasPixelSha256"]
@@ -34,12 +34,14 @@ def report(cpu: int, memory: float, timezone: str = "UTC", canvas: str = "a") ->
             "worker": worker, "sharedWorker": dict(worker), "serviceWorker": dict(worker),
         },
         "http": {"userAgent": "test-UA", "acceptLanguage": "en-US,en;q=0.9",
-                 "secChUaPlatform": '"Windows"'},
+                 "secChUa": '"Chromium";v="155"', "secChUaPlatform": '"Windows"'},
         "client_hints": {"deviceMemory": str(memory),
+                         "secChUa": '"Chromium";v="155"', "secChUaPlatform": '"Windows"',
                          "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
                          "uaPlatformVersion": '"19.0.0"'},
         "ua_high_entropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
                             "platformVersion": "19.0.0"},
+        "ua_brands": [{"brand": "Chromium", "version": "155"}],
         "ua_platform": "Windows",
     }
 

@@ -71,6 +71,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     platform: view.navigator.platform,
     language: view.navigator.language,
     languages: Array.from(view.navigator.languages || []),
+    intlLocale: new view.Intl.DateTimeFormat().resolvedOptions().locale,
     hardwareConcurrency: view.navigator.hardwareConcurrency,
     deviceMemory: view.navigator.deviceMemory ?? null,
     timezone: new view.Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -136,9 +137,10 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
   const uaHighEntropy = navigator.userAgentData
     ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion'])
     : null;
+  const uaBrands = navigator.userAgentData?.brands ?? null;
   const uaPlatform = navigator.userAgentData?.platform ?? null;
   const result = {token, main, iframe, crossOriginFrame, worker, sharedWorker,
-    serviceWorker, httpHints, uaHighEntropy, uaPlatform};
+    serviceWorker, httpHints, uaHighEntropy, uaBrands, uaPlatform};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -159,6 +161,7 @@ postMessage({
   platform: navigator.platform,
   language: navigator.language,
   languages: Array.from(navigator.languages || []),
+  intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
   hardwareConcurrency: navigator.hardwareConcurrency,
   deviceMemory: navigator.deviceMemory ?? null,
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -174,6 +177,7 @@ SHARED_WORKER = r'''onconnect = (event) => {
     platform: navigator.platform,
     language: navigator.language,
     languages: Array.from(navigator.languages || []),
+    intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
     hardwareConcurrency: navigator.hardwareConcurrency,
     deviceMemory: navigator.deviceMemory ?? null,
     timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -187,6 +191,7 @@ SERVICE_WORKER = r'''self.addEventListener('message', (event) => {
     platform: navigator.platform,
     language: navigator.language,
     languages: Array.from(navigator.languages || []),
+    intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
     hardwareConcurrency: navigator.hardwareConcurrency,
     deviceMemory: navigator.deviceMemory ?? null,
     timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -233,6 +238,7 @@ const surface = {
   platform: navigator.platform,
   language: navigator.language,
   languages: Array.from(navigator.languages || []),
+  intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
   hardwareConcurrency: navigator.hardwareConcurrency,
   deviceMemory: navigator.deviceMemory ?? null,
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -309,6 +315,8 @@ class AuditHandler(BaseHTTPRequestHandler):
         elif route == "/hints":
             self.server.hints_seen = {
                 "deviceMemory": self.headers.get("Sec-CH-Device-Memory"),
+                "secChUa": self.headers.get("Sec-CH-UA"),
+                "secChUaPlatform": self.headers.get("Sec-CH-UA-Platform"),
                 "uaFullVersionList": self.headers.get("Sec-CH-UA-Full-Version-List"),
                 "uaPlatformVersion": self.headers.get("Sec-CH-UA-Platform-Version"),
             }
@@ -348,7 +356,10 @@ class AuditHandler(BaseHTTPRequestHandler):
 
 
 def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
-                  reuse_existing: bool = False) -> dict:
+                  reuse_existing: bool = False,
+                  primary_hostname: str = "127.0.0.1") -> dict:
+    if primary_hostname not in ("127.0.0.1", "localhost"):
+        raise ValueError("Only the two synthetic loopback sites are allowed")
     profile = root / "Profile"
     if reuse_existing:
         if not profile.is_dir() or not (profile / "Default" / "Preferences").is_file():
@@ -357,7 +368,8 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
         raise RuntimeError("Could not initialize a fresh profile")
     token = uuid.uuid4().hex
     cross_server = AuditServer(token)
-    server = AuditServer(token, f"http://127.0.0.1:{cross_server.server_port}")
+    cross_hostname = "localhost" if primary_hostname == "127.0.0.1" else "127.0.0.1"
+    server = AuditServer(token, f"http://{cross_hostname}:{cross_server.server_port}")
     threads = [threading.Thread(target=item.serve_forever, daemon=True)
                for item in (server, cross_server)]
     for thread in threads:
@@ -365,13 +377,13 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
     job = OwnedJob()
     process: subprocess.Popen[bytes] | None = None
     try:
-        url = f"http://127.0.0.1:{server.server_port}/case?token={token}"
+        url = f"http://{primary_hostname}:{server.server_port}/case?token={token}"
         arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={profile}",
                      "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
                      "--disable-component-update", "--disable-sync", "--disable-quic",
                      "--metrics-recording-only", f"--proxy-server=http://127.0.0.1:{server.server_port}",
                      "--proxy-bypass-list=127.0.0.1;localhost",
-                     "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+                     "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost",
                      *native_flags, url]
         process = spawn_owned_browser(arguments, root, job)
         stdout, stderr = process.communicate(input=b"G", timeout=45)
@@ -390,6 +402,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
         return {"surfaces": surfaces, "http": server.headers_seen,
                 "client_hints": server.hints_seen,
                 "ua_high_entropy": result.get("uaHighEntropy"),
+                "ua_brands": result.get("uaBrands"),
                 "ua_platform": result.get("uaPlatform"),
                 "blocked_external_requests": server.external_attempts + cross_server.external_attempts}
     finally:
@@ -409,7 +422,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
 
 
 def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
-    keys = ("userAgent", "platform", "language", "languages", "hardwareConcurrency",
+    keys = ("userAgent", "platform", "language", "languages", "intlLocale", "hardwareConcurrency",
             "deviceMemory", "timezone", "timezoneOffsetMinutes")
     consistency = []
     for report in reports:
@@ -421,6 +434,19 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
         except (TypeError, ValueError):
             hint_matches = False
         ua_data = report.get("ua_high_entropy") or {}
+        low_brands = report.get("ua_brands")
+        low_header = report.get("http", {}).get("secChUa")
+        low_header_brands = re.findall(r'"([^"]+)";v="([^"]+)"', low_header or "")
+        low_js_brands = [
+            (item["brand"], item["version"])
+            for item in low_brands or []
+            if isinstance(item, dict)
+            and isinstance(item.get("brand"), str)
+            and isinstance(item.get("version"), str)
+        ] if isinstance(low_brands, list) else []
+        low_brands_match = (bool(low_header_brands) and isinstance(low_brands, list)
+                            and len(low_header_brands) == len(low_brands) == len(low_js_brands)
+                            and sorted(low_header_brands) == sorted(low_js_brands))
         full_version_hint = report.get("client_hints", {}).get("uaFullVersionList")
         observed_brands = ua_data.get("fullVersionList")
         header_brands = re.findall(r'"([^"]+)";v="([^"]+)"', full_version_hint or "")
@@ -482,6 +508,7 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             and primary_http_language == surfaces["main"].get("language"),
             "device_memory_hint_parity": hint_matches,
             "ua_full_version_hint_parity": ua_full_version_matches,
+            "ua_brand_hint_parity": low_brands_match,
             "ua_platform_hint_parity": ua_platform_matches,
             "ua_platform_version_hint_parity": ua_platform_version_matches,
         })
@@ -497,6 +524,7 @@ def compare_fresh_profiles(reports: list[dict]) -> dict[str, bool]:
         "profile_http_equal": first.get("http") == second.get("http"),
         "profile_client_hints_equal": first.get("client_hints") == second.get("client_hints"),
         "profile_high_entropy_equal": first.get("ua_high_entropy") == second.get("ua_high_entropy"),
+        "profile_brands_equal": first.get("ua_brands") == second.get("ua_brands"),
         "profile_platform_equal": first.get("ua_platform") == second.get("ua_platform"),
     }
 

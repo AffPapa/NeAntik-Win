@@ -11,7 +11,8 @@ from fingerprint_surface_audit import compare_fresh_profiles, compare_repeat_lau
 
 def report():
     common = {"userAgent": "Chromium test", "platform": "Win32", "language": "en-US",
-              "languages": ["en-US"], "hardwareConcurrency": 4, "deviceMemory": 8,
+              "languages": ["en-US"], "intlLocale": "en-US",
+              "hardwareConcurrency": 4, "deviceMemory": 8,
               "timezone": "Etc/UTC", "timezoneOffsetMinutes": 0}
     window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1,
               "canvas2dSha256": "a" * 64, "canvasPixelSha256": "c" * 64,
@@ -23,11 +24,14 @@ def report():
                          "crossOriginFrame": deepcopy(window), "worker": worker,
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
             "http": {"userAgent": "Chromium test", "acceptLanguage": "en-US,en;q=0.9",
-                     "secChUaPlatform": '"Windows"'},
-            "client_hints": {"deviceMemory": "8", "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
+                     "secChUa": '"Chromium";v="155"', "secChUaPlatform": '"Windows"'},
+            "client_hints": {"deviceMemory": "8", "secChUa": '"Chromium";v="155"',
+                             "secChUaPlatform": '"Windows"',
+                             "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
                              "uaPlatformVersion": '"19.0.0"'},
             "ua_high_entropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
                                 "platformVersion": "19.0.0"},
+            "ua_brands": [{"brand": "Chromium", "version": "155"}],
             "ua_platform": "Windows",
             "blocked_external_requests": 0}
 
@@ -111,6 +115,11 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = report()
         value["client_hints"]["uaFullVersionList"] = '"Chromium";v="154.0.0.0"'
         self.assertFalse(evaluate([value])[0]["ua_full_version_hint_parity"])
+
+    def test_mismatched_low_entropy_ua_hint_is_rejected(self):
+        value = report()
+        value["http"]["secChUa"] = '"Chromium";v="154"'
+        self.assertFalse(evaluate([value])[0]["ua_brand_hint_parity"])
 
     def test_missing_high_entropy_ua_hint_is_rejected(self):
         value = report()
