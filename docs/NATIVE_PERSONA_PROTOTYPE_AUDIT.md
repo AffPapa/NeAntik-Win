@@ -82,6 +82,11 @@ These tests do not observe a public network path.
 The next audit revision also compared `Date.getTimezoneOffset()` with `Intl`
 timezone in all six browser contexts. Its eighth check passed on the clean
 staged core, and the ordinary two-profile context audit stayed consistent.
+The following loopback audit revision compared JavaScript high-entropy
+`fullVersionList` and `platformVersion` with the corresponding HTTP Client
+Hints. Both matched on the clean staged core in ordinary and opt-in V3 runs;
+unit tests reject missing or contradictory hints. This does not test all
+User-Agent Client Hints or prove real-site coherence.
 It deliberately still uses the development source's `0.8.1-preview` filename
 and must not overwrite the already-published, different 0.8.1 ZIP. Raw QA
 reports and this internal ZIP remain outside Git.

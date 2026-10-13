@@ -7,7 +7,7 @@ privacy. Raw reports can reveal device traits and stay outside the repository.
 
 | Surface | Public 0.8.1-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |
-| HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Compare request headers, main frame, both iframe origins and workers; include high-entropy UA-CH. |
+| HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
 | Language and `Accept-Language` | Profile/Chromium defaults | Same | Compare HTTP, JavaScript, `Intl` formatting and locale of a real page; document deliberate locale choice. |
 | `hardwareConcurrency` | Narrow native reduction | Host-bounded profile value | Check Window, same/cross-origin frames and Dedicated/Shared/Service Workers against the same build's stock host result. |
 | `deviceMemory` and Device-Memory Client Hint | Narrow native reduction | Host-bounded profile value | Check every JavaScript context plus `Sec-CH-Device-Memory`; reject missing hints and claims above stock. |

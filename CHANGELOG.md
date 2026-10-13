@@ -16,6 +16,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Added a `Date.getTimezoneOffset()` cross-context check to the loopback
   fingerprint audit. It passed on the clean V3 development core alongside the
   existing `Intl` timezone and Device-Memory Client Hint checks.
+- Added JavaScript/HTTP parity checks for high-entropy UA full-version-list
+  and platform-version Client Hints; missing or mismatched values fail the
+  audit. These local checks passed on the clean development core.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

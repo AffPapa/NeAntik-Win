@@ -95,7 +95,11 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
   });
   await registration.unregister();
   const httpHints = await fetch('/hints?token=' + token, {cache: 'no-store'}).then(r => r.json());
-  const result = {token, main, iframe, crossOriginFrame, worker, sharedWorker, serviceWorker, httpHints};
+  const uaHighEntropy = navigator.userAgentData
+    ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion'])
+    : null;
+  const result = {token, main, iframe, crossOriginFrame, worker, sharedWorker,
+    serviceWorker, httpHints, uaHighEntropy};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -297,6 +301,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = ()) 
                                                    "worker", "sharedWorker", "serviceWorker")}
         return {"surfaces": surfaces, "http": server.headers_seen,
                 "client_hints": server.hints_seen,
+                "ua_high_entropy": result.get("uaHighEntropy"),
                 "blocked_external_requests": server.external_attempts + cross_server.external_attempts}
     finally:
         if process is not None and process.poll() is None:
@@ -326,6 +331,29 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             hint_matches = hint is not None and memory is not None and float(hint) == memory
         except (TypeError, ValueError):
             hint_matches = False
+        ua_data = report.get("ua_high_entropy") or {}
+        full_version_hint = report.get("client_hints", {}).get("uaFullVersionList")
+        observed_brands = ua_data.get("fullVersionList")
+        header_brands = re.findall(r'"([^"]+)";v="([^"]+)"', full_version_hint or "")
+        js_brands = [
+            (item["brand"], item["version"])
+            for item in observed_brands or []
+            if isinstance(item, dict)
+            and isinstance(item.get("brand"), str)
+            and isinstance(item.get("version"), str)
+        ] if isinstance(observed_brands, list) else []
+        ua_full_version_matches = (
+            bool(header_brands)
+            and isinstance(observed_brands, list)
+            and len(header_brands) == len(observed_brands) == len(js_brands)
+            and sorted(header_brands) == sorted(js_brands)
+        )
+        platform_hint = report.get("client_hints", {}).get("uaPlatformVersion")
+        ua_platform_version_matches = (
+            isinstance(platform_hint, str)
+            and platform_hint.startswith('"') and platform_hint.endswith('"')
+            and platform_hint[1:-1] == ua_data.get("platformVersion")
+        )
         consistency.append({
             "main_iframe": surfaces["main"] == surfaces["iframe"],
             "main_cross_origin_frame": surfaces["main"] == surfaces["crossOriginFrame"],
@@ -334,6 +362,8 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "main_service_worker_common": all(surfaces["main"].get(key) == surfaces["serviceWorker"].get(key) for key in keys),
             "js_http_user_agent": surfaces["main"]["userAgent"] == report["http"]["userAgent"],
             "device_memory_hint_parity": hint_matches,
+            "ua_full_version_hint_parity": ua_full_version_matches,
+            "ua_platform_version_hint_parity": ua_platform_version_matches,
         })
     return consistency
 

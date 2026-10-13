@@ -18,7 +18,10 @@ def report():
                          "crossOriginFrame": window.copy(), "worker": common.copy(),
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
             "http": {"userAgent": "Chromium test"},
-            "client_hints": {"deviceMemory": "8"},
+            "client_hints": {"deviceMemory": "8", "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
+                             "uaPlatformVersion": '"19.0.0"'},
+            "ua_high_entropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
+                                "platformVersion": "19.0.0"},
             "blocked_external_requests": 0}
 
 
@@ -65,6 +68,16 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = report()
         value["client_hints"]["deviceMemory"] = None
         self.assertFalse(evaluate([value])[0]["device_memory_hint_parity"])
+
+    def test_mismatched_high_entropy_ua_hint_is_rejected(self):
+        value = report()
+        value["client_hints"]["uaFullVersionList"] = '"Chromium";v="154.0.0.0"'
+        self.assertFalse(evaluate([value])[0]["ua_full_version_hint_parity"])
+
+    def test_missing_high_entropy_ua_hint_is_rejected(self):
+        value = report()
+        value["client_hints"]["uaPlatformVersion"] = None
+        self.assertFalse(evaluate([value])[0]["ua_platform_version_hint_parity"])
 
 if __name__ == "__main__":
     unittest.main()
