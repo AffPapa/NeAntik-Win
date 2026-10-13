@@ -20,6 +20,16 @@ does not change the bundled Chromium engine or existing profile data.
   `chrome.dll` SHA-256:
   `9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`.
   These engine hashes match the published 0.8.8-preview runtime.
+- [Public Site](https://nevision-win.mail782861.chatgpt.site/) version 41 was
+  deployed from Site source commit
+  `691a4b32375d9f186d1ebada61cf598be3ac87de`. Live `/`,
+  `/CHANGELOG.md` and `/release.json` returned HTTP 200. The landing page
+  displayed 0.8.9 and correctly said ordinary mode retains stock CPU/RAM/UTC;
+  the Cyrillic changelog decoded correctly. Live `release.json` reported the
+  exact 0.8.9 source commit, public ZIP URL, 262,388,492-byte size and the
+  verified SHA-256 above. Site typecheck and local build passed; the local
+  Sites archive helper failed on Windows path translation, so the published
+  Site version used the platform's remote build of the pushed source commit.
 
 Source tests: 242 passed (3 skipped); specialized integration tests: 35 passed;
 synthetic GUI regression: 16 passed; source self-test and release-tool checks:
