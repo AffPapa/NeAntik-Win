@@ -23,11 +23,16 @@ def report():
               "audioSampleRate": {"status": "ok", "hz": 44100},
               "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                         "unmaskedRenderer": None}}
-    worker = {**common, "canvasPixelSha256": "c" * 64}
-    return {"measurement_version": 2,
+    ua_data = {"uaBrands": [{"brand": "Chromium", "version": "155"}],
+               "uaPlatform": "Windows",
+               "uaHighEntropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
+                                 "platformVersion": "19.0.0"}}
+    worker = {**common, **deepcopy(ua_data), "canvasPixelSha256": "c" * 64}
+    return {"measurement_version": 3,
             "surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
                          "crossOriginFrame": deepcopy(window), "worker": worker,
-                         "sharedWorker": common.copy(), "serviceWorker": common.copy()},
+                         "sharedWorker": {**common, **deepcopy(ua_data)},
+                         "serviceWorker": {**common, **deepcopy(ua_data)}},
             "http": {"userAgent": "Chromium test", "acceptLanguage": "en-US,en;q=0.9",
                      "secChUa": '"Chromium";v="155"', "secChUaPlatform": '"Windows"'},
             "client_hints": {"deviceMemory": "8", "secChUa": '"Chromium";v="155"',
@@ -165,6 +170,36 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = report()
         value["client_hints"]["uaPlatformVersion"] = None
         self.assertFalse(evaluate([value])[0]["ua_platform_version_hint_parity"])
+
+    def test_worker_ua_data_mismatch_is_rejected_in_each_context(self):
+        names = (("worker", "dedicated_worker"),
+                 ("sharedWorker", "shared_worker"),
+                 ("serviceWorker", "service_worker"))
+        for context, name in names:
+            with self.subTest(context=context):
+                value = report()
+                value["surfaces"][context]["uaHighEntropy"]["platformVersion"] = "20.0.0"
+                self.assertFalse(evaluate([value])[0][f"ua_data_{name}_parity"])
+
+    def test_missing_worker_ua_data_is_rejected_in_each_context(self):
+        names = (("worker", "dedicated_worker"),
+                 ("sharedWorker", "shared_worker"),
+                 ("serviceWorker", "service_worker"))
+        for context, name in names:
+            with self.subTest(context=context):
+                value = report()
+                del value["surfaces"][context]["uaHighEntropy"]
+                self.assertFalse(evaluate([value])[0][f"ua_data_{name}_parity"])
+
+    def test_version_two_report_without_worker_ua_data_remains_evaluable(self):
+        value = report()
+        value["measurement_version"] = 2
+        for context in ("worker", "sharedWorker", "serviceWorker"):
+            for field in ("uaBrands", "uaPlatform", "uaHighEntropy"):
+                del value["surfaces"][context][field]
+        checks = evaluate([value])[0]
+        self.assertTrue(all(checks.values()))
+        self.assertNotIn("ua_data_dedicated_worker_parity", checks)
 
     def test_mismatched_primary_http_language_is_rejected(self):
         value = report()

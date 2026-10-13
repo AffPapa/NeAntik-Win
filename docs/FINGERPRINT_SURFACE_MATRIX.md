@@ -4,8 +4,8 @@ Status: 2026-10-14. This is an engineering inventory, not an anonymity score.
 The historical table below preserves the comparison of 0.8.5-preview
 (same core as 0.8.3) and the held V3 prototype. The opt-in V4b core was
 published in [0.8.6-preview](RELEASE_PUBLICATION_0.8.6-preview.md); the
-current [0.8.8-preview V5](RELEASE_PUBLICATION_0.8.8-preview.md) changes its
-session-key transport, not the full fingerprint coverage.
+current [0.8.10-preview V5](RELEASE_PUBLICATION_0.8.10-preview.md) retains
+that session-key transport, not full fingerprint coverage.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
@@ -107,6 +107,21 @@ service workers. External proxy attempts were rejected by the local test
 server, not interpreted as evidence of no network activity. This is a
 single-host two-date consistency test; other time APIs, real sites,
 cross-machine behavior and anonymity remain **NOT RUN**.
+
+### Worker UA Client Hints measurement, 2026-10-14
+
+The version-3 loopback-only [`fingerprint_surface_audit.py`](../tools/fingerprint_surface_audit.py)
+now measures low- and selected high-entropy `userAgentData` values in Dedicated,
+Shared and Service Workers, in addition to the main document. Missing or
+mismatched worker values fail the audit; synthetic mismatch/missing tests pass
+34/34. On the exact Chromium engine bundled with public 0.8.10-preview
+(`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`),
+the two-profile/two-launch local gate passed **158/158** checks. Raw device
+traits remain in a private QA report. This is selected cross-context parity
+on one Windows 11 host, not a cohort, cross-machine, real-site or anonymity
+result. Historical version-2 reports remain evaluable without claiming these
+new worker checks.
 
 ## Public 0.8.7-preview follow-up, 2026-10-13
 

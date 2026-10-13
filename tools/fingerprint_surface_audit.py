@@ -205,6 +205,8 @@ __P13_JS__
 </script></body></html>'''
 
 WORKER = r'''(async () => {
+const uaHighEntropy = navigator.userAgentData
+  ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion']) : null;
 const canvas = new OffscreenCanvas(320, 80);
 const context = canvas.getContext('2d');
 if (!context) throw new Error('OffscreenCanvas2D unavailable');
@@ -215,6 +217,9 @@ const pixels = await crypto.subtle.digest('SHA-256', context.getImageData(0, 0, 
 const canvasPixelSha256 = Array.from(new Uint8Array(pixels), byte => byte.toString(16).padStart(2, '0')).join('');
 postMessage({
   userAgent: navigator.userAgent,
+  uaBrands: navigator.userAgentData?.brands ?? null,
+  uaPlatform: navigator.userAgentData?.platform ?? null,
+  uaHighEntropy,
   platform: navigator.platform,
   language: navigator.language,
   languages: Array.from(navigator.languages || []),
@@ -229,31 +234,49 @@ postMessage({
 
 SHARED_WORKER = r'''onconnect = (event) => {
   const port = event.ports[0];
-  port.onmessage = () => port.postMessage({
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    languages: Array.from(navigator.languages || []),
-    intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigator.deviceMemory ?? null,
-    timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
-    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
-  });
+  port.onmessage = async () => {
+    try {
+      const uaHighEntropy = navigator.userAgentData
+        ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion']) : null;
+      port.postMessage({
+        userAgent: navigator.userAgent,
+        uaBrands: navigator.userAgentData?.brands ?? null,
+        uaPlatform: navigator.userAgentData?.platform ?? null,
+        uaHighEntropy,
+        platform: navigator.platform,
+        language: navigator.language,
+        languages: Array.from(navigator.languages || []),
+        intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemory: navigator.deviceMemory ?? null,
+        timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      });
+    } catch (error) { port.postMessage({auditError: String(error)}); }
+  };
 };'''
 
 SERVICE_WORKER = r'''self.addEventListener('message', (event) => {
-  event.ports[0].postMessage({
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    languages: Array.from(navigator.languages || []),
-    intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigator.deviceMemory ?? null,
-    timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
-    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
-  });
+  event.waitUntil((async () => {
+    try {
+      const uaHighEntropy = navigator.userAgentData
+        ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion']) : null;
+      event.ports[0].postMessage({
+        userAgent: navigator.userAgent,
+        uaBrands: navigator.userAgentData?.brands ?? null,
+        uaPlatform: navigator.userAgentData?.platform ?? null,
+        uaHighEntropy,
+        platform: navigator.platform,
+        language: navigator.language,
+        languages: Array.from(navigator.languages || []),
+        intlLocale: new Intl.DateTimeFormat().resolvedOptions().locale,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemory: navigator.deviceMemory ?? null,
+        timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      });
+    } catch (error) { event.ports[0].postMessage({auditError: String(error)}); }
+  })());
 });'''
 
 CROSS_ORIGIN_FRAME = r'''<!doctype html><html><head><meta charset="utf-8"></head><body>
@@ -456,7 +479,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
         surfaces = {key: result[key] for key in ("main", "iframe", "crossOriginFrame",
                                                    "worker", "sharedWorker", "serviceWorker")}
         return {"surfaces": surfaces, "http": server.headers_seen,
-                "measurement_version": 2,
+                "measurement_version": 3,
                 "client_hints": server.hints_seen,
                 "ua_high_entropy": result.get("uaHighEntropy"),
                 "ua_brands": result.get("uaBrands"),
@@ -569,6 +592,22 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "ua_platform_hint_parity": ua_platform_matches,
             "ua_platform_version_hint_parity": ua_platform_version_matches,
         }
+        if report.get("measurement_version", 1) >= 3:
+            for context, name in (("worker", "dedicated_worker"),
+                                  ("sharedWorker", "shared_worker"),
+                                  ("serviceWorker", "service_worker")):
+                worker = surfaces[context]
+                worker_high = worker.get("uaHighEntropy")
+                checks[f"ua_data_{name}_parity"] = (
+                    low_brands_match and ua_platform_matches
+                    and ua_full_version_matches and ua_platform_version_matches
+                    and isinstance(worker.get("uaBrands"), list)
+                    and worker["uaBrands"] == low_brands
+                    and isinstance(worker.get("uaPlatform"), str)
+                    and worker["uaPlatform"] == report.get("ua_platform")
+                    and isinstance(worker_high, dict)
+                    and worker_high.get("fullVersionList") == ua_data.get("fullVersionList")
+                    and worker_high.get("platformVersion") == ua_data.get("platformVersion"))
         if report.get("measurement_version", 1) >= 2:
             def observed_digest(value: object) -> bool:
                 return (isinstance(value, dict) and value.get("status") == "ok"

@@ -1,8 +1,9 @@
 """Isolated HTTPS-proxy TLS/CONNECT and fail-closed browser integration.
 
-All listeners and forwarding stay on 127.0.0.1. A new disposable certificate,
-key, profile and token are made for each run; no user profile or trust store is
-modified. This is a local route test, not an external leak or anonymity test.
+All listeners and forwarding stay on IPv4/IPv6 loopback. A new disposable
+certificate, key, profile and token are made for each run; no user profile
+or trust store is modified. This is a local route test, not an external leak
+or anonymity test.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import time
 import uuid
 
 from browser_integration import OwnedJob, spawn_owned_browser
+from native_persona_context_audit import prepare_disposable_engine
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 
 TARGET_NAME = "neantik-https-proxy-qa.invalid"
@@ -45,7 +47,7 @@ def generate_disposable_certificate(openssl: str, folder: Path) -> tuple[Path, P
     cert, key = folder / "fixture.crt", folder / "fixture.key"
     subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                     "-keyout", str(key), "-out", str(cert), "-subj", "/CN=NeAntik local QA",
-                    "-addext", f"subjectAltName=IP:127.0.0.1,DNS:{TARGET_NAME}"],
+                    "-addext", f"subjectAltName=IP:127.0.0.1,IP:::1,DNS:{TARGET_NAME}"],
                    check=True, capture_output=True, timeout=25)
     return cert, key, certificate_spki_pin(openssl, cert)
 
@@ -55,12 +57,17 @@ class LocalServer(ThreadingHTTPServer):
 
 
 class TLSServer(LocalServer):
-    def __init__(self, handler: type[BaseHTTPRequestHandler], cert: Path, key: Path):
-        super().__init__(("127.0.0.1", 0), handler)
+    def __init__(self, handler: type[BaseHTTPRequestHandler], cert: Path, key: Path,
+                 bind_host: str = "127.0.0.1"):
+        super().__init__((bind_host, 0), handler)
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(cert, key)
         self.socket = context.wrap_socket(self.socket, server_side=True)
+
+
+class IPv6TLSServer(TLSServer):
+    address_family = socket.AF_INET6
 
 
 class TargetHandler(BaseHTTPRequestHandler):
@@ -137,7 +144,8 @@ def stop_server(server: LocalServer, worker: threading.Thread) -> None:
 
 
 def case_arguments(chrome: Path, profile: Path, url: str, scheme: str | None,
-                   proxy_port: int | None, spki_pin: str | None) -> list[str]:
+                   proxy_port: int | None, spki_pin: str | None,
+                   proxy_host: str = "127.0.0.1") -> list[str]:
     arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={profile}",
                  "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
                  "--disable-component-update", "--disable-sync", "--metrics-recording-only",
@@ -146,7 +154,7 @@ def case_arguments(chrome: Path, profile: Path, url: str, scheme: str | None,
         arguments.append(f"--ignore-certificate-errors-spki-list={spki_pin}")
     if scheme:
         assert proxy_port is not None
-        proxy = {"scheme": scheme, "host": "127.0.0.1", "port": proxy_port}
+        proxy = {"scheme": scheme, "host": proxy_host, "port": proxy_port}
         arguments.append(f"--proxy-server={proxy_endpoint(proxy)}")
         arguments.extend(bundled_proxy_privacy_arguments(proxy))
     else:
@@ -158,10 +166,11 @@ def case_arguments(chrome: Path, profile: Path, url: str, scheme: str | None,
 
 
 def run_browser_case(chrome: Path, root: Path, label: str, url: str,
-                     scheme: str | None, proxy_port: int | None, spki_pin: str | None) -> dict:
+                     scheme: str | None, proxy_port: int | None, spki_pin: str | None,
+                     proxy_host: str = "127.0.0.1") -> dict:
     profile = root / label
     profile.mkdir()
-    args = case_arguments(chrome, profile, url, scheme, proxy_port, spki_pin)
+    args = case_arguments(chrome, profile, url, scheme, proxy_port, spki_pin, proxy_host)
     job = OwnedJob()
     process = None
     try:
@@ -190,23 +199,31 @@ def run_browser_case(chrome: Path, root: Path, label: str, url: str,
                     stream.close()
 
 
-def evaluate_case(label: str, result: dict, hits: int, connects: int) -> dict:
-    positive = label in {"direct_before", "tls_proxy_connect", "direct_after"}
-    expected_connect = label == "tls_proxy_connect"
+def evaluate_case(label: str, result: dict, hits: int, connects: int,
+                  other_connects: int = 0) -> dict:
+    known_cases = {"direct_before", "tls_proxy_connect", "cert_untrusted",
+                   "dead_proxy_port", "tls_proxy_connect_v6", "cert_untrusted_v6",
+                   "dead_proxy_port_v6", "direct_after"}
+    if label not in known_cases:
+        raise ValueError(f"Unknown HTTPS proxy case: {label}")
+    positive = label in {"direct_before", "tls_proxy_connect", "tls_proxy_connect_v6", "direct_after"}
+    expected_connect = label in {"tls_proxy_connect", "tls_proxy_connect_v6"}
     checks = {
         "browser_exited": result["exit_code"] == 0,
         "owned_processes_exited": result["owned_processes_after_exit"] == 0,
         "page_state": result["page_loaded"] == positive,
         "target_requests": hits >= 1 if positive else hits == 0,
         "proxy_connect": connects >= 1 if expected_connect else connects == 0,
+        "other_proxy_not_used": other_connects == 0,
     }
-    if label == "cert_untrusted":
+    if label in {"cert_untrusted", "cert_untrusted_v6"}:
         checks["proxy_certificate_error"] = any(error in result["net_errors"] for error in
                                                 ("ERR_PROXY_CERTIFICATE_INVALID", "ERR_CERT_AUTHORITY_INVALID"))
-    if label == "dead_proxy_port":
+    if label in {"dead_proxy_port", "dead_proxy_port_v6"}:
         checks["proxy_connection_error"] = "ERR_PROXY_CONNECTION_FAILED" in result["net_errors"]
     return {"case": label, "status": "PASS" if all(checks.values()) else "FAIL",
             "checks": checks, "target_request_count": hits, "proxy_connect_count": connects,
+            "other_proxy_connect_count": other_connects,
             "browser_exit_code": result["exit_code"], "net_errors": result["net_errors"]}
 
 
@@ -221,38 +238,58 @@ def run(chrome: Path, openssl: str, root: Path) -> dict:
     proxy.target_port = target.server_port
     proxy.observation_lock = threading.Lock()
     proxy.connect_count = 0
+    ipv6_proxy = IPv6TLSServer(ProxyHandler, cert, key, "::1")
+    ipv6_proxy.target_port = target.server_port
+    ipv6_proxy.observation_lock = threading.Lock()
+    ipv6_proxy.connect_count = 0
     target_thread = start_server(target)
     proxy_thread = start_server(proxy)
+    ipv6_proxy_thread = start_server(ipv6_proxy)
     unavailable = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     unavailable.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
     unavailable.bind(("127.0.0.1", 0))  # Reserve a port but never listen.
     dead_port = unavailable.getsockname()[1]
+    unavailable_v6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    unavailable_v6.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    unavailable_v6.bind(("::1", 0))  # Reserve an IPv6 proxy endpoint without listening.
+    dead_v6_port = unavailable_v6.getsockname()[1]
     url = f"https://{TARGET_NAME}:{target.server_port}/probe/{token}"
     cases: list[dict] = []
     try:
-        for label, scheme, port, pin in (
-            ("direct_before", None, None, spki_pin),
-            ("tls_proxy_connect", "https", proxy.server_port, spki_pin),
-            ("cert_untrusted", "https", proxy.server_port, None),
-            ("dead_proxy_port", "https", dead_port, spki_pin),
-            ("direct_after", None, None, spki_pin),
+        for label, scheme, host, port, pin in (
+            ("direct_before", None, "127.0.0.1", None, spki_pin),
+            ("tls_proxy_connect", "https", "127.0.0.1", proxy.server_port, spki_pin),
+            ("cert_untrusted", "https", "127.0.0.1", proxy.server_port, None),
+            ("dead_proxy_port", "https", "127.0.0.1", dead_port, spki_pin),
+            ("tls_proxy_connect_v6", "https", "::1", ipv6_proxy.server_port, spki_pin),
+            ("cert_untrusted_v6", "https", "::1", ipv6_proxy.server_port, None),
+            ("dead_proxy_port_v6", "https", "::1", dead_v6_port, spki_pin),
+            ("direct_after", None, "127.0.0.1", None, spki_pin),
         ):
             with target.observation_lock:
                 previous_hits = target.token_hits
             with proxy.observation_lock:
-                previous_connects = proxy.connect_count
-            result = run_browser_case(chrome, root, label, url, scheme, port, pin)
+                previous_v4_connects = proxy.connect_count
+            with ipv6_proxy.observation_lock:
+                previous_v6_connects = ipv6_proxy.connect_count
+            result = run_browser_case(chrome, root, label, url, scheme, port, pin, host)
             with target.observation_lock:
                 hits = target.token_hits - previous_hits
             with proxy.observation_lock:
-                connects = proxy.connect_count - previous_connects
-            cases.append(evaluate_case(label, result, hits, connects))
+                v4_connects = proxy.connect_count - previous_v4_connects
+            with ipv6_proxy.observation_lock:
+                v6_connects = ipv6_proxy.connect_count - previous_v6_connects
+            selected_connects, other_connects = ((v6_connects, v4_connects) if host == "::1"
+                                                 else (v4_connects, v6_connects))
+            cases.append(evaluate_case(label, result, hits, selected_connects, other_connects))
     finally:
         unavailable.close()
+        unavailable_v6.close()
+        stop_server(ipv6_proxy, ipv6_proxy_thread)
         stop_server(proxy, proxy_thread)
         stop_server(target, target_thread)
     return {"status": "PASS" if all(case["status"] == "PASS" for case in cases) else "FAIL",
-            "scope": "disposable loopback-only HTTPS proxy TLS + CONNECT; no external route claim",
+            "scope": "disposable IPv4/IPv6 loopback-only HTTPS proxy TLS + CONNECT; no external route claim",
             "checked_at_utc": datetime.now(timezone.utc).isoformat(),
             "chrome_sha256": hashlib.sha256(chrome.read_bytes()).hexdigest(), "cases": cases}
 
@@ -273,16 +310,20 @@ def main() -> int:
         parser.error("OpenSSL is required to generate a one-day disposable local certificate")
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-https-proxy-qa-") as folder:
-            report = run(chrome, openssl, Path(folder))
+            root = Path(folder)
+            disposable_chrome = prepare_disposable_engine(chrome, root / "engine")
+            if hashlib.sha256(disposable_chrome.read_bytes()).digest() != hashlib.sha256(chrome.read_bytes()).digest():
+                raise RuntimeError("Disposable Chromium copy differs from the supplied portable executable")
+            report = run(disposable_chrome, openssl, root)
     except Exception as error:
-        report = {"status": "FAIL", "scope": "disposable loopback-only HTTPS proxy TLS + CONNECT",
+        report = {"status": "INCONCLUSIVE", "scope": "disposable IPv4/IPv6 loopback-only HTTPS proxy TLS + CONNECT",
                   "checked_at_utc": datetime.now(timezone.utc).isoformat(),
                   "error_type": type(error).__name__, "error": str(error)[:250]}
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "case_statuses": [
         {"case": case["case"], "status": case["status"]} for case in report.get("cases", [])],
         "report": str(output)}, ensure_ascii=False))
-    return 0 if report["status"] == "PASS" else 1
+    return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[report["status"]]
 
 
 if __name__ == "__main__":
