@@ -4,10 +4,11 @@ The historical 0.8.5-preview behavior and 0.8.6-preview V4b addition are
 described separately. Check the official download page and its checksum for
 the version currently available; local candidate tests are not public-release proof.
 
-The 0.8.7-preview source candidate rejects hardlinked files during backup to
-avoid copying data outside a profile into the unencrypted ZIP. The release
-status must be checked separately; this change does not encrypt backups or
-prove the absence of other local data exposures.
+The published 0.8.7-preview rejects hardlinked files during backup to avoid
+copying data outside a profile into the unencrypted ZIP. The exact public
+download and remaining test gaps are recorded in
+[release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
+does not encrypt backups or prove the absence of other local data exposures.
 
 ## 0.8.6-preview V4b boundary
 
