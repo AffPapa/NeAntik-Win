@@ -107,10 +107,13 @@ if (-not $PackageOnly) {
             if ($nativePersonaPatch) {
                 $coreInfo = $engineReceipt.native_persona_core_info
                 if ($nativePersonaPatch -ne $privacyPatch -or $null -eq $coreInfo -or $coreInfo.engine_id -ne 'neantik-chromium' -or
-                    $coreInfo.schema -ne 2 -or $coreInfo.version -ne $engineReceipt.chromium_version -or
+                    $coreInfo.schema -ne 2 -or $coreInfo.compiled_stage -ne 11 -or
+                    $coreInfo.version -ne $engineReceipt.chromium_version -or
                     $coreInfo.source_commit -ne $engineReceipt.source_commit -or
                     $coreInfo.capabilities.stable_seed -ne $true -or $coreInfo.capabilities.hardware_concurrency -ne $true -or
-                    $coreInfo.capabilities.device_memory -ne $true -or $coreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $true -or
+                    $coreInfo.capabilities.device_memory -ne $true -or $coreInfo.capabilities.canvas -ne $false -or
+                    $coreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $false -or
+                    $coreInfo.capabilities.canvas_site_scoped_experimental -ne $true -or
                     $coreInfo.capabilities.timezone -ne $true) {
                     throw 'Native persona core provenance is incomplete.'
                 }
@@ -163,7 +166,7 @@ $manifest = [ordered]@{
     source_commit = $provenance.source_commit; source_state = $provenance.source_state; source_tree_sha256 = $provenance.source_tree_sha256
     operating_systems = @('Windows x64')
     tested_os = 'Windows 11 Pro x64 10.0.26200'; unverified_os = @('Windows 10', 'Windows ARM64')
-    browser_strategy = if ($nativePersonaPatch) { 'Portable local profile manager with an opt-in experimental native Chromium persona. Stable Canvas seed, CPU/RAM buckets and UTC are partial fingerprint changes, not an anonymity guarantee; network routes remain unverified.' } elseif ($privacyPatch) { 'Portable local profile manager with source-built Chromium and conservative native CPU/RAM fingerprint reduction. Other browser fingerprints and network routes are not anonymized.' } elseif ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
+    browser_strategy = if ($nativePersonaPatch) { 'Portable local profile manager with an opt-in experimental Chromium persona. Canvas2D output is session/site-scoped; CPU/RAM buckets and UTC are partial fingerprint changes. WebGL/WebGPU, other contexts and network routes remain unverified; anonymity is not guaranteed.' } elseif ($privacyPatch) { 'Portable local profile manager with source-built Chromium and conservative native CPU/RAM fingerprint reduction. Other browser fingerprints and network routes are not anonymized.' } elseif ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
     native_core_bundled = [bool]$hasEngine
     fingerprint_modification = [bool]$privacyPatch
     schema_version = '1'; backup_format = if ($nativePersonaPatch) { 'v1 ordinary; v3 experimental native persona (unencrypted)' } else { 'nevision-profile-backup-v1 (ordinary profiles only)' }

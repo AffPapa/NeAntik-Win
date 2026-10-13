@@ -1,5 +1,47 @@
 # Experimental native persona: evidence and release gates
 
+## 0.8.6-preview V4b core candidate — not a verified public download
+
+The **published** ZIP remains 0.8.5-preview. The proposed 0.8.6-preview
+source and staged core candidate use Chromium 155.0.8059.40 at upstream
+commit `cfaadc5a132d78e1828635aa8405a499f3e14864`. The
+[V4b runtime patch](chromium-native-persona-prototype-v4b.patch) is 81,030
+bytes, SHA-256
+`bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`.
+Candidate `chrome.exe` SHA-256:
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`;
+`chrome.dll` SHA-256:
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+Use the DLL hash to distinguish candidate cores; V3 and V4b can share the
+same EXE hash. The V3 patch below remains a historical, blocked design and
+must not be stacked with V4b or the public CPU/RAM baseline patch.
+
+V4b is opt-in and requires an exactly matching staged core/capability receipt.
+Its measured opaque sRGB uint8 Canvas2D readbacks use a fresh in-memory key
+per browser session and the top-level site, not V3's persistent per-profile
+Canvas seed. Main documents, same-site and embedded cross-site frames, and
+dedicated, shared and service workers were covered. The opt-in CPU/RAM/UTC
+controls remain partial. WebGL/WebGPU, translucent, float16 and display-p3
+readbacks are stock or unverified; no universal anti-fingerprinting claim is
+made.
+
+| Gate on one Windows 11 x64 host | Result |
+| --- | --- |
+| Native unit tests | **PASS**, 6 + 21 + 3 |
+| Two saved profiles, two top-level sites, two restarts; Canvas pixel/PNG readbacks | **PASS**, 12/12 measured cases |
+| Frame and dedicated/shared/service-worker context gate | **PASS**, 6/6 measured cases, 11/11 checks |
+| Repeated staging | **PASS**, 39 runtime files byte-identical in two runs |
+| Independent external DNS/UDP/IPv6/TURN observation | **NOT RUN** |
+| Second physical machine / hardware class | **NOT RUN** |
+| Verified public ZIP download and matching site | **NOT RUN** |
+
+The local gates show implementation behavior only. They do not measure
+population uniqueness, real-site compatibility, network egress or anonymity.
+Packaged and external publication gates must be evaluated separately; until
+then no public-release claim should be made.
+
+## Historical V3 development audit (held from release)
+
 Status: **development checkout only**, 2026-10-13. These changes are not in
 the downloadable 0.8.5-preview core (the same baseline engine as 0.8.3). The unreleased manager source now has an
 opt-in preview profile mode gated on an exact staged-core receipt and compiled

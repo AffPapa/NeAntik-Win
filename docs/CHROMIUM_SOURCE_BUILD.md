@@ -9,11 +9,31 @@ For the first bundled-core releases, the source version is 155.0.8059.40 at
 Chromium commit `cfaadc5a132d78e1828635aa8405a499f3e14864`. The checkout
 corresponds to the [October 6, 2026 Windows stable announcement](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_086471744.html). The checkout
 must not contain any changes to browser runtime, Blink, V8 or networking code
-for releases through 0.7.1-preview. Beginning with the 0.8.0-preview proposal,
+for releases through 0.7.1-preview. For the **published 0.8.0–0.8.5 line**,
 the separate, reviewable [privacy baseline patch](CHROMIUM_PRIVACY_BASELINE.md)
-is allowed and disclosed; no other runtime changes are allowed. A version
+is allowed and disclosed; do not combine it with the V4b candidate patch. A version
 number and a provenance JSON alone do not prove security or byte-for-byte
 reproducibility; use the official source and verify the build yourself.
+
+## 0.8.6-preview V4b candidate (not published)
+
+The candidate uses the same upstream commit
+`cfaadc5a132d78e1828635aa8405a499f3e14864` and the reviewed
+[`chromium-native-persona-prototype-v4b.patch`](chromium-native-persona-prototype-v4b.patch)
+(81,030 bytes; SHA-256
+`bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`).
+Do **not** stack it with the baseline or held V3 runtime patch. The separate
+build-only compatibility patch remains required and is validated independently.
+The candidate's `chrome.exe` SHA-256 is
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`;
+its `chrome.dll` SHA-256 is
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+The DLL hash is essential: the EXE hash alone does not distinguish the stock,
+V3 and V4b cores. Two staging runs produced 39 byte-identical runtime files.
+Native unit tests (6 + 21 + 3), 12/12 two-site/restart and 6/6 context cases
+(11/11 checks) passed on one Windows 11 host. These do not replace portable
+archive/public-download tests, external DNS/UDP/IPv6/TURN observation or
+second-machine QA, all still open. See the [candidate audit](NATIVE_PERSONA_PROTOTYPE_AUDIT.md).
 
 ## Build-only dependency exception
 
@@ -83,9 +103,12 @@ Before staging, inspect `git diff HEAD` and calculate the SHA-256 of the raw
 hash as `--approved-build-patch-sha256` to
 `tools/prepare_source_built_chromium.py`, along with `--source-root`,
 `--build-root`, `--commit`, `--version` and a new `--output` directory. For
-0.8.0-preview, additionally pass the exact hash and file of the separate
+0.8.0–0.8.5, additionally pass the exact hash and file of the separate
 [privacy baseline patch](CHROMIUM_PRIVACY_BASELINE.md) as
-`--approved-privacy-patch-sha256` and `--privacy-patch-file`. The staging tool
+`--approved-privacy-patch-sha256` and `--privacy-patch-file`. For the 0.8.6
+candidate, supply the exact V4b patch through
+`--approved-native-patch-sha256` and `--native-patch-file` instead; do not
+pass the baseline privacy-patch arguments at the same time. The staging tool
 rejects changed tracked **and untracked** files outside the approved build and privacy inputs,
 and requires the published privacy patch bytes to equal the approved diff,
 checks the pinned commit and version, curates runtime files, and extracts

@@ -1,6 +1,32 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.8.5-preview portable Chromium edition.
+Published-download behavior below applies to NeAntik Win 0.8.5-preview. The
+0.8.6-preview V4b source and portable candidate are described separately; a
+local candidate is not a public release.
+
+## 0.8.6-preview candidate boundary
+
+The candidate's opt-in V4b mode requires a matching Chromium 155 source build
+and exact capability/provenance receipt. It uses a fresh in-memory session key
+and the top-level site for measured opaque sRGB uint8 Canvas2D readbacks,
+including frames and dedicated/shared/service workers. The prior V3
+persistent, profile-specific Canvas signal is not used in this mode. CPU/RAM
+and UTC controls are limited, and a local profile seed remains metadata, not
+proof of a unique or anonymous network identity. WebGL/WebGPU, translucent,
+float16 and display-p3 readbacks remain stock or unverified. No claim covers
+all tracking surfaces, population anonymity or same-user malware.
+
+On one Windows 11 x64 host, the candidate core passed 6 + 21 + 3 native unit
+tests, 12/12 two-site/restart Canvas cases and 6/6 context cases with 11/11
+checks. Two staging runs yielded 39 byte-identical files. The test identity
+is pinned to upstream commit
+`cfaadc5a132d78e1828635aa8405a499f3e14864`, V4b patch SHA-256
+`bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`
+and candidate `chrome.dll` SHA-256
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+External DNS/UDP/IPv6/TURN routing and a second computer are **NOT RUN**.
+The candidate still needs packaged and public-download verification; the
+published ZIP remains 0.8.5-preview. No version guarantees anonymity.
 
 ## Product boundary
 

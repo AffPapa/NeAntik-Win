@@ -86,8 +86,10 @@ function New-TestArchive([string]$Mode) {
                 $engineReceipt.native_persona_patch_sha256 = 'f' * 64
                 $engineReceipt.native_persona_core_info = [ordered]@{ engine_id = 'neantik-chromium'; schema = 2;
                     version = '155.0.8059.40'; source_commit = 'a' * 40;
+                    compiled_stage = 11
                     capabilities = [ordered]@{ stable_seed = $true; hardware_concurrency = $true; device_memory = $true;
-                        canvas_opaque_srgb_uint8 = $true; timezone = $true } }
+                        canvas = $false; canvas_opaque_srgb_uint8 = $false;
+                        canvas_site_scoped_experimental = $true; timezone = $true } }
                 if ($Mode -eq 'chromium-source-privacy-native-bad-info') { $engineReceipt.native_persona_core_info.capabilities.timezone = $false }
                 if ($Mode -eq 'chromium-source-privacy-native-old-schema') { $engineReceipt.native_persona_core_info.schema = 1 }
             }

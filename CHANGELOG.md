@@ -2,6 +2,30 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.6-preview — portable candidate, not yet published (2026-10-13)
+
+- Replaced the held V3 stable per-profile Canvas seed with an opt-in V4b
+  source-built Chromium mode. Its opaque sRGB uint8 Canvas2D readback changes
+  are scoped to a fresh browser-session key and the top-level site, including
+  measured frames and dedicated/shared/service workers. This is **not** full
+  fingerprint protection: WebGL/WebGPU, float16, display-p3 and translucent
+  readbacks remain stock or unverified. CPU/RAM/UTC controls remain partial.
+- Pinned Chromium 155.0.8059.40 source commit
+  `cfaadc5a132d78e1828635aa8405a499f3e14864`; V4b patch SHA-256
+  `bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`.
+  The candidate `chrome.dll` SHA-256 is
+  `6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+  The old V3 patch remains available as a historical, blocked design.
+- Local Windows 11 x64 evidence: 6 + 21 + 3 native unit tests passed; a
+  two-profile/two-site/two-restart Canvas gate measured 12/12 cases, and a
+  context gate measured 6/6 cases with 11/11 checks passed. Two staging runs
+  produced 39 byte-identical runtime files. This is one host, not a cohort,
+  cross-machine or real-site compatibility study.
+- External DNS/UDP/IPv6/TURN observation and second-machine testing are
+  **NOT RUN**. The candidate is not a verified public download and does not
+  promise anonymity. Published 0.8.5-preview download remains unchanged until
+  archive, public-download and site checks pass.
+
 ## 0.8.5-preview — network identity disclosure (2026-10-13)
 
 - Profile details and health diagnostics now explain whether a profile has no

@@ -84,8 +84,11 @@ def probe_native_core(chrome: Path, version: str, commit: str) -> dict[str, obje
         raise ValueError("Native persona core version or source commit differs")
     capabilities = info.get("capabilities")
     required = ("stable_seed", "hardware_concurrency", "device_memory",
-                "canvas_opaque_srgb_uint8", "timezone")
-    if not isinstance(capabilities, dict) or not all(capabilities.get(key) is True for key in required):
+                "canvas_site_scoped_experimental", "timezone")
+    if (not isinstance(capabilities, dict) or info.get("compiled_stage") != 11 or
+            capabilities.get("canvas_opaque_srgb_uint8") is not False or
+            capabilities.get("canvas") is not False or
+            not all(capabilities.get(key) is True for key in required)):
         raise ValueError("Native persona core lacks required compiled capabilities")
     return info
 

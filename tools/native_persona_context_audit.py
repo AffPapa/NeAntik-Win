@@ -24,7 +24,7 @@ from profile_identity import identity_arguments, native_preview_identity
 
 REQUIRED_CAPABILITIES = (
     "stable_seed", "hardware_concurrency", "device_memory",
-    "canvas_opaque_srgb_uint8", "timezone",
+    "canvas_site_scoped_experimental", "timezone",
 )
 
 
@@ -43,18 +43,14 @@ def check_reports(core_info: dict, baseline: dict, runs: list[dict]) -> dict[str
             for name, surface in report["surfaces"].items()
         }
     return {
-        "compiled_core_schema_2": core_info.get("engine_id") == "neantik-chromium"
-        and core_info.get("schema") == 2
+        "compiled_core_schema_2_stage_11": core_info.get("engine_id") == "neantik-chromium"
+        and core_info.get("schema") == 2 and core_info.get("compiled_stage") == 11
+        and capabilities.get("canvas") is False
+        and capabilities.get("canvas_opaque_srgb_uint8") is False
         and all(capabilities.get(name) is True for name in REQUIRED_CAPABILITIES),
         "all_contexts_and_http_hints_agree": all(all(items.values()) for items in contexts),
-        "same_seed_repeats": same_a["surfaces"] == same_b["surfaces"],
+        "same_seed_keeps_common_surfaces": without_canvas(same_a) == without_canvas(same_b),
         "different_seed_keeps_common_surfaces": without_canvas(same_a) == without_canvas(other),
-        "different_seed_canvas_identical": all(
-            same_a["surfaces"][name].get(key) == other["surfaces"][name].get(key)
-            for name in same_a["surfaces"]
-            for key in ("canvas2dSha256", "canvasPixelSha256")
-            if key in same_a["surfaces"][name] or key in other["surfaces"][name]
-        ),
         "cpu_bounded_by_stock": all(
             run["surfaces"]["main"]["hardwareConcurrency"] == expected_cpu for run in runs
         ),

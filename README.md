@@ -1,13 +1,15 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The `0.8.5-preview` ZIP includes unbranded Chromium built from pinned upstream source with a small published privacy patch, so new profiles work without an installed Chrome or Edge. The bundled core caps exposed logical CPU count at 4 and approximated device memory at 8 GiB. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. This partial fingerprint reduction does **not** establish anonymity or make profiles independent network identities. Legacy experimental engine-profile records remain non-runnable and their data is left intact.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The **published** `0.8.5-preview` ZIP includes unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. It caps exposed logical CPU count at 4 and approximated device memory at 8 GiB. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint reduction do **not** establish anonymity or independent network identities.
 
-The current source tree also contains an **unreleased, opt-in native persona
-prototype** and its [published patch and test gates](docs/NATIVE_PERSONA_PROTOTYPE_AUDIT.md).
-It can run only with an exactly matching, source-built experimental core; it
-is absent from the downloadable ZIP. Different profile seeds are not evidence
-of anonymity and may increase linkability. Do not use this prototype for
-sensitive browsing or describe it as a completed privacy mode.
+The source tree contains a **0.8.6-preview candidate for a portable release**,
+not yet a verified public download. Its opt-in V4b native mode requires the exact
+source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed
+per browser session and top-level site; CPU, RAM and UTC controls are partial.
+Its single-host local gates passed, but other graphics paths, external network
+routes and a second computer are not validated. See the
+[candidate audit](docs/NATIVE_PERSONA_PROTOTYPE_AUDIT.md). Neither this mode
+nor a proxy guarantees anonymity.
 
 ## Download and start
 
@@ -71,7 +73,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-The 0.8.5-preview release packages the same separately source-built Chromium runtime as 0.8.4-preview using `build.ps1 -EngineDirectory`; the large browser binary is not committed to Git. It carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. The [privacy patch](docs/CHROMIUM_PRIVACY_BASELINE.md) and [full plan](docs/MASTER_IMPLEMENTATION_PLAN.md) document exactly what changed and what remains unverified. Legacy schema-1 experimental profile metadata is retained as a blocked marker and is never sent to the browser; the new schema-2 prototype is not in the 0.8.5 ZIP. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md), [next-phase anonymity architecture](docs/ANONYMITY_ARCHITECTURE_2026-10.md) and [project roadmap](docs/PROJECT_VISION_AND_ROADMAP.md) for the scope and test gates. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
+The published 0.8.5-preview packages the same source-built Chromium runtime as 0.8.4-preview; the browser binary is not committed to Git. The proposed 0.8.6-preview uses a separately reviewed [V4b patch](docs/chromium-native-persona-prototype-v4b.patch) and must pass packaged and public-download gates before release. The bundle carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. The [privacy patch](docs/CHROMIUM_PRIVACY_BASELINE.md) and [full plan](docs/MASTER_IMPLEMENTATION_PLAN.md) document exactly what changed and what remains unverified. Legacy schema-1 experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md), [next-phase anonymity architecture](docs/ANONYMITY_ARCHITECTURE_2026-10.md) and [project roadmap](docs/PROJECT_VISION_AND_ROADMAP.md) for the scope and test gates. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
 
 The public bundled-core release uses source-built stable-branch Chromium,
 not a continuous snapshot. The staging script, reviewed build-only patch and

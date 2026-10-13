@@ -142,9 +142,10 @@ class SourceBuildStageTests(unittest.TestCase):
 
     def test_native_core_probe_rejects_missing_capability(self) -> None:
         info = {"engine_id": "neantik-chromium", "schema": 2, "version": "155.0.8059.40",
-                "source_commit": self.commit,
+                "source_commit": self.commit, "compiled_stage": 11,
                 "capabilities": {"stable_seed": True, "hardware_concurrency": True,
-                                 "device_memory": True, "canvas_opaque_srgb_uint8": False,
+                                 "device_memory": True, "canvas": False,
+                                 "canvas_opaque_srgb_uint8": False,
                                  "timezone": True}}
 
         def fake_run(arguments, **_kwargs):
@@ -155,6 +156,18 @@ class SourceBuildStageTests(unittest.TestCase):
         with patch.object(staging.subprocess, "run", side_effect=fake_run):
             with self.assertRaisesRegex(ValueError, "lacks required compiled capabilities"):
                 staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit)
+
+        info["capabilities"]["canvas_site_scoped_experimental"] = True
+        with patch.object(staging.subprocess, "run", side_effect=fake_run):
+            self.assertEqual(
+                staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit),
+                info,
+            )
+        info["capabilities"]["canvas_opaque_srgb_uint8"] = True
+        with patch.object(staging.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(ValueError, "lacks required compiled capabilities"):
+                staging.probe_native_core(self.build / "chrome.exe", "155.0.8059.40", self.commit)
+        info["capabilities"]["canvas_opaque_srgb_uint8"] = False
 
         info["schema"] = 1
         with patch.object(staging.subprocess, "run", side_effect=fake_run):

@@ -1,0 +1,134 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Canvas context QA</title></head><body>
+<script id="canvas-worker-source" type="text/plain">
+const paint = canvas => {
+  const context = canvas.getContext('2d', {willReadFrequently: true});
+  context.fillStyle = 'rgb(43,87,131)';
+  context.fillRect(0, 0, 32, 24);
+  context.fillStyle = 'rgb(198,146,72)';
+  context.fillRect(2, 3, 9, 7);
+  return context;
+};
+const hash = bytes => Array.from(bytes).reduce((value, byte) => Math.imul(value ^ byte, 16777619) >>> 0, 2166136261);
+async function measure() {
+  if (typeof OffscreenCanvas === 'undefined') return {unavailable: true};
+  const canvas = new OffscreenCanvas(32, 24);
+  const pixels = paint(canvas).getImageData(0, 0, 32, 24).data;
+  const blob = await canvas.convertToBlob({type: 'image/png'});
+  return {pixelHash: hash(pixels), pngHash: hash(new Uint8Array(await blob.arrayBuffer()))};
+}
+async function reply(port) {
+  try { port.postMessage(await measure()); }
+  catch (_) { port.postMessage({error: true}); }
+}
+if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWorkerGlobalScope) {
+  self.addEventListener('message', event => event.waitUntil(reply(event.ports[0])));
+} else if (typeof SharedWorkerGlobalScope !== 'undefined' && self instanceof SharedWorkerGlobalScope) {
+  self.onconnect = event => {
+    const port = event.ports[0];
+    port.onmessage = () => reply(port);
+    port.start();
+  };
+} else {
+  self.onmessage = () => reply(self);
+}
+</script>
+<script>
+const config = __CONFIG__;
+const hash = bytes => Array.from(bytes).reduce((value, byte) => Math.imul(value ^ byte, 16777619) >>> 0, 2166136261);
+async function measure() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 24;
+  const context = canvas.getContext('2d', {willReadFrequently: true});
+  context.fillStyle = 'rgb(43,87,131)';
+  context.fillRect(0, 0, 32, 24);
+  context.fillStyle = 'rgb(198,146,72)';
+  context.fillRect(2, 3, 9, 7);
+  const pixels = context.getImageData(0, 0, 32, 24).data;
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw Error('PNG export unavailable');
+  return {pixelHash: hash(pixels), pngHash: hash(new Uint8Array(await blob.arrayBuffer()))};
+}
+function timed(port, start, stop, timeoutCode = 'WorkerReplyTimeout') {
+  return new Promise(resolve => {
+    const timeout = setTimeout(() => { stop(); resolve({error: true, errorClass: timeoutCode}); }, 12000);
+    port.onmessage = event => { clearTimeout(timeout); stop(); resolve(event.data); };
+    port.onmessageerror = () => { clearTimeout(timeout); stop(); resolve({error: true}); };
+    try { start(); } catch (_) { clearTimeout(timeout); stop(); resolve({error: true}); }
+  });
+}
+async function frame(url, expectedOrigin) {
+  const node = document.createElement('iframe');
+  node.hidden = true;
+  const value = await new Promise(resolve => {
+    const timeout = setTimeout(() => { cleanup(); resolve({error: true}); }, 12000);
+    function cleanup() { clearTimeout(timeout); removeEventListener('message', receive); node.remove(); }
+    function receive(event) {
+      if (event.source !== node.contentWindow || event.origin !== expectedOrigin ||
+          !event.data || event.data.token !== config.token) return;
+      cleanup(); resolve(event.data.measurement);
+    }
+    addEventListener('message', receive);
+    node.src = url;
+    document.body.append(node);
+  });
+  return value;
+}
+async function dedicated() {
+  if (typeof Worker === 'undefined') return {unavailable: true};
+  const worker = new Worker(config.workerUrl);
+  return timed(worker, () => worker.postMessage(null), () => worker.terminate());
+}
+async function shared() {
+  if (typeof SharedWorker === 'undefined') return {unavailable: true};
+  const worker = new SharedWorker(config.workerUrl, {name: 'neantik-context-' + config.token});
+  worker.port.start();
+  return timed(worker.port, () => worker.port.postMessage(null), () => worker.port.close());
+}
+async function service() {
+  if (!('serviceWorker' in navigator)) return {unavailable: true};
+  const registration = await navigator.serviceWorker.register(config.workerUrl,
+    {scope: '/canvas-qa-scope/' + config.token + '/'});
+  try {
+    let active = registration.active;
+    if (!active) {
+      const installing = registration.installing || registration.waiting;
+      if (!installing) return {error: true, errorClass: 'NoInstallingWorker'};
+      active = await new Promise(resolve => {
+        const timeout = setTimeout(() => resolve(null), 12000);
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'activated' || installing.state === 'redundant') {
+            clearTimeout(timeout); resolve(installing.state === 'activated' ? installing : null);
+          }
+        });
+        if (installing.state === 'activated') { clearTimeout(timeout); resolve(installing); }
+      });
+    }
+    if (!active) return {error: true, errorClass: 'ActivationTimeout'};
+    const channel = new MessageChannel();
+    return await timed(channel.port1, () => active.postMessage(null, [channel.port2]),
+      () => { channel.port1.close(); channel.port2.close(); }, 'ServiceReplyTimeout');
+  } finally { await registration.unregister(); }
+}
+async function safe(task) {
+  try { return await task(); }
+  catch (error) { return {error: true, errorClass: String(error && error.name || 'Error').slice(0, 32)}; }
+}
+(async () => {
+  if (config.role === 'frame') {
+    const measurement = await safe(measure);
+    parent.postMessage({token: config.token, measurement}, config.parentOrigin);
+    return;
+  }
+  const result = {token: config.token, contexts: {
+    main: await safe(measure),
+    sameSiteFrame: await safe(() => frame(config.sameSiteUrl, config.sameSiteOrigin)),
+    crossSiteFrame: await safe(() => frame(config.crossSiteUrl, config.crossSiteOrigin)),
+    dedicatedWorker: await safe(dedicated),
+    sharedWorker: await safe(shared),
+    serviceWorker: await safe(service)
+  }};
+  await fetch('/report?token=' + config.token, {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
+})().catch(() => {});
+</script></body></html>

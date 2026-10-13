@@ -10,15 +10,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
 from native_persona_context_audit import REQUIRED_CAPABILITIES, check_reports  # noqa: E402
 
 
-def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
+def report(cpu: int, memory: float, timezone: str = "UTC", canvas: str = "a") -> dict:
     main = {
         "userAgent": "test-UA", "platform": "test-platform", "language": "en-US",
         "languages": ["en-US"], "hardwareConcurrency": cpu,
         "deviceMemory": memory, "timezone": timezone,
         "timezoneOffsetMinutes": 0 if timezone == "UTC" else -420,
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
-        "canvas2dSha256": "a" * 64,
-        "canvasPixelSha256": "c" * 64,
+        "canvas2dSha256": canvas * 64,
+        "canvasPixelSha256": canvas * 64,
         "audioSha256": "e" * 64,
         "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                   "unmaskedRenderer": None},
@@ -46,10 +46,11 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
 
 class NativePersonaContextAuditTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.core = {"engine_id": "neantik-chromium", "schema": 2,
-                     "capabilities": {name: True for name in REQUIRED_CAPABILITIES}}
+        self.core = {"engine_id": "neantik-chromium", "schema": 2, "compiled_stage": 11,
+                     "capabilities": {**{name: True for name in REQUIRED_CAPABILITIES},
+                                      "canvas": False, "canvas_opaque_srgb_uint8": False}}
         self.baseline = report(8, 16, "Asia/Bangkok")
-        self.runs = [report(4, 8) for _ in range(3)]
+        self.runs = [report(4, 8, canvas=value) for value in ("a", "b", "c")]
 
     def test_valid_coherent_persona(self) -> None:
         self.assertTrue(all(check_reports(self.core, self.baseline, self.runs).values()))
@@ -58,9 +59,9 @@ class NativePersonaContextAuditTests(unittest.TestCase):
         self.core["schema"] = 1
         self.runs[1]["surfaces"]["worker"]["timezone"] = "Asia/Bangkok"
         checks = check_reports(self.core, self.baseline, self.runs)
-        self.assertFalse(checks["compiled_core_schema_2"])
+        self.assertFalse(checks["compiled_core_schema_2_stage_11"])
         self.assertFalse(checks["all_contexts_and_http_hints_agree"])
-        self.assertFalse(checks["same_seed_repeats"])
+        self.assertFalse(checks["same_seed_keeps_common_surfaces"])
         self.assertFalse(checks["timezone_is_utc_in_all_contexts"])
 
     def test_rejects_values_above_stock_host(self) -> None:
@@ -82,8 +83,12 @@ class NativePersonaContextAuditTests(unittest.TestCase):
             if "canvasPixelSha256" in surface:
                 surface["canvasPixelSha256"] = "d" * 64
         checks = check_reports(self.core, self.baseline, self.runs)
+        self.assertTrue(checks["same_seed_keeps_common_surfaces"])
         self.assertTrue(checks["different_seed_keeps_common_surfaces"])
-        self.assertFalse(checks["different_seed_canvas_identical"])
+
+    def test_rejects_old_persistent_canvas_capability(self) -> None:
+        self.core["capabilities"]["canvas_opaque_srgb_uint8"] = True
+        self.assertFalse(check_reports(self.core, self.baseline, self.runs)["compiled_core_schema_2_stage_11"])
 
 
 if __name__ == "__main__":

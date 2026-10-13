@@ -10,6 +10,7 @@ import argparse
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import html
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -155,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(400, b"Invalid report")
 
 
-def run_case(chrome: Path, blocked: bool) -> dict:
+def run_case(chrome: Path, blocked: bool, *, persona_seed: int | None = None) -> dict:
     root = Path(tempfile.mkdtemp(prefix="neantik-canvas-policy-qa-"))
     try:
         token = uuid.uuid4().hex
@@ -176,6 +177,8 @@ def run_case(chrome: Path, blocked: bool) -> dict:
                     "--metrics-recording-only"]
             if blocked:
                 args.append("--disable-reading-from-canvas")
+            if persona_seed is not None:
+                args.append(f"--neantik-fingerprint-seed={persona_seed}")
             args.append(url)
             process = spawn_owned_browser(args, root, job)
             try:
@@ -243,31 +246,89 @@ def evaluate(control: dict, blocked: dict) -> dict[str, bool]:
     }
 
 
+def evaluate_v4_smoke(case: dict) -> dict[str, bool]:
+    """Compatibility/liveness only; WebGL availability is NOT WebGL protection."""
+    outcomes = case.get("outcomes", {})
+    return {
+        "completed_without_timeout": case.get("timed_out") is not True,
+        "canvas2d_main_readable": outcomes.get("canvas2dPixels") == "allowed"
+        and outcomes.get("canvas2dDataUrl") == "allowed",
+        "canvas2d_dedicated_worker_readable": outcomes.get("workerCanvas2dPixels") == "allowed",
+        "webgl_readpixels_readable": outcomes.get("webglReadPixels") == "allowed",
+    }
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def probe_v4_persona(chrome: Path) -> bool:
+    """Require the compiled V4 handshake so a stock Chrome cannot pass by accident."""
+    with tempfile.TemporaryDirectory(prefix="neantik-canvas-v4-handshake-") as scratch:
+        root = Path(scratch)
+        output = root / "core-info.json"
+        result = subprocess.run(
+            [str(chrome), "--headless", f"--user-data-dir={root / 'Profile'}",
+             "--no-first-run", "--disable-background-networking",
+             f"--neantik-core-info={output}"],
+            capture_output=True, timeout=20, check=False,
+        )
+        if result.returncode != 0 or not output.is_file():
+            return False
+        info = json.loads(output.read_text(encoding="utf-8"))
+    capabilities = info.get("capabilities", {}) if isinstance(info, dict) else {}
+    return bool(isinstance(info, dict) and info.get("engine_id") == "neantik-chromium"
+                and info.get("schema") == 2 and info.get("compiled_stage") == 11
+                and isinstance(capabilities, dict)
+                and capabilities.get("canvas_site_scoped_experimental") is True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--v4-smoke", action="store_true",
+                        help="V4 persona readback/liveness smoke only; no WebGL protection claim")
     args = parser.parse_args()
     if os.name != "nt" or not args.chrome.is_file() or args.chrome.name.lower() != "chrome.exe":
         parser.error("An existing Windows chrome.exe is required")
     if args.output.exists() or not args.output.parent.is_dir():
         parser.error("Output must be a new file in an existing directory")
+    chrome_dll = args.chrome.with_name("chrome.dll")
+    if args.v4_smoke and not chrome_dll.is_file():
+        parser.error("V4 smoke requires chrome.dll beside chrome.exe")
     report = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "one bundled Chromium core, disposable loopback pages and profiles; no anonymity claim"}
     try:
-        control = run_case(args.chrome, False)
-        report["cases"] = [control]
-        blocked = run_case(args.chrome, True)
-        report["cases"] = [control, blocked]
-        report["checks"] = evaluate(control, blocked)
-        report["status"] = "passed" if all(report["checks"].values()) else "partial"
+        if args.v4_smoke:
+            report["mode"] = "v4_persona_readback_smoke"
+            report["chrome_dll_sha256"] = sha256(chrome_dll)
+            report["checks"] = {"compiled_v4_persona": probe_v4_persona(args.chrome)}
+            if report["checks"]["compiled_v4_persona"]:
+                case = run_case(args.chrome, False, persona_seed=1597331)
+                report["checks"].update(evaluate_v4_smoke(case))
+            report["status"] = "PASS" if all(report["checks"].values()) else "FAIL"
+            report["scope"] = ("Synthetic seed, disposable loopback profile; readback/liveness only. "
+                               "No WebGL protection, anti-detection, or anonymity claim.")
+        else:
+            control = run_case(args.chrome, False)
+            report["cases"] = [control]
+            blocked = run_case(args.chrome, True)
+            report["cases"] = [control, blocked]
+            report["checks"] = evaluate(control, blocked)
+            report["status"] = "passed" if all(report["checks"].values()) else "partial"
     except Exception as error:
-        report["status"] = "failed"
-        report["error"] = f"{type(error).__name__}: {error}"
+        report["status"] = "INCONCLUSIVE" if args.v4_smoke else "failed"
+        report["error"] = (type(error).__name__ if args.v4_smoke
+                           else f"{type(error).__name__}: {error}")
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "checks": report.get("checks"),
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
-    return 0 if report["status"] == "passed" else 1
+    return 0 if report["status"] in ("passed", "PASS") else 1
 
 
 if __name__ == "__main__":

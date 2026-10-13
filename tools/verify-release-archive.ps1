@@ -178,12 +178,15 @@ try {
                 if ($receiptNativePatch -ne $receiptPrivacyPatch -or $manifestNativePatch -ne $receiptNativePatch -or
                     $null -eq $nativeCoreInfo -or $nativeCoreInfo.engine_id -ne 'neantik-chromium' -or
                     ($nativeCoreInfo.schema -isnot [int] -and $nativeCoreInfo.schema -isnot [long]) -or $nativeCoreInfo.schema -ne 2 -or
+                    $nativeCoreInfo.compiled_stage -ne 11 -or
                     $nativeCoreInfo.version -ne $engineReceipt.chromium_version -or
                     $nativeCoreInfo.source_commit -ne $engineReceipt.source_commit -or
                     $nativeCoreInfo.capabilities.stable_seed -isnot [bool] -or $nativeCoreInfo.capabilities.stable_seed -ne $true -or
                     $nativeCoreInfo.capabilities.hardware_concurrency -isnot [bool] -or $nativeCoreInfo.capabilities.hardware_concurrency -ne $true -or
                     $nativeCoreInfo.capabilities.device_memory -isnot [bool] -or $nativeCoreInfo.capabilities.device_memory -ne $true -or
-                    $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -isnot [bool] -or $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $true -or
+                    $nativeCoreInfo.capabilities.canvas -isnot [bool] -or $nativeCoreInfo.capabilities.canvas -ne $false -or
+                    $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -isnot [bool] -or $nativeCoreInfo.capabilities.canvas_opaque_srgb_uint8 -ne $false -or
+                    $nativeCoreInfo.capabilities.canvas_site_scoped_experimental -isnot [bool] -or $nativeCoreInfo.capabilities.canvas_site_scoped_experimental -ne $true -or
                     $nativeCoreInfo.capabilities.timezone -isnot [bool] -or $nativeCoreInfo.capabilities.timezone -ne $true) {
                     throw 'Native persona provenance or compiled capabilities are invalid.'
                 }

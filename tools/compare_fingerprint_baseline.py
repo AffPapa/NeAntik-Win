@@ -25,7 +25,8 @@ def read_engine_identity(chrome: Path) -> dict[str, str | None]:
     check_engine_tree(chrome.parent)
     receipt = json.loads((chrome.parent / "ENGINE_PROVENANCE.json").read_text(encoding="utf-8"))
     return {key: receipt.get(key) for key in
-            ("chromium_version", "source_commit", "privacy_patch_sha256")}
+            ("chromium_version", "source_commit", "privacy_patch_sha256",
+             "native_persona_patch_sha256")}
 
 
 def _samples(report: dict) -> list[dict]:
@@ -107,11 +108,46 @@ def compare(stock_identity: dict, candidate_identity: dict,
     return checks, observations
 
 
+def compare_native_persona(stock_identity: dict, candidate_identity: dict,
+                           stock_report: dict, candidate_report: dict,
+                           expected_patch_sha256: str,
+                           compiled_core_info: dict | None) -> dict[str, bool]:
+    """Check V4 ordinary mode without applying the legacy CPU/RAM persona expectation."""
+    stock_samples = _samples(stock_report)
+    candidate_samples = _samples(candidate_report)
+    core = compiled_core_info or {}
+    caps = core.get("capabilities") if isinstance(core.get("capabilities"), dict) else {}
+    return {
+        "same_upstream_commit": bool(stock_identity.get("source_commit"))
+        and stock_identity.get("source_commit") == candidate_identity.get("source_commit"),
+        "same_chromium_version": bool(stock_identity.get("chromium_version"))
+        and stock_identity.get("chromium_version") == candidate_identity.get("chromium_version"),
+        "stock_without_patch": not stock_identity.get("privacy_patch_sha256")
+        and not stock_identity.get("native_persona_patch_sha256"),
+        "candidate_receipt_native_patch_matches_public_source": bool(expected_patch_sha256)
+        and candidate_identity.get("native_persona_patch_sha256") == expected_patch_sha256,
+        "candidate_receipt_privacy_patch_matches_public_source":
+        candidate_identity.get("privacy_patch_sha256") == expected_patch_sha256,
+        "candidate_compiled_core_stage_11": core.get("engine_id") == "neantik-chromium"
+        and core.get("schema") == 2 and core.get("compiled_stage") == 11
+        and core.get("version") == candidate_identity.get("chromium_version")
+        and core.get("source_commit") == candidate_identity.get("source_commit")
+        and caps.get("canvas_site_scoped_experimental") is True
+        and caps.get("canvas") is False,
+        "stock_local_gate": _local_gate_passed(stock_report),
+        "candidate_local_gate": _local_gate_passed(candidate_report),
+        "ordinary_all_observed_surfaces_equal_including_cpu_ram": all(
+            stock == candidate for stock, candidate in zip(stock_samples, candidate_samples)),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stock-chrome", required=True, type=Path)
     parser.add_argument("--candidate-chrome", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--native-persona", action="store_true",
+                        help="Compare stock against V4 compiled native-persona core in ordinary mode")
     args = parser.parse_args()
     stock_chrome = args.stock_chrome.resolve()
     candidate_chrome = args.candidate_chrome.resolve()
@@ -126,6 +162,15 @@ def main() -> int:
     except (OSError, ValueError) as error:
         parser.error(str(error))
     output_dir.mkdir(parents=True)
+    compiled_core_info = None
+    if args.native_persona:
+        from native_persona_context_audit import read_core_info
+        try:
+            compiled_core_info = read_core_info(candidate_chrome, output_dir)
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            # A missing or invalid handshake is a gate failure, never a reason
+            # to treat receipt metadata alone as compiled-core proof.
+            compiled_core_info = None
     reports = []
     audit_script = Path(__file__).with_name("fingerprint_surface_audit.py")
     for label, chrome in (("stock", stock_chrome), ("candidate", candidate_chrome)):
@@ -137,14 +182,29 @@ def main() -> int:
             print(json.dumps({"status": "failed", "phase": f"{label}_audit",
                               "exit_code": result.returncode}))
             return 1
-        reports.append(json.loads(output.read_text(encoding="utf-8")))
-    public_patch = source_root / "docs" / "chromium-privacy-baseline.patch"
+        try:
+            reports.append(json.loads(output.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            print(json.dumps({"status": "failed", "phase": f"{label}_report_parse"}))
+            return 1
+    public_patch = source_root / "docs" / ("chromium-native-persona-prototype-v4b.patch"
+                                           if args.native_persona else "chromium-privacy-baseline.patch")
     expected_patch_sha256 = hashlib.sha256(public_patch.read_bytes()).hexdigest()
-    checks, observations = compare(identities[0], identities[1], reports[0], reports[1],
-                                   expected_patch_sha256)
+    if args.native_persona:
+        try:
+            checks = compare_native_persona(identities[0], identities[1], reports[0], reports[1],
+                                            expected_patch_sha256, compiled_core_info)
+        except (KeyError, TypeError, ValueError, IndexError):
+            print(json.dumps({"status": "failed", "phase": "native_report_structure"}))
+            return 1
+        observations = {}
+    else:
+        checks, observations = compare(identities[0], identities[1], reports[0], reports[1],
+                                       expected_patch_sha256)
     passed = all(checks.values())
     summary = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
                "scope": "one host; loopback; exact upstream commit; no anonymity conclusion",
+               "mode": "native-persona-ordinary" if args.native_persona else "legacy-baseline",
                "status": "passed" if passed else "failed", "checks": checks,
                "observations": observations}
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

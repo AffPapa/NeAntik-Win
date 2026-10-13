@@ -1,0 +1,1794 @@
+diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+index c027a43eb3..94cfba7e3b 100644
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -86,6 +86,7 @@
+ #include "printing/buildflags/buildflags.h"
+ #include "services/tracing/public/cpp/stack_sampling/tracing_sampler_profiler.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/resource/resource_bundle.h"
+ #include "ui/base/resource/scoped_startup_resource_bundle.h"
+@@ -1120,6 +1121,31 @@ void ChromeMainDelegate::SetupTracing() {
+ }
+ 
+ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
++  // Validate before any browser navigation or sandboxed child accesses persona.
++  const base::CommandLine& neantik_command =
++      *base::CommandLine::ForCurrentProcess();
++  std::string neantik_error;
++  blink::neantik::ParseFingerprintConfig(neantik_command, &neantik_error);
++  if (!neantik_error.empty()) {
++    LOG(ERROR) << neantik_error;
++    return 78;
++  }
++  if (neantik_command.HasSwitch(blink::neantik::kCoreInfoSwitch)) {
++    // File handshake works with a Windows GUI subsystem binary without console.
++    const std::string info =
++        "{\"engine_id\":\"neantik-chromium\",\"schema\":" +
++        std::to_string(blink::neantik::kConfigSchema) + ",\"version\":\"" +
++        std::string(version_info::GetVersionNumber()) +
++        "\",\"source_commit\":\"cfaadc5a132d78e1828635aa8405a499f3e14864\",\"capability_evidence\":\"compiled-source-only\",\"capabilities\":{\"stable_seed\":true,"
++        "\"hardware_concurrency\":true,\"device_memory\":true,"
++        "\"canvas\":false,\"canvas_opaque_srgb_uint8\":false,\"canvas_site_scoped_experimental\":true,\"canvas_float16\":false,\"canvas_display_p3\":false,\"canvas_translucent\":false,\"timezone\":true,\"webrtc_non_proxied_udp_proxied_webframes\":true},\"compiled_stage\":11}";
++    if (!base::WriteFile(neantik_command.GetSwitchValuePath(
++                            blink::neantik::kCoreInfoSwitch), info)) {
++      return 74;
++    }
++    return 0;
++  }
++
+ #if BUILDFLAG(IS_CHROMEOS)
+   ash::BootTimesRecorder::Get()->SaveChromeMainStats();
+ #endif
+@@ -1469,6 +1495,14 @@ void ChromeMainDelegate::SetUpInstallerPreferences(
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ void ChromeMainDelegate::PreSandboxStartup() {
++  // ContentMainRunner has initialized ICU at this point, before V8 contexts.
++  if (const auto* config = blink::neantik::GetFingerprintConfig()) {
++    std::string error;
++    if (!blink::neantik::ValidateFingerprintTimeZone(*config, &error)) {
++      LOG(ERROR) << error;
++      base::Process::TerminateCurrentProcessImmediately(78);
++    }
++  }
+   const base::CommandLine& command_line =
+       *base::CommandLine::ForCurrentProcess();
+   std::string process_type =
+diff --git a/chrome/browser/renderer_preferences_util.cc b/chrome/browser/renderer_preferences_util.cc
+index 2b542a4814..64c31ab87f 100644
+--- a/chrome/browser/renderer_preferences_util.cc
++++ b/chrome/browser/renderer_preferences_util.cc
+@@ -9,6 +9,8 @@
+ #include <string>
+ #include <vector>
+ 
++#include "base/check.h"
++#include "base/command_line.h"
+ #include "base/logging.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
+@@ -21,6 +23,7 @@
+ #include "chrome/browser/ash/login/demo_mode/demo_session.h"
+ #endif
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/autofill/core/common/autofill_prefs.h"
+ #include "components/language/core/browser/language_prefs.h"
+@@ -30,6 +33,7 @@
+ #include "components/universal_optout/prefs.h"
+ #include "content/public/browser/renderer_preferences_util.h"
+ #include "media/media_buildflags.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
+ #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
+ #include "third_party/blink/public/mojom/peerconnection/webrtc_ip_handling_policy.mojom.h"
+@@ -110,6 +114,24 @@ std::string GetLanguageListForProfile(Profile* profile,
+ 
+ namespace renderer_preferences_util {
+ 
++void ApplyNeAntikProxiedWebRtcPolicy(
++    blink::RendererPreferences* prefs,
++    bool native_persona,
++    const base::CommandLine& command_line) {
++  CHECK(prefs);
++  if (!native_persona ||
++      !command_line.HasSwitch(switches::kProxyServer) ||
++      command_line.GetSwitchValueNative(switches::kProxyServer).empty()) {
++    return;
++  }
++  // Website-frame routing policy only: not a system network kill-switch or
++  // an assertion about privileged standalone extension processes.
++  prefs->webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDisableNonProxiedUdp;
++  // Matching per-URL preferences otherwise supersede the global enum.
++  prefs->webrtc_ip_handling_urls.clear();
++}
++
+ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
+                               Profile* profile) {
+   const PrefService* pref_service = profile->GetPrefs();
+@@ -194,6 +216,10 @@ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
+     prefs->webrtc_ip_handling_urls.push_back(
+         {pattern, blink::ToWebRTCIPHandlingPolicy(*handling)});
+   }
++  ApplyNeAntikProxiedWebRtcPolicy(
++      prefs, blink::neantik::GetFingerprintConfig() != nullptr,
++      *base::CommandLine::ForCurrentProcess());
++
+   if (pref_service->IsManagedPreference(
+           prefs::kWebRTCPostQuantumKeyAgreement)) {
+     prefs->webrtc_post_quantum_key_agreement =
+diff --git a/chrome/browser/renderer_preferences_util.h b/chrome/browser/renderer_preferences_util.h
+index fbf348dc51..fc1e75f011 100644
+--- a/chrome/browser/renderer_preferences_util.h
++++ b/chrome/browser/renderer_preferences_util.h
+@@ -5,6 +5,10 @@
+ #ifndef CHROME_BROWSER_RENDERER_PREFERENCES_UTIL_H_
+ #define CHROME_BROWSER_RENDERER_PREFERENCES_UTIL_H_
+ 
++namespace base {
++class CommandLine;
++}
++
+ class Profile;
+ 
+ namespace blink {
+@@ -13,6 +17,13 @@ struct RendererPreferences;
+ 
+ namespace renderer_preferences_util {
+ 
++// Narrow in-memory policy helper; native/proxy predicates are explicit for
++// unit tests. Production caller supplies immutable native persona state.
++void ApplyNeAntikProxiedWebRtcPolicy(
++    blink::RendererPreferences* prefs,
++    bool native_persona,
++    const base::CommandLine& command_line);
++
+ // Copies system configuration preferences into |prefs|.
+ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
+                               Profile* profile);
+diff --git a/chrome/browser/renderer_preferences_util_unittest.cc b/chrome/browser/renderer_preferences_util_unittest.cc
+index aabf7481b7..c194f13cfb 100644
+--- a/chrome/browser/renderer_preferences_util_unittest.cc
++++ b/chrome/browser/renderer_preferences_util_unittest.cc
+@@ -6,7 +6,9 @@
+ 
+ #include <array>
+ 
++#include "base/command_line.h"
+ #include "base/memory/raw_ptr.h"
++#include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/test/base/testing_profile.h"
+ #include "components/content_settings/core/common/content_settings_pattern.h"
+@@ -159,3 +161,56 @@ TEST_F(RendererPreferencesUtilTest, GlobalPrivacyControlSettingEnabled) {
+   EXPECT_EQ(renderer_preferences.is_global_privacy_control_setting_enabled,
+             true);
+ }
++
++TEST_F(RendererPreferencesUtilTest, NeAntikNativeExplicitProxyBlocksUdp) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(switches::kProxyServer, "http://127.0.0.1:9999");
++  blink::RendererPreferences values;
++  values.webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDefault;
++  values.webrtc_ip_handling_urls.push_back(
++      {ContentSettingsPattern::FromString("[*.]example.com"),
++       blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++  renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++      &values, true, command);
++  EXPECT_EQ(values.webrtc_ip_handling_policy,
++            blink::mojom::WebRtcIpHandlingPolicy::kDisableNonProxiedUdp);
++  EXPECT_TRUE(values.webrtc_ip_handling_urls.empty());
++  EXPECT_EQ(pref_service_->GetString(prefs::kWebRTCIPHandlingPolicy), "default");
++}
++
++TEST_F(RendererPreferencesUtilTest, NeAntikOrdinaryProxyRemainsUnchanged) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(switches::kProxyServer, "http://127.0.0.1:9999");
++  blink::RendererPreferences values;
++  values.webrtc_ip_handling_policy =
++      blink::mojom::WebRtcIpHandlingPolicy::kDefaultPublicInterfaceOnly;
++  values.webrtc_ip_handling_urls.push_back(
++      {ContentSettingsPattern::FromString("[*.]example.com"),
++       blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++  renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++      &values, false, command);
++  EXPECT_EQ(values.webrtc_ip_handling_policy,
++            blink::mojom::WebRtcIpHandlingPolicy::kDefaultPublicInterfaceOnly);
++  EXPECT_EQ(values.webrtc_ip_handling_urls.size(), 1u);
++}
++
++TEST_F(RendererPreferencesUtilTest, NeAntikNativeMissingOrEmptyProxyUnchanged) {
++  for (bool empty_switch : {false, true}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    if (empty_switch) {
++      command.AppendSwitch(switches::kProxyServer);
++    }
++    blink::RendererPreferences values;
++    values.webrtc_ip_handling_policy =
++        blink::mojom::WebRtcIpHandlingPolicy::kDefault;
++    values.webrtc_ip_handling_urls.push_back(
++        {ContentSettingsPattern::FromString("[*.]example.com"),
++         blink::mojom::WebRtcIpHandlingPolicy::kDefault});
++    renderer_preferences_util::ApplyNeAntikProxiedWebRtcPolicy(
++        &values, true, command);
++    EXPECT_EQ(values.webrtc_ip_handling_policy,
++              blink::mojom::WebRtcIpHandlingPolicy::kDefault);
++    EXPECT_EQ(values.webrtc_ip_handling_urls.size(), 1u);
++  }
++}
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index b8d41ae535..1fe0684e41 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -204,6 +204,7 @@
+ #include "storage/browser/quota/quota_manager.h"
+ #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "third_party/blink/public/common/page/launching_process_state.h"
+ #include "third_party/blink/public/common/storage_key/storage_key.h"
+ #include "third_party/blink/public/common/switches.h"
+@@ -4040,6 +4041,38 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
+   };
+   renderer_cmd->CopySwitchesFrom(browser_cmd, kSwitchNames);
+ 
++  // Every renderer (including out-of-process frames and worker renderers) gets
++  // validated immutable persona input before any JavaScript context exists.
++  static const char* const kNeAntikSwitches[] = {
++      blink::neantik::kSeedSwitch,
++      blink::neantik::kHardwareConcurrencySwitch,
++      blink::neantik::kDeviceMemorySwitch,
++      blink::neantik::kTimeZoneSwitch,
++  };
++  renderer_cmd->CopySwitchesFrom(browser_cmd, kNeAntikSwitches);
++  if (browser_cmd.HasSwitch(blink::neantik::kSeedSwitch)) {
++    // One random key per in-memory BrowserContext. All renderer processes for
++    // this context, including cross-site frames and workers, share it. It is
++    // deliberately never read from or written to the profile directory.
++    static constexpr char kCanvasKeyDataKey[] = "neantik-canvas-session-key";
++    class CanvasKeyData final : public base::SupportsUserData::Data {
++     public:
++      CanvasKeyData()
++          : value(base::HexEncode(base::RandBytesAsString(32))) {}
++      const std::string value;
++    };
++    auto* context = GetBrowserContext();
++    auto* key = static_cast<CanvasKeyData*>(
++        context->GetUserData(kCanvasKeyDataKey));
++    if (!key) {
++      auto created = std::make_unique<CanvasKeyData>();
++      key = created.get();
++      context->SetUserData(kCanvasKeyDataKey, std::move(created));
++    }
++    renderer_cmd->AppendSwitchASCII(blink::neantik::kCanvasSessionKeySwitch,
++                                    key->value);
++  }
++
+   // Propagate WebNN switches needed by backends that run in the renderer.
+   renderer_cmd->CopySwitchesFrom(
+       browser_cmd, switches::GetWebNNSwitchesForRendererProcess());
+diff --git a/content/renderer/worker/embedded_shared_worker_stub.cc b/content/renderer/worker/embedded_shared_worker_stub.cc
+index 1c6d965d94..0781b2ae1c 100644
+--- a/content/renderer/worker/embedded_shared_worker_stub.cc
++++ b/content/renderer/worker/embedded_shared_worker_stub.cc
+@@ -129,6 +129,11 @@ EmbeddedSharedWorkerStub::EmbeddedSharedWorkerStub(
+       token, info->url, info->options->type, info->options->credentials,
+       blink::WebString::FromUtf8(info->options->name),
+       blink::WebSecurityOrigin(constructor_key.origin()),
++      blink::WebSecurityOrigin(
++          url::Origin::Create(
++              constructor_key.CopyWithForceEnabledThirdPartyStoragePartitioning()
++                  .top_level_site()
++                  .GetURL())),
+       blink::WebSecurityOrigin(origin), is_constructor_secure_context,
+       blink::WebString::FromUtf8(user_agent), ua_metadata,
+       ToWebContentSecurityPolicies(info->content_security_policies),
+diff --git a/third_party/blink/common/BUILD.gn b/third_party/blink/common/BUILD.gn
+index 8e635b0da3..695864bbec 100644
+--- a/third_party/blink/common/BUILD.gn
++++ b/third_party/blink/common/BUILD.gn
+@@ -155,6 +155,7 @@ source_set("common") {
+     "fenced_frame/redacted_fenced_frame_config.cc",
+     "fenced_frame/redacted_fenced_frame_config_mojom_traits.cc",
+     "fetch/fetch_api_request_body_mojom_traits.cc",
++    "fingerprinting/neantik_fingerprint.cc",
+     "frame/delegated_capability_request_token.cc",
+     "frame/frame_ad_evidence.cc",
+     "frame/frame_ad_evidence_mojom_traits.cc",
+@@ -329,6 +330,11 @@ source_set("common") {
+     "//ui/latency/mojom:shared_mojom_traits",
+   ]
+ 
++  # Native NeAntik timezone validation uses ICU on desktop too.
++  if (!is_android) {
++    deps += [ "//third_party/icu" ]
++  }
++
+   # If use_blink is used then it needs to depend on //media
+   if (use_blink) {
+     deps += [ "//media" ]
+@@ -386,6 +392,7 @@ source_set("common_unittests_sources") {
+     "client_hints/enabled_client_hints_unittest.cc",
+     "custom_handlers/protocol_handler_utils_unittest.cc",
+     "device_memory/approximated_device_memory_unittest.cc",
++    "fingerprinting/neantik_fingerprint_unittest.cc",
+     "frame/delegated_capability_request_token_unittest.cc",
+     "frame/user_activation_state_unittest.cc",
+     "indexeddb/indexed_db_default_mojom_traits_unittest.cc",
+diff --git a/third_party/blink/common/device_memory/approximated_device_memory.cc b/third_party/blink/common/device_memory/approximated_device_memory.cc
+index 7fd53ebba0..1e5a3f0446 100644
+--- a/third_party/blink/common/device_memory/approximated_device_memory.cc
++++ b/third_party/blink/common/device_memory/approximated_device_memory.cc
+@@ -9,6 +9,7 @@
+ #include "base/feature_list.h"
+ #include "base/system/sys_info.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ 
+ namespace blink {
+ 
+@@ -27,6 +28,12 @@ void ApproximatedDeviceMemory::Initialize() {
+ 
+ // static
+ float ApproximatedDeviceMemory::GetApproximatedDeviceMemory() {
++  // The native NavigatorDeviceMemory accessor and HTTP device-memory hints
++  // share this exact source; no window-only or worker-only memory override.
++  if (const auto* config = neantik::GetFingerprintConfig()) {
++    return neantik::BoundDeviceMemory(config->device_memory,
++                                     approximated_device_memory_gb_);
++  }
+   return approximated_device_memory_gb_;
+ }
+ 
+diff --git a/third_party/blink/public/common/BUILD.gn b/third_party/blink/public/common/BUILD.gn
+index 5a5d9a64a4..b54c381ff4 100644
+--- a/third_party/blink/public/common/BUILD.gn
++++ b/third_party/blink/public/common/BUILD.gn
+@@ -149,6 +149,7 @@ source_set("headers") {
+     "fenced_frame/redacted_fenced_frame_config_mojom_traits.h",
+     "fetch/fetch_api_request_headers_map.h",
+     "fetch/fetch_api_request_headers_mojom_traits.h",
++    "fingerprinting/neantik_fingerprint.h",
+     "fingerprinting_protection/noise_token.h",
+     "fingerprinting_protection/noise_token_mojom_traits.h",
+     "frame/delegated_capability_request_token.h",
+diff --git a/third_party/blink/public/web/web_shared_worker.h b/third_party/blink/public/web/web_shared_worker.h
+index afadb2f8c3..44df8cd290 100644
+--- a/third_party/blink/public/web/web_shared_worker.h
++++ b/third_party/blink/public/web/web_shared_worker.h
+@@ -78,6 +78,7 @@ class BLINK_EXPORT WebSharedWorker {
+       network::mojom::CredentialsMode,
+       const WebString& name,
+       WebSecurityOrigin constructor_origin,
++      WebSecurityOrigin top_level_site_origin,
+       WebSecurityOrigin origin_from_browser,
+       bool is_constructor_secure_context,
+       const WebString& user_agent,
+diff --git a/third_party/blink/renderer/core/exported/web_shared_worker_impl.cc b/third_party/blink/renderer/core/exported/web_shared_worker_impl.cc
+index a3a718f49e..35511eb9c8 100644
+--- a/third_party/blink/renderer/core/exported/web_shared_worker_impl.cc
++++ b/third_party/blink/renderer/core/exported/web_shared_worker_impl.cc
+@@ -214,6 +214,7 @@ void WebSharedWorkerImpl::StartWorkerContext(
+     network::mojom::CredentialsMode credentials_mode,
+     const WebString& name,
+     WebSecurityOrigin constructor_origin,
++    WebSecurityOrigin top_level_site_origin,
+     WebSecurityOrigin origin_from_browser,
+     bool is_constructor_secure_context,
+     const WebString& user_agent,
+@@ -298,7 +299,7 @@ void WebSharedWorkerImpl::StartWorkerContext(
+       /*direct_sockets_force_enabled_in_parent=*/false,
+       /*interface_registry=*/nullptr,
+       /*agent_group_scheduler_compositor_task_runner=*/nullptr,
+-      /*top_level_frame_security_origin=*/nullptr,
++      /*top_level_frame_security_origin=*/top_level_site_origin.Get(),
+       /*parent_storage_access_api_status=*/
+       net::StorageAccessApiStatus::kNone,
+       require_cross_site_request_for_cookies,
+@@ -367,6 +368,7 @@ std::unique_ptr<WebSharedWorker> WebSharedWorker::CreateAndStart(
+     network::mojom::CredentialsMode credentials_mode,
+     const WebString& name,
+     WebSecurityOrigin constructor_origin,
++    WebSecurityOrigin top_level_site_origin,
+     WebSecurityOrigin origin_from_browser,
+     bool is_constructor_secure_context,
+     const WebString& user_agent,
+@@ -396,7 +398,8 @@ std::unique_ptr<WebSharedWorker> WebSharedWorker::CreateAndStart(
+       base::WrapUnique(new WebSharedWorkerImpl(token, std::move(host), client));
+   worker->StartWorkerContext(
+       script_request_url, script_type, credentials_mode, name,
+-      constructor_origin, origin_from_browser, is_constructor_secure_context,
++      constructor_origin, top_level_site_origin, origin_from_browser,
++      is_constructor_secure_context,
+       user_agent, ua_metadata, content_security_policies,
+       outside_fetch_client_settings_object, devtools_worker_token,
+       std::move(content_settings), std::move(browser_interface_broker),
+diff --git a/third_party/blink/renderer/core/exported/web_shared_worker_impl.h b/third_party/blink/renderer/core/exported/web_shared_worker_impl.h
+index 184c5da267..f3f9f1968e 100644
+--- a/third_party/blink/renderer/core/exported/web_shared_worker_impl.h
++++ b/third_party/blink/renderer/core/exported/web_shared_worker_impl.h
+@@ -112,6 +112,7 @@ class CORE_EXPORT WebSharedWorkerImpl final : public WebSharedWorker {
+       network::mojom::CredentialsMode,
+       const WebString& name,
+       WebSecurityOrigin constructor_origin,
++      WebSecurityOrigin top_level_site_origin,
+       WebSecurityOrigin origin_from_browser,
+       bool is_constructor_secure_context,
+       const WebString& user_agent,
+diff --git a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+index f5c0db2d1b..2a5ef77833 100644
+--- a/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
++++ b/third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc
+@@ -5,10 +5,16 @@
+ #include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
+ 
+ #include "base/system/sys_info.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ 
+ namespace blink {
+ 
+ unsigned NavigatorConcurrentHardware::hardwareConcurrency() const {
++  if (const auto* config = neantik::GetFingerprintConfig()) {
++    return neantik::BoundHardwareConcurrency(
++        config->hardware_concurrency,
++        static_cast<unsigned>(base::SysInfo::NumberOfProcessors()));
++  }
+   return static_cast<unsigned>(base::SysInfo::NumberOfProcessors());
+ }
+ 
+diff --git a/third_party/blink/renderer/core/html/build.gni b/third_party/blink/renderer/core/html/build.gni
+index 29a410525c..295c5493d3 100644
+--- a/third_party/blink/renderer/core/html/build.gni
++++ b/third_party/blink/renderer/core/html/build.gni
+@@ -39,6 +39,8 @@ blink_core_sources_html = [
+   "canvas/html_canvas_accessibility_manager.h",
+   "canvas/html_canvas_element.cc",
+   "canvas/html_canvas_element.h",
++  "canvas/neantik_canvas_site_key.cc",
++  "canvas/neantik_canvas_site_key.h",
+   "canvas/image_data.cc",
+   "canvas/image_data.h",
+   "canvas/image_element_base.cc",
+diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+index 4a7dbf745e..bf885d8b14 100644
+--- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
++++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+@@ -26,6 +26,8 @@
+  */
+ 
+ #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
++#include "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+ #include <math.h>
+ 
+@@ -1421,6 +1423,9 @@ String HTMLCanvasElement::ToDataURLInternal(
+       ImageEncoderUtils::ToEncodingMimeType(mime_type);
+ 
+   scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(source_buffer);
++  if (IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(
++        std::move(image_bitmap), NeAntikCanvasSiteKey(GetExecutionContext()));
+   if (image_bitmap) {
+     std::unique_ptr<ImageDataBuffer> data_buffer =
+         ImageDataBuffer::Create(image_bitmap);
+@@ -1525,6 +1530,9 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
+ 
+   CanvasAsyncBlobCreator* async_creator = nullptr;
+   scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(kBackBuffer);
++  if (IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(
++        std::move(image_bitmap), NeAntikCanvasSiteKey(GetExecutionContext()));
+   if (image_bitmap) {
+     auto* options = ImageEncodeOptions::Create();
+     options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
+diff --git a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+index fab79aa8c5..cfbf5469c5 100644
+--- a/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
++++ b/third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
++#include "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+ #include <memory>
+ #include <utility>
+@@ -564,6 +566,9 @@ ScriptPromise<Blob> OffscreenCanvas::convertToBlob(
+ 
+   base::TimeTicks start_time = base::TimeTicks::Now();
+   scoped_refptr<StaticBitmapImage> image_bitmap = context_->GetImage();
++  if (context_->IsRenderingContext2D())
++    image_bitmap = NeAntikCanvasExportSnapshot(
++        std::move(image_bitmap), NeAntikCanvasSiteKey(GetExecutionContext()));
+   if (image_bitmap) {
+     auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<Blob>>(
+         script_state, exception_state.GetContext());
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+index 270c78bfd0..e96292d614 100644
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+@@ -9,6 +9,7 @@
+ #include "mojo/public/cpp/bindings/pending_remote.h"
+ #include "mojo/public/cpp/bindings/remote.h"
+ #include "third_party/blink/public/common/features.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
+ #include "third_party/blink/public/common/switches.h"
+ #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+ #include "third_party/blink/public/platform/platform.h"
+@@ -99,12 +100,21 @@ TimeZoneController::TimeZoneController() {
+   if (!base::FeatureList::IsEnabled(kLazyBlinkTimezoneInit)) {
+     host_timezone_id_ = GetCurrentTimezoneId();
+   }
++  if (const auto* config = neantik::GetFingerprintConfig();
++      config && !config->time_zone.empty()) {
++    CHECK(SetIcuTimeZoneAndNotifyV8(String::FromUtf8(config->time_zone)));
++  }
+ }
+ 
+ TimeZoneController::~TimeZoneController() = default;
+ 
+ // static
+ void TimeZoneController::Init() {
++  // Force profile ICU initialization even if a WebUI skips monitor binding.
++  if (const auto* config = neantik::GetFingerprintConfig();
++      config && !config->time_zone.empty()) {
++    instance();
++  }
+   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+           blink::switches::kTopChromeWebUI) &&
+       base::FeatureList::IsEnabled(features::kWebUIBypassMojoConnections)) {
+@@ -147,6 +157,11 @@ bool CanonicalEquals(const String& time_zone_a, const String& time_zone_b) {
+ // static
+ TimeZoneController::TimeZoneOverrideResult
+ TimeZoneController::SetTimeZoneOverride(const String& timezone_id) {
++  if (const auto* config = neantik::GetFingerprintConfig();
++      config && !config->time_zone.empty() &&
++      !CanonicalEquals(timezone_id, String::FromUtf8(config->time_zone))) {
++    return {TimeZoneOverrideStatus::kAlreadyInEffect, nullptr};
++  }
+   DCHECK(!timezone_id.empty());
+ 
+   base::AutoLock locker(instance().lock_);
+@@ -203,6 +218,11 @@ void TimeZoneController::ClearTimeZoneOverride() {
+ 
+ // static
+ void TimeZoneController::ChangeTimeZoneOverride(const String& timezone_id) {
++  if (const auto* config = neantik::GetFingerprintConfig();
++      config && !config->time_zone.empty() &&
++      !CanonicalEquals(timezone_id, String::FromUtf8(config->time_zone))) {
++    return;
++  }
+   DCHECK(!timezone_id.empty());
+ 
+   base::AutoLock locker(instance().lock_);
+@@ -225,8 +245,13 @@ void TimeZoneController::ChangeTimeZoneOverride(const String& timezone_id) {
+ 
+ bool TimeZoneController::SetIcuTimeZoneAndNotifyV8(const String& timezone_id) {
+   DCHECK(!timezone_id.empty());
++  String effective_timezone = timezone_id;
++  if (const auto* config = neantik::GetFingerprintConfig();
++      config && !config->time_zone.empty()) {
++    effective_timezone = String::FromUtf8(config->time_zone);
++  }
+   std::unique_ptr<icu::TimeZone> timezone(icu::TimeZone::createTimeZone(
+-      icu::UnicodeString(timezone_id.Ascii().data(), -1, US_INV)));
++      icu::UnicodeString(effective_timezone.Ascii().data(), -1, US_INV)));
+   CHECK(timezone);
+ 
+   if (*timezone == icu::TimeZone::getUnknown()) {
+diff --git a/third_party/blink/renderer/core/workers/worker_global_scope.cc b/third_party/blink/renderer/core/workers/worker_global_scope.cc
+index 275a8e94fd..b66eff6c7f 100644
+--- a/third_party/blink/renderer/core/workers/worker_global_scope.cc
++++ b/third_party/blink/renderer/core/workers/worker_global_scope.cc
+@@ -26,6 +26,7 @@
+  */
+ 
+ #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
++#include "third_party/blink/renderer/platform/network/blink_schemeful_site.h"
+ 
+ #include "base/memory/scoped_refptr.h"
+ #include "base/metrics/histogram_functions.h"
+@@ -185,6 +186,13 @@ WorkerGlobalScope::~WorkerGlobalScope() {
+       InstanceCounters::kWorkerGlobalScopeCounter);
+ }
+ 
++String WorkerGlobalScope::NeAntikCanvasTopLevelSite() const {
++  const SecurityOrigin* top_level_origin = top_level_frame_security_origin();
++  if (!top_level_origin)
++    return String();
++  return BlinkSchemefulSite(top_level_origin->IsolatedCopy()).Serialize();
++}
++
+ NOINLINE const KURL& WorkerGlobalScope::Url() const {
+   CHECK(url_.IsValid());
+   return url_;
+diff --git a/third_party/blink/renderer/core/workers/worker_global_scope.h b/third_party/blink/renderer/core/workers/worker_global_scope.h
+index 73e55fabee..ccd6d32f8f 100644
+--- a/third_party/blink/renderer/core/workers/worker_global_scope.h
++++ b/third_party/blink/renderer/core/workers/worker_global_scope.h
+@@ -292,6 +292,9 @@ class CORE_EXPORT WorkerGlobalScope
+   const SecurityOrigin* top_level_frame_security_origin() const {
+     return top_level_frame_security_origin_.get();
+   }
++  // Canvas protection uses the browser-established top-level site, not the
++  // worker script origin. Service workers override this with their StorageKey.
++  virtual String NeAntikCanvasTopLevelSite() const;
+ 
+  protected:
+   WorkerGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
+diff --git a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+index 89fcf5f32b..4af3f5f7cd 100644
+--- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
++++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
++#include "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
+ 
+ #include <cmath>
+ #include <cstdint>
+@@ -511,6 +513,12 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
+         snapshot->PaintImageForCurrentFrame().readPixels(
+             image_data_pixmap.info(), image_data_pixmap.writable_addr(),
+             image_data_pixmap.rowBytes(), sx, sy);
++    if (read_pixels_successful &&
++        GetDefaultImageDataColorSpace() == PredefinedColorSpace::kSRGB) {
++      if (auto site_key = NeAntikCanvasSiteKey(
++              GetCanvasRenderingContextHost()->GetTopExecutionContext()))
++        ApplyNeAntikCanvasReadback(image_data_pixmap, sx, sy, *site_key);
++    }
+     if (!read_pixels_successful) {
+       SkIRect bounds =
+           snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
+diff --git a/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.cc b/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.cc
+index 8837b4b53a..3e04b0b4e4 100644
+--- a/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.cc
++++ b/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.cc
+@@ -276,6 +276,12 @@ ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
+ 
+ ServiceWorkerGlobalScope::~ServiceWorkerGlobalScope() = default;
+ 
++String ServiceWorkerGlobalScope::NeAntikCanvasTopLevelSite() const {
++  return storage_key_.CopyWithForceEnabledThirdPartyStoragePartitioning()
++      .GetTopLevelSite()
++      .Serialize();
++}
++
+ // https://w3c.github.io/ServiceWorker/#update
+ void ServiceWorkerGlobalScope::FetchAndRunClassicScript(
+     const KURL& script_url,
+@@ -1797,11 +1803,10 @@ void ServiceWorkerGlobalScope::InitializeGlobalScope(
+ 
+   ancestor_frame_type_ = ancestor_frame_type;
+ 
++  storage_key_ = storage_key;
+   global_scope_initialized_ = true;
+   if (!pause_evaluation_)
+     ReadyToRunWorkerScript();
+-
+-  storage_key_ = storage_key;
+ }
+ 
+ void ServiceWorkerGlobalScope::PauseEvaluation() {
+diff --git a/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h b/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h
+index 8898a0c3f8..56d6766abc 100644
+--- a/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h
++++ b/third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h
+@@ -151,6 +151,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
+   void NotifyWebSocketActivity() override;
+ 
+   const blink::BlinkStorageKey& storage_key() const { return storage_key_; }
++  String NeAntikCanvasTopLevelSite() const override;
+ 
+   // Implements WorkerGlobalScope:
+   void Initialize(
+diff --git a/third_party/blink/renderer/platform/BUILD.gn b/third_party/blink/renderer/platform/BUILD.gn
+index 94334c1ce1..cf02dc46c5 100644
+--- a/third_party/blink/renderer/platform/BUILD.gn
++++ b/third_party/blink/renderer/platform/BUILD.gn
+@@ -1097,6 +1097,8 @@ component("platform") {
+     "graphics/image.h",
+     "graphics/image_data_buffer.cc",
+     "graphics/image_data_buffer.h",
++    "graphics/neantik_canvas_readback.cc",
++    "graphics/neantik_canvas_readback.h",
+     "graphics/image_decoder_wrapper.cc",
+     "graphics/image_decoder_wrapper.h",
+     "graphics/image_decoding_store.cc",
+@@ -2199,6 +2201,7 @@ source_set("blink_platform_unittests_sources") {
+ 
+   sources = [
+     "animation/animation_translation_util_test.cc",
++    "graphics/neantik_canvas_readback_test.cc",
+     "animation/compositor_animation_test.cc",
+     "animation/timing_function_test.cc",
+     "audio/audio_array_test.cc",
+diff --git a/third_party/blink/common/fingerprinting/neantik_fingerprint.cc b/third_party/blink/common/fingerprinting/neantik_fingerprint.cc
+new file mode 100644
+index 0000000000..6f5ccf62ee
+--- /dev/null
++++ b/third_party/blink/common/fingerprinting/neantik_fingerprint.cc
+@@ -0,0 +1,181 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++
++#include <algorithm>
++#include <array>
++#include <string_view>
++#include <utility>
++#include <vector>
++
++#include "base/check.h"
++#include "base/command_line.h"
++#include "base/files/file_path.h"
++#include "base/no_destructor.h"
++#include "third_party/icu/source/i18n/unicode/timezone.h"
++#include "base/strings/string_number_conversions.h"
++#include "base/strings/string_util.h"
++
++namespace blink::neantik {
++namespace {
++
++bool IsDecimal(std::string_view value) {
++  if (value.empty() || value.size() > 20) {
++    return false;
++  }
++  for (char c : value) {
++    if (c < '0' || c > '9') {
++      return false;
++    }
++  }
++  return true;
++}
++
++}  // namespace
++
++std::optional<FingerprintConfig> ParseFingerprintConfig(
++    const base::CommandLine& command_line,
++    std::string* error) {
++  CHECK(error);
++  error->clear();
++  for (const auto& [name, ignored_value] : command_line.GetSwitches()) {
++    if (base::StartsWith(name, "neantik-", base::CompareCase::SENSITIVE) &&
++        name != kSeedSwitch && name != kHardwareConcurrencySwitch &&
++        name != kDeviceMemorySwitch && name != kTimeZoneSwitch &&
++        name != kCoreInfoSwitch && name != kCanvasSessionKeySwitch) {
++      *error = "Unknown NeAntik switch";
++      return std::nullopt;
++    }
++  }
++  if (command_line.HasSwitch(kCoreInfoSwitch) &&
++      command_line.GetSwitchValuePath(kCoreInfoSwitch).empty()) {
++    *error = "NeAntik core-info requires an output path";
++    return std::nullopt;
++  }
++  if (!command_line.HasSwitch(kSeedSwitch)) {
++    if (command_line.HasSwitch(kHardwareConcurrencySwitch) ||
++        command_line.HasSwitch(kDeviceMemorySwitch) ||
++        command_line.HasSwitch(kTimeZoneSwitch) ||
++        command_line.HasSwitch(kCanvasSessionKeySwitch)) {
++      *error = "NeAntik hardware overrides require a fingerprint seed";
++    }
++    return std::nullopt;
++  }
++  FingerprintConfig config;
++  const std::string seed = command_line.GetSwitchValueASCII(kSeedSwitch);
++  if (!IsDecimal(seed) || !base::StringToUint64(seed, &config.seed) ||
++      config.seed == 0) {
++    *error = "NeAntik fingerprint seed must be a nonzero uint64 decimal";
++    return std::nullopt;
++  }
++  if (command_line.HasSwitch(kHardwareConcurrencySwitch)) {
++    const std::string cpu =
++        command_line.GetSwitchValueASCII(kHardwareConcurrencySwitch);
++    if (!IsDecimal(cpu) ||
++        !base::StringToUint(cpu, &config.hardware_concurrency) ||
++        config.hardware_concurrency < 1 || config.hardware_concurrency > 64) {
++      *error = "NeAntik hardware concurrency must be in [1,64]";
++      return std::nullopt;
++    }
++  }
++  if (command_line.HasSwitch(kDeviceMemorySwitch)) {
++    const std::string memory =
++        command_line.GetSwitchValueASCII(kDeviceMemorySwitch);
++    // Match exact Windows155 stock device-memory quantization limits.
++    constexpr std::array<std::pair<std::string_view, float>, 5> kValues = {{
++        {"2", 2.0f}, {"4", 4.0f}, {"8", 8.0f}, {"16", 16.0f},
++        {"32", 32.0f}}};
++    bool valid = false;
++    for (const auto& [text, value] : kValues) {
++      if (memory == text) {
++        config.device_memory = value;
++        valid = true;
++        break;
++      }
++    }
++    if (!valid) {
++      *error = "NeAntik Windows155 device memory must be one of 2,4,8,16,32";
++      return std::nullopt;
++    }
++  }
++  if (command_line.HasSwitch(kTimeZoneSwitch)) {
++    config.time_zone = command_line.GetSwitchValueASCII(kTimeZoneSwitch);
++    if (config.time_zone.empty() || config.time_zone.size() > 128) {
++      *error = "NeAntik timezone must be a nonempty IANA identifier";
++      return std::nullopt;
++    }
++    for (char c : config.time_zone) {
++      if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
++            (c >= '0' && c <= '9') || c == '/' || c == '_' ||
++            c == '-' || c == '+')) {
++        *error = "Malformed NeAntik IANA timezone";
++        return std::nullopt;
++      }
++    }
++  }
++  if (command_line.HasSwitch(kCanvasSessionKeySwitch)) {
++    const std::string key_hex =
++        command_line.GetSwitchValueASCII(kCanvasSessionKeySwitch);
++    std::vector<uint8_t> key_bytes;
++    if (key_hex.size() != 64 ||
++        !base::HexStringToBytes(key_hex, &key_bytes) ||
++        key_bytes.size() != config.canvas_session_key.size()) {
++      *error = "NeAntik Canvas session key must be 32 bytes of hex";
++      return std::nullopt;
++    }
++    std::copy(key_bytes.begin(), key_bytes.end(),
++              config.canvas_session_key.begin());
++    config.has_canvas_session_key = true;
++  }
++  return config;
++}
++
++bool ValidateFingerprintTimeZone(const FingerprintConfig& config,
++                                 std::string* error) {
++  CHECK(error);
++  error->clear();
++  if (config.time_zone.empty()) {
++    return true;
++  }
++  UErrorCode status = U_ZERO_ERROR;
++  UBool is_system_id = false;
++  icu::UnicodeString canonical;
++  icu::TimeZone::getCanonicalID(
++      icu::UnicodeString(config.time_zone.c_str(), -1, US_INV),
++      canonical, is_system_id, status);
++  if (U_FAILURE(status) || !is_system_id) {
++    *error = "Unknown NeAntik IANA timezone";
++    return false;
++  }
++  return true;
++}
++
++const FingerprintConfig* GetFingerprintConfig() {
++  static const base::NoDestructor<std::optional<FingerprintConfig>> config([] {
++    std::string error;
++    auto parsed = ParseFingerprintConfig(
++        *base::CommandLine::ForCurrentProcess(), &error);
++    CHECK(error.empty()) << error;
++    return parsed;
++  }());
++  return config->has_value() ? &config->value() : nullptr;
++}
++
++unsigned BoundHardwareConcurrency(unsigned requested, unsigned stock) {
++  return std::min(requested, stock);
++}
++
++float BoundDeviceMemory(float requested, float stock) {
++  return std::min(requested, stock);
++}
++
++uint64_t MixFingerprintSeed(uint64_t seed, uint64_t domain, uint64_t value) {
++  uint64_t mixed = seed ^ domain ^ (value + UINT64_C(0x9e3779b97f4a7c15));
++  mixed = (mixed ^ (mixed >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
++  mixed = (mixed ^ (mixed >> 27)) * UINT64_C(0x94d049bb133111eb);
++  return mixed ^ (mixed >> 31);
++}
++
++}  // namespace blink::neantik
+diff --git a/third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc b/third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc
+new file mode 100644
+index 0000000000..5c75dfd5de
+--- /dev/null
++++ b/third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc
+@@ -0,0 +1,260 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++
++#include <limits>
++#include <string>
++
++#include "base/command_line.h"
++#include "base/test/icu_test_util.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace blink::neantik {
++namespace {
++
++base::CommandLine Seeded() {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kSeedSwitch, "123456");
++  return command;
++}
++
++TEST(NeAntikFingerprintTest, UnconfiguredIsExplicitlyDisabled) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  std::string error = "stale";
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_TRUE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, DefaultsAreStableAndNotHostDerived) {
++  auto command = Seeded();
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_EQ(config->seed, UINT64_C(123456));
++  EXPECT_EQ(config->hardware_concurrency, 8u);
++  EXPECT_EQ(config->device_memory, 8.0f);
++  EXPECT_FALSE(config->has_canvas_session_key);
++  EXPECT_TRUE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, CanvasSessionKeyIsSeparateFromPersonaSeed) {
++  auto command = Seeded();
++  command.AppendSwitchASCII(
++      kCanvasSessionKeySwitch,
++      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_TRUE(config->has_canvas_session_key);
++  EXPECT_EQ(config->seed, UINT64_C(123456));
++  EXPECT_EQ(config->canvas_session_key[0], 0u);
++  EXPECT_EQ(config->canvas_session_key[31], 255u);
++  EXPECT_TRUE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, RejectsMissingMalformedOrOrphanCanvasKey) {
++  for (const char* value : {"", "abc", "gg112233445566778899aabbccddeeff"
++                                      "00112233445566778899aabbccddeeff"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kCanvasSessionKeySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++  base::CommandLine orphan(base::CommandLine::NO_PROGRAM);
++  orphan.AppendSwitchASCII(
++      kCanvasSessionKeySwitch,
++      "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(orphan, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, MaximumSeedAndExplicitHardware) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kSeedSwitch, "18446744073709551615");
++  command.AppendSwitchASCII(kHardwareConcurrencySwitch, "16");
++  command.AppendSwitchASCII(kDeviceMemorySwitch, "32");
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_EQ(config->seed, std::numeric_limits<uint64_t>::max());
++  EXPECT_EQ(config->hardware_concurrency, 16u);
++  EXPECT_EQ(config->device_memory, 32.0f);
++}
++
++TEST(NeAntikFingerprintTest, PersonaResourceValuesNeverExceedStockHost) {
++  EXPECT_EQ(BoundHardwareConcurrency(4, 2), 2u);
++  EXPECT_EQ(BoundHardwareConcurrency(4, 16), 4u);
++  EXPECT_EQ(BoundDeviceMemory(8.0f, 4.0f), 4.0f);
++  EXPECT_EQ(BoundDeviceMemory(8.0f, 16.0f), 8.0f);
++}
++
++TEST(NeAntikFingerprintTest, RejectsInvalidSeeds) {
++  for (const char* value : {"", "0", "-1", "+1", " 1", "1 ", "1x",
++                            "18446744073709551616"}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    command.AppendSwitchASCII(kSeedSwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_FALSE(error.empty()) << value;
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsUnknownNeAntikFlags) {
++  auto command = Seeded();
++  command.AppendSwitchASCII("neantik-fingerprint-config", "unexpected.json");
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, RejectsOrphanHardwareOverrides) {
++  for (const char* flag : {kHardwareConcurrencySwitch, kDeviceMemorySwitch}) {
++    base::CommandLine command(base::CommandLine::NO_PROGRAM);
++    command.AppendSwitchASCII(flag, "8");
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsInvalidHardwareConcurrency) {
++  for (const char* value : {"", "0", "65", "-1", "3.5", "99999999999999999999"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kHardwareConcurrencySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++}
++
++TEST(NeAntikFingerprintTest, AcceptsOnlyDiscreteMemoryValues) {
++  for (const char* value : {"2", "4", "8", "16", "32"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kDeviceMemorySwitch, value);
++    std::string error;
++    EXPECT_TRUE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_TRUE(error.empty()) << value;
++  }
++  for (const char* value : {"", "0", "0.25", "0.5", "1", "3", "64",
++                           "NaN", "inf", "8.0", "-8"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kDeviceMemorySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << value;
++    EXPECT_FALSE(error.empty()) << value;
++  }
++}
++
++TEST(NeAntikFingerprintTest, CoreInfoRequiresOutputPath) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitch(kCoreInfoSwitch);
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, MixingIsDeterministicAndDomainSeparated) {
++  const uint64_t first = MixFingerprintSeed(123456, 0x43414e564153, 77);
++  EXPECT_EQ(first, MixFingerprintSeed(123456, 0x43414e564153, 77));
++  EXPECT_NE(first, MixFingerprintSeed(987654, 0x43414e564153, 77));
++  EXPECT_NE(first, MixFingerprintSeed(123456, 0x415544494f, 77));
++  EXPECT_NE(first, MixFingerprintSeed(123456, 0x43414e564153, 78));
++}
++
++TEST(NeAntikFingerprintTest, TimezoneRequiresSeed) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kTimeZoneSwitch, "Europe/Berlin");
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++TEST(NeAntikFingerprintTest, RejectsMalformedTimezoneBeforeICU) {
++  for (const char* zone : {"", "../Europe/Berlin", "Europe Berlin", "UTC\n",
++                           "GMT+05:30", "Europe\\Berlin"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kTimeZoneSwitch, zone);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << zone;
++    EXPECT_FALSE(error.empty()) << zone;
++  }
++  auto command = Seeded();
++  command.AppendSwitchASCII(kTimeZoneSwitch, std::string(129, 'A'));
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++}
++
++TEST(NeAntikFingerprintTest, ValidatesSystemIanaZonesAfterICUInitialization) {
++  base::test::InitializeICUForTesting();
++  for (const char* zone : {"UTC", "Europe/Berlin", "America/New_York",
++                           "Asia/Kathmandu", "Etc/GMT+5"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kTimeZoneSwitch, zone);
++    std::string error;
++    auto config = ParseFingerprintConfig(command, &error);
++    ASSERT_TRUE(config) << zone;
++    EXPECT_TRUE(ValidateFingerprintTimeZone(*config, &error)) << zone;
++    EXPECT_TRUE(error.empty()) << zone;
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsWellFormedUnknownTimezone) {
++  base::test::InitializeICUForTesting();
++  auto command = Seeded();
++  command.AppendSwitchASCII(kTimeZoneSwitch, "Mars/Invisible");
++  std::string error;
++  auto config = ParseFingerprintConfig(command, &error);
++  ASSERT_TRUE(config);
++  EXPECT_FALSE(ValidateFingerprintTimeZone(*config, &error));
++  EXPECT_FALSE(error.empty());
++}
++
++
++TEST(NeAntikFingerprintTest, RejectsUnknownBareFlagsWithAndWithoutSeed) {
++  for (bool seeded : {false, true}) {
++    auto command = seeded ? Seeded() : base::CommandLine(base::CommandLine::NO_PROGRAM);
++    command.AppendSwitch("neantik-unsupported-native-surface");
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_FALSE(error.empty());
++  }
++}
++
++TEST(NeAntikFingerprintTest, RejectsMissingValuesForAllPersonaFlags) {
++  for (const char* flag : {kSeedSwitch, kHardwareConcurrencySwitch,
++                           kDeviceMemorySwitch, kTimeZoneSwitch}) {
++    auto command = flag == std::string(kSeedSwitch)
++        ? base::CommandLine(base::CommandLine::NO_PROGRAM) : Seeded();
++    command.AppendSwitch(flag);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error)) << flag;
++    EXPECT_FALSE(error.empty()) << flag;
++  }
++}
++
++TEST(NeAntikFingerprintTest, CoreInfoWithoutPersonaDoesNotActivateIdentity) {
++  base::CommandLine command(base::CommandLine::NO_PROGRAM);
++  command.AppendSwitchASCII(kCoreInfoSwitch, "native-core-info.json");
++  std::string error;
++  EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++  EXPECT_TRUE(error.empty());
++}
++
++
++TEST(NeAntikFingerprintTest, RejectsLegacyLowWindowsMemoryWithoutClamping) {
++  for (const char* value : {"0.25", "0.5", "1"}) {
++    auto command = Seeded();
++    command.AppendSwitchASCII(kDeviceMemorySwitch, value);
++    std::string error;
++    EXPECT_FALSE(ParseFingerprintConfig(command, &error));
++    EXPECT_NE(error.find("Windows155"), std::string::npos);
++    EXPECT_EQ(command.GetSwitchValueASCII(kDeviceMemorySwitch), value);
++  }
++}
++
++}  // namespace
++}  // namespace blink::neantik
+diff --git a/third_party/blink/public/common/fingerprinting/neantik_fingerprint.h b/third_party/blink/public/common/fingerprinting/neantik_fingerprint.h
+new file mode 100644
+index 0000000000..d637126459
+--- /dev/null
++++ b/third_party/blink/public/common/fingerprinting/neantik_fingerprint.h
+@@ -0,0 +1,68 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_
++#define THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_
++
++#include <array>
++#include <cstdint>
++#include <optional>
++#include <string>
++
++#include "third_party/blink/public/common/common_export.h"
++
++namespace base {
++class CommandLine;
++}
++
++namespace blink::neantik {
++
++inline constexpr char kSeedSwitch[] = "neantik-fingerprint-seed";
++inline constexpr char kHardwareConcurrencySwitch[] = "neantik-hardware-concurrency";
++inline constexpr char kDeviceMemorySwitch[] = "neantik-device-memory";
++inline constexpr char kTimeZoneSwitch[] = "neantik-timezone";
++inline constexpr char kCoreInfoSwitch[] = "neantik-core-info";
++// Browser-generated and never persisted. It is not accepted from a profile
++// backup as a replacement for the per-profile persona seed.
++inline constexpr char kCanvasSessionKeySwitch[] = "neantik-canvas-session-key";
++inline constexpr int kConfigSchema = 2;
++
++struct BLINK_COMMON_EXPORT FingerprintConfig {
++  uint64_t seed = 0;
++  unsigned hardware_concurrency = 8;
++  float device_memory = 8.0f;
++  std::string time_zone;  // Empty only when no override was requested.
++  std::array<uint8_t, 32> canvas_session_key{};
++  bool has_canvas_session_key = false;
++};
++
++// Missing seed returns nullopt with an empty error only when no other persona
++// switches were supplied. A nonempty error is always a startup failure.
++BLINK_COMMON_EXPORT std::optional<FingerprintConfig> ParseFingerprintConfig(
++    const base::CommandLine& command_line,
++    std::string* error);
++
++// Call after ContentMainRunner initializes ICU, before sandbox/pages.
++BLINK_COMMON_EXPORT bool ValidateFingerprintTimeZone(
++    const FingerprintConfig& config, std::string* error);
++
++// Immutable, thread-safe one-time snapshot. Window and all worker accessors use
++// exactly this state. Invalid child state fails closed instead of using host data.
++BLINK_COMMON_EXPORT const FingerprintConfig* GetFingerprintConfig();
++
++// Persona values can only reduce the stock value. Synthetic host inputs make
++// this safety invariant testable without a second physical Windows machine.
++BLINK_COMMON_EXPORT unsigned BoundHardwareConcurrency(unsigned requested,
++                                                     unsigned stock);
++BLINK_COMMON_EXPORT float BoundDeviceMemory(float requested, float stock);
++
++// SplitMix64-style domain-separated integer mixing; specified unsigned arithmetic
++// is identical across compilers/processes/threads. Not a cryptographic key.
++BLINK_COMMON_EXPORT uint64_t MixFingerprintSeed(uint64_t seed,
++                                               uint64_t domain,
++                                               uint64_t value);
++
++}  // namespace blink::neantik
++
++#endif  // THIRD_PARTY_BLINK_PUBLIC_COMMON_FINGERPRINTING_NEANTIK_FINGERPRINT_H_
+diff --git a/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.cc b/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.cc
+new file mode 100644
+index 0000000000..5c151f338f
+--- /dev/null
++++ b/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.cc
+@@ -0,0 +1,37 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h"
++
++#include "third_party/blink/renderer/core/execution_context/execution_context.h"
++#include "third_party/blink/renderer/core/frame/local_dom_window.h"
++#include "third_party/blink/renderer/core/workers/worker_global_scope.h"
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
++
++namespace blink {
++
++std::optional<uint64_t> NeAntikCanvasSiteKey(
++    const ExecutionContext* context) {
++  if (!context)
++    return std::nullopt;
++
++  String site;
++  if (const auto* window = DynamicTo<LocalDOMWindow>(context)) {
++    const auto storage_key = window->GetStorageKey()
++                                 .CopyWithForceEnabledThirdPartyStoragePartitioning();
++    site = storage_key.GetTopLevelSite().Serialize();
++  } else if (const auto* worker = DynamicTo<WorkerGlobalScope>(context)) {
++    // The worker supplies its browser-established top-level site. Service
++    // workers use their StorageKey; shared workers use the constructor key.
++    site = worker->NeAntikCanvasTopLevelSite();
++  } else {
++    return std::nullopt;
++  }
++  if (site.empty() || site == "null")
++    return std::nullopt;
++  const std::string utf8 = site.Utf8();
++  return NeAntikCanvasSiteSeed(utf8);
++}
++
++}  // namespace blink
+diff --git a/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h b/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h
+new file mode 100644
+index 0000000000..fa2c6809fc
+--- /dev/null
++++ b/third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h
+@@ -0,0 +1,23 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_NEANTIK_CANVAS_SITE_KEY_H_
++#define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_NEANTIK_CANVAS_SITE_KEY_H_
++
++#include <cstdint>
++#include <optional>
++
++#include "third_party/blink/renderer/core/core_export.h"
++
++namespace blink {
++class ExecutionContext;
++
++// Returns no key if there is no validated browser-generated session key or no
++// trustworthy top-level site. In particular, never share one key for all
++// opaque origins or assume a shared/service worker belongs to its script site.
++CORE_EXPORT std::optional<uint64_t> NeAntikCanvasSiteKey(
++    const ExecutionContext* context);
++}  // namespace blink
++
++#endif
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc
+new file mode 100644
+index 0000000000..477bd33784
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc
+@@ -0,0 +1,120 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
++
++#include <array>
++#include <string>
++#include <utility>
++#include "base/containers/span.h"
++#include "crypto/hmac.h"
++#include "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h"
++#include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
++#include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
++#include "third_party/skia/include/core/SkColorSpace.h"
++#include "third_party/skia/include/core/SkData.h"
++#include "third_party/skia/include/core/SkImage.h"
++#include "ui/gfx/skia_span_util.h"
++
++namespace blink {
++namespace {
++bool Supported(const SkImageInfo& info) {
++  return (info.colorType() == kRGBA_8888_SkColorType ||
++          info.colorType() == kBGRA_8888_SkColorType) &&
++         (!info.colorSpace() || info.colorSpace()->isSRGB());
++}
++constexpr uint64_t kCanvasDomain = 0x43414e5641530001ULL;
++}  // namespace
++
++std::optional<uint64_t> DeriveNeAntikCanvasSiteSeedForTesting(
++    base::span<const uint8_t, 32> session_key,
++    std::string_view serialized_top_level_site) {
++  if (serialized_top_level_site.empty() ||
++      serialized_top_level_site == "null")
++    return std::nullopt;
++  // HMAC prevents a site's Canvas output from revealing the seed used at
++  // another site. The domain string separates this use from future surfaces.
++  const std::string message =
++      std::string("neantik-canvas-v4b:") +
++      std::string(serialized_top_level_site);
++  const auto digest = crypto::hmac::SignSha256(
++      session_key, base::as_byte_span(message));
++  uint64_t site_seed = 0;
++  for (size_t i = 0; i < sizeof(site_seed); ++i)
++    site_seed |= uint64_t(digest[i]) << (8 * i);
++  return site_seed;
++}
++
++std::optional<uint64_t> NeAntikCanvasSiteSeed(
++    std::string_view serialized_top_level_site) {
++  const auto* config = neantik::GetFingerprintConfig();
++  if (!config || !config->has_canvas_session_key)
++    return std::nullopt;
++  return DeriveNeAntikCanvasSiteSeedForTesting(
++      config->canvas_session_key, serialized_top_level_site);
++}
++
++void ApplyNeAntikCanvasReadback(const SkPixmap& pixmap,
++                               int origin_x,
++                               int origin_y,
++                               uint64_t seed) {
++  if (!pixmap.addr() || !Supported(pixmap.info()) ||
++      (pixmap.alphaType() != kUnpremul_SkAlphaType &&
++       pixmap.alphaType() != kOpaque_SkAlphaType))
++    return;
++  auto bytes = gfx::SkPixmapToWritableSpan(pixmap);
++  const bool rgba = pixmap.colorType() == kRGBA_8888_SkColorType;
++  for (int y = 0; y < pixmap.height(); ++y) {
++    for (int x = 0; x < pixmap.width(); ++x) {
++      const size_t offset = size_t(y) * pixmap.rowBytes() + size_t(x) * 4;
++      // Preserve all partially/fully transparent values, including hidden RGB.
++      if (bytes[offset + 3] != 255)
++        continue;
++      const uint64_t position =
++          (uint64_t(uint32_t(int64_t(origin_y) + y)) << 32) |
++          uint32_t(int64_t(origin_x) + x);
++      const uint64_t bits =
++          neantik::MixFingerprintSeed(seed, kCanvasDomain, position);
++      const std::array<size_t, 3> channels = {
++          rgba ? 0u : 2u, 1u, rgba ? 2u : 0u};
++      for (size_t channel = 0; channel < 3; ++channel) {
++        uint8_t& value = bytes[offset + channels[channel]];
++        value = (value & 0xfeu) | ((bits >> channel) & 1u);
++      }
++    }
++  }
++}
++
++scoped_refptr<StaticBitmapImage> NeAntikCanvasExportSnapshot(
++    scoped_refptr<StaticBitmapImage> image,
++    std::optional<uint64_t> site_seed) {
++  if (!site_seed || !image)
++    return image;
++  PaintImage paint_image = image->PaintImageForCurrentFrame();
++  const SkImageInfo original_info = paint_image.GetSkImageInfo();
++  if (!Supported(original_info))
++    return image;
++  // Convert before projection so getImageData and encoded PNG see identical
++  // straight-alpha sRGB uint8 values. No original canvas backing store is used
++  // as writable memory and no random state is advanced by reading.
++  const SkImageInfo info =
++      original_info.makeColorType(kRGBA_8888_SkColorType)
++          .makeAlphaType(kUnpremul_SkAlphaType);
++  const size_t row_bytes = info.minRowBytes();
++  const size_t byte_size = info.computeByteSize(row_bytes);
++  if (SkImageInfo::ByteSizeOverflowed(byte_size))
++    return nullptr;
++  sk_sp<SkData> data = SkData::MakeUninitialized(byte_size);
++  if (!data)
++    return nullptr;
++  SkPixmap pixmap(info, data->writable_data(), row_bytes);
++  if (!paint_image.readPixels(info, pixmap.writable_addr(), row_bytes, 0, 0))
++    return nullptr;
++  ApplyNeAntikCanvasReadback(pixmap, 0, 0, *site_seed);
++  auto sk_image = SkImages::RasterFromData(info, std::move(data), row_bytes);
++  if (!sk_image)
++    return nullptr;
++  return UnacceleratedStaticBitmapImage::Create(
++      std::move(sk_image), image->Orientation(), image->GetHdrMetadata());
++}
++}  // namespace blink
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h
+new file mode 100644
+index 0000000000..118ecd8c56
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h
+@@ -0,0 +1,37 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_NEANTIK_CANVAS_READBACK_H_
++#define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_NEANTIK_CANVAS_READBACK_H_
++
++#include <cstdint>
++#include <optional>
++#include <string_view>
++#include "base/memory/scoped_refptr.h"
++#include "base/containers/span.h"
++#include "third_party/blink/renderer/platform/platform_export.h"
++#include "third_party/skia/include/core/SkPixmap.h"
++
++namespace blink {
++class StaticBitmapImage;
++// A site-scoped projection seed derived from a fresh BrowserContext key. An
++// opaque/unknown site must not be collapsed into a shared "null" identity.
++PLATFORM_EXPORT std::optional<uint64_t> NeAntikCanvasSiteSeed(
++    std::string_view serialized_top_level_site);
++PLATFORM_EXPORT std::optional<uint64_t> DeriveNeAntikCanvasSiteSeedForTesting(
++    base::span<const uint8_t, 32> session_key,
++    std::string_view serialized_top_level_site);
++// Only opaque sRGB uint8 RGB values are projected. Alpha, non-opaque pixels,
++// unsupported colour spaces/formats and padding are preserved. Calling twice
++// at the same absolute coordinates is idempotent; the caller owns the pixels.
++PLATFORM_EXPORT void ApplyNeAntikCanvasReadback(const SkPixmap& pixmap,
++                                              int origin_x,
++                                              int origin_y,
++                                              uint64_t seed);
++// Returns a private serialization snapshot; never changes drawing resources.
++// Null indicates readback/allocation failure. Without a persona, no copy occurs.
++PLATFORM_EXPORT scoped_refptr<StaticBitmapImage> NeAntikCanvasExportSnapshot(
++    scoped_refptr<StaticBitmapImage> image,
++    std::optional<uint64_t> site_seed);
++}  // namespace blink
++#endif
+diff --git a/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc
+new file mode 100644
+index 0000000000..142304617b
+--- /dev/null
++++ b/third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc
+@@ -0,0 +1,81 @@
++// Copyright 2026 The NeAntik Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++#include "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h"
++#include <array>
++#include "testing/gtest/include/gtest/gtest.h"
++#include "third_party/skia/include/core/SkColorSpace.h"
++namespace blink {
++namespace {
++TEST(NeAntikCanvasReadbackTest, SessionAndTopSiteAreDomainSeparated) {
++  std::array<uint8_t, 32> session_a{};
++  std::array<uint8_t, 32> session_b{};
++  session_b[0] = 1;
++  const auto first =
++      DeriveNeAntikCanvasSiteSeedForTesting(session_a, "https://example.test");
++  ASSERT_TRUE(first);
++  EXPECT_EQ(first, DeriveNeAntikCanvasSiteSeedForTesting(
++                       session_a, "https://example.test"));
++  EXPECT_NE(first, DeriveNeAntikCanvasSiteSeedForTesting(
++                       session_a, "https://other.test"));
++  EXPECT_NE(first, DeriveNeAntikCanvasSiteSeedForTesting(
++                       session_b, "https://example.test"));
++  EXPECT_FALSE(DeriveNeAntikCanvasSiteSeedForTesting(session_a, "null"));
++  EXPECT_FALSE(DeriveNeAntikCanvasSiteSeedForTesting(session_a, ""));
++}
++SkImageInfo Info(int w, int h, SkColorType type = kRGBA_8888_SkColorType) {
++  return SkImageInfo::Make(w, h, type, kUnpremul_SkAlphaType,
++                           SkColorSpace::MakeSRGB());
++}
++TEST(NeAntikCanvasReadbackTest, RepeatReadsAreIdempotentAndSeedsDiffer) {
++  std::array<uint8_t, 64> a;
++  a.fill(255);
++  auto b = a;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), a.data(), 16), 0, 0, 123);
++  const auto first = a;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), a.data(), 16), 0, 0, 123);
++  EXPECT_EQ(a, first);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), b.data(), 16), 0, 0, 456);
++  EXPECT_NE(a, b);
++}
++TEST(NeAntikCanvasReadbackTest, SubregionMatchesWholeCanvasCoordinates) {
++  std::array<uint8_t, 64> whole;
++  whole.fill(255);
++  std::array<uint8_t, 16> region;
++  region.fill(255);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(4, 4), whole.data(), 16), 0, 0, 123);
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(2, 2), region.data(), 8), 1, 1, 123);
++  for (size_t y = 0; y < 2; ++y)
++    for (size_t x = 0; x < 8; ++x)
++      EXPECT_EQ(region[y * 8 + x], whole[(y + 1) * 16 + 4 + x]);
++}
++TEST(NeAntikCanvasReadbackTest, TransparentPixelsAlphaAndPaddingUnchanged) {
++  std::array<uint8_t, 12> pixels = {123, 45, 67, 0, 89, 12, 34, 127, 91, 92, 93, 94};
++  const auto original = pixels;
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(2, 1), pixels.data(), 12), -1, -1, 123);
++  EXPECT_EQ(pixels, original);
++}
++TEST(NeAntikCanvasReadbackTest, RgbaAndBgraProjectSameLogicalChannels) {
++  std::array<uint8_t, 4> rgba = {10, 20, 30, 255};
++  std::array<uint8_t, 4> bgra = {30, 20, 10, 255};
++  ApplyNeAntikCanvasReadback(SkPixmap(Info(1, 1), rgba.data(), 4), 7, 9, 123);
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1, kBGRA_8888_SkColorType), bgra.data(), 4), 7, 9, 123);
++  EXPECT_EQ(rgba[0], bgra[2]);
++  EXPECT_EQ(rgba[1], bgra[1]);
++  EXPECT_EQ(rgba[2], bgra[0]);
++  EXPECT_EQ(rgba[3], 255);
++}
++TEST(NeAntikCanvasReadbackTest, Float16AndPremultipliedDataAreUntouched) {
++  std::array<uint8_t, 8> pixels;
++  pixels.fill(255);
++  const auto original = pixels;
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1, kRGBA_F16_SkColorType), pixels.data(), 8), 0, 0, 123);
++  EXPECT_EQ(pixels, original);
++  ApplyNeAntikCanvasReadback(
++      SkPixmap(Info(1, 1).makeAlphaType(kPremul_SkAlphaType), pixels.data(), 4), 0, 0, 123);
++  EXPECT_EQ(pixels, original);
++}
++}  // namespace
++}  // namespace blink
+diff --git a/third_party/blink/web_tests/http/tests/neantik/resources/timezone-frame.html b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-frame.html
+new file mode 100644
+index 0000000000..f0893deeae
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-frame.html
+@@ -0,0 +1 @@
++<!doctype html><script src="timezone-surface.js"></script><script>parent.postMessage(timezoneSurface(),"*");</script>
+diff --git a/third_party/blink/web_tests/http/tests/neantik/resources/timezone-service.js b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-service.js
+new file mode 100644
+index 0000000000..19a71c98e9
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-service.js
+@@ -0,0 +1 @@
++importScripts('timezone-surface.js');self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('message',e=>e.ports[0].postMessage(timezoneSurface()));
+diff --git a/third_party/blink/web_tests/http/tests/neantik/resources/timezone-shared.js b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-shared.js
+new file mode 100644
+index 0000000000..becd209330
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-shared.js
+@@ -0,0 +1 @@
++importScripts('timezone-surface.js');onconnect=e=>e.ports[0].postMessage(timezoneSurface());
+diff --git a/third_party/blink/web_tests/http/tests/neantik/resources/timezone-surface.js b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-surface.js
+new file mode 100644
+index 0000000000..5613457e7d
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-surface.js
+@@ -0,0 +1,12 @@
++function timezoneSurface() {
++  return {
++    zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
++    winter: new Date('2026-01-15T12:00:00Z').getTimezoneOffset(),
++    summer: new Date('2026-07-15T12:00:00Z').getTimezoneOffset(),
++    beforeDST: new Date('2026-03-29T00:30:00Z').getTimezoneOffset(),
++    afterDST: new Date('2026-03-29T01:30:00Z').getTimezoneOffset(),
++    formatted: new Intl.DateTimeFormat('en-US', {
++      hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
++    }).format(new Date('2026-01-15T12:00:00Z'))
++  };
++}
+diff --git a/third_party/blink/web_tests/http/tests/neantik/resources/timezone-worker.js b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-worker.js
+new file mode 100644
+index 0000000000..4b94949a5a
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/resources/timezone-worker.js
+@@ -0,0 +1 @@
++importScripts('timezone-surface.js');postMessage(timezoneSurface());
+diff --git a/third_party/blink/web_tests/http/tests/neantik/timezone-expected.txt b/third_party/blink/web_tests/http/tests/neantik/timezone-expected.txt
+new file mode 100644
+index 0000000000..7ea0ad59df
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/timezone-expected.txt
+@@ -0,0 +1,9 @@
++This is a testharness.js-based test.
++PASS First script observes configured native timezone and DST
++PASS Repeated Date and Intl reads agree
++PASS Same-origin iframe timezone agrees
++PASS Cross-origin iframe timezone agrees
++PASS Dedicated worker timezone agrees
++PASS Shared worker timezone agrees
++PASS Service worker timezone agrees
++Harness: the test ran to completion.
+diff --git a/third_party/blink/web_tests/http/tests/neantik/timezone.html b/third_party/blink/web_tests/http/tests/neantik/timezone.html
+new file mode 100644
+index 0000000000..6368f7f50b
+--- /dev/null
++++ b/third_party/blink/web_tests/http/tests/neantik/timezone.html
+@@ -0,0 +1,66 @@
++<!doctype html>
++<meta charset="utf-8">
++<title>NeAntik native timezone parity</title>
++<script src="/resources/testharness.js"></script>
++<script src="/resources/testharnessreport.js"></script>
++<script src="resources/timezone-surface.js"></script>
++<body>
++<script>
++// Run with actual patched test driver flags --neantik-fingerprint-seed=123456
++// --neantik-timezone=Europe/Berlin. Stock drivers must fail this suite.
++const expected = {zone:'Europe/Berlin',winter:-60,summer:-120,
++  beforeDST:-60,afterDST:-120,formatted:'13:00'};
++const early = timezoneSurface();
++function same(actual) {
++  for(const key of Object.keys(expected)) assert_equals(actual[key],expected[key],key);
++}
++test(()=>same(early),'First script observes configured native timezone and DST');
++test(()=>same(timezoneSurface()),'Repeated Date and Intl reads agree');
++promise_test(async t=>{
++  const f=document.createElement('iframe');
++  t.add_cleanup(()=>f.remove());
++  const result=new Promise(resolve=>window.addEventListener('message',function receive(e){
++    if(e.source===f.contentWindow){window.removeEventListener('message',receive);resolve(e.data);}
++  }));
++  f.src='resources/timezone-frame.html';document.body.append(f);
++  same(await result);
++},'Same-origin iframe timezone agrees');
++promise_test(async t=>{
++  const f=document.createElement('iframe');
++  t.add_cleanup(()=>f.remove());
++  const result=new Promise(resolve=>window.addEventListener('message',function receive(e){
++    if(e.source===f.contentWindow){window.removeEventListener('message',receive);resolve(e.data);}
++  }));
++  const u=new URL('resources/timezone-frame.html',location.href);
++  u.hostname=location.hostname==='localhost'?'127.0.0.1':'localhost';
++  f.src=u.href;document.body.append(f);same(await result);
++},'Cross-origin iframe timezone agrees');
++promise_test(async t=>{
++  const w=new Worker('resources/timezone-worker.js');t.add_cleanup(()=>w.terminate());
++  same(await new Promise((resolve,reject)=>{w.onmessage=e=>resolve(e.data);w.onerror=reject;}));
++},'Dedicated worker timezone agrees');
++promise_test(async t=>{
++  const w=new SharedWorker('resources/timezone-shared.js');t.add_cleanup(()=>w.port.close());
++  same(await new Promise((resolve,reject)=>{w.port.onmessage=e=>resolve(e.data);w.onerror=reject;w.port.start();}));
++},'Shared worker timezone agrees');
++promise_test(async t=>{
++  assert_true('serviceWorker' in navigator,'ServiceWorker is required coverage');
++  const reg=await navigator.serviceWorker.register('resources/timezone-service.js',{
++    scope:'resources/'});
++  t.add_cleanup(()=>reg.unregister());
++  // This document is outside resources/ scope; navigator.serviceWorker.ready
++  // would wait forever. Wait for this registration's activation explicitly.
++  let active=reg.active;
++  if(!active){
++    active=reg.installing||reg.waiting;
++    assert_true(!!active,'installing service worker');
++    await new Promise(resolve=>{
++      if(active.state==='activated')return resolve();
++      active.addEventListener('statechange',()=>{if(active.state==='activated')resolve();});
++    });
++  }
++  const channel=new MessageChannel();t.add_cleanup(()=>channel.port1.close());
++  const result=new Promise(resolve=>channel.port1.onmessage=e=>resolve(e.data));
++  active.postMessage('read',[channel.port2]);same(await result);
++},'Service worker timezone agrees');
++</script>
+diff --git a/third_party/blink/web_tests/neantik/canvas-readback-expected.txt b/third_party/blink/web_tests/neantik/canvas-readback-expected.txt
+new file mode 100644
+index 0000000000..b82441f460
+--- /dev/null
++++ b/third_party/blink/web_tests/neantik/canvas-readback-expected.txt
+@@ -0,0 +1,7 @@
++This is a testharness.js-based test.
++PASS Repeated native reads and absolute-coordinate subregions agree
++PASS putImageData of projected pixels is idempotent and clear remains transparent
++PASS Decoded PNG exports agree with readback and leave source backing unchanged
++PASS Offscreen main-thread PNG and ordinary Canvas2D agree
++PASS Dedicated worker Offscreen readback/export/repeat agrees with window persona
++Harness: the test ran to completion.
+diff --git a/third_party/blink/web_tests/neantik/canvas-readback.html b/third_party/blink/web_tests/neantik/canvas-readback.html
+new file mode 100644
+index 0000000000..86370d1cb5
+--- /dev/null
++++ b/third_party/blink/web_tests/neantik/canvas-readback.html
+@@ -0,0 +1,72 @@
++<!doctype html>
++<meta charset="utf-8">
++<title>NeAntik native canvas readback invariants</title>
++<script src="/resources/testharness.js"></script>
++<script src="/resources/testharnessreport.js"></script>
++<script>
++function paint(c) {
++  const ctx = c.getContext('2d', {willReadFrequently: true});
++  ctx.fillStyle = 'rgb(43,87,131)';
++  ctx.fillRect(0, 0, c.width, c.height);
++  ctx.fillStyle = 'rgb(198,146,72)';
++  ctx.fillRect(2, 3, 9, 7);
++  return ctx;
++}
++function canvas() { const c = document.createElement('canvas'); c.width=32; c.height=24; return c; }
++function pixels(ctx) { return Array.from(ctx.getImageData(0,0,32,24).data); }
++test(() => {
++  const ctx=paint(canvas()); const first=pixels(ctx);
++  for(let i=0;i<10;i++) assert_array_equals(pixels(ctx),first);
++  const region=ctx.getImageData(4,5,7,8).data;
++  for(let y=0;y<8;y++) for(let x=0;x<7;x++) for(let channel=0;channel<4;channel++)
++    assert_equals(region[(y*7+x)*4+channel],first[((y+5)*32+x+4)*4+channel]);
++}, 'Repeated native reads and absolute-coordinate subregions agree');
++test(() => {
++  const ctx=paint(canvas()); const first=ctx.getImageData(0,0,32,24);
++  ctx.putImageData(first,0,0);
++  assert_array_equals(pixels(ctx),Array.from(first.data));
++  ctx.clearRect(0,0,32,24);
++  assert_true(pixels(ctx).every(v=>v===0));
++}, 'putImageData of projected pixels is idempotent and clear remains transparent');
++promise_test(async () => {
++  const c=canvas(); const ctx=paint(c); const first=pixels(ctx);
++  const blobs=[await (await fetch(c.toDataURL('image/png'))).blob(),
++               await new Promise(resolve=>c.toBlob(resolve,'image/png'))];
++  for(const blob of blobs) {
++    assert_not_equals(blob,null);
++    const decoded=await createImageBitmap(blob);
++    const target=canvas(); const targetCtx=target.getContext('2d',{willReadFrequently:true});
++    targetCtx.drawImage(decoded,0,0);
++    assert_array_equals(pixels(targetCtx),first);
++    decoded.close();
++  }
++  assert_array_equals(pixels(ctx),first);
++}, 'Decoded PNG exports agree with readback and leave source backing unchanged');
++promise_test(async () => {
++  const off=new OffscreenCanvas(32,24); const ctx=paint(off); const first=pixels(ctx);
++  const decoded=await createImageBitmap(await off.convertToBlob({type:'image/png'}));
++  const c=canvas(); const target=c.getContext('2d',{willReadFrequently:true});
++  target.drawImage(decoded,0,0);
++  assert_array_equals(pixels(target),first); decoded.close();
++  assert_array_equals(first,pixels(paint(canvas())));
++}, 'Offscreen main-thread PNG and ordinary Canvas2D agree');
++promise_test(async () => {
++  const source=paint.toString()+';'+pixels.toString()+`;
++    onmessage=async()=>{try{
++      const off=new OffscreenCanvas(32,24); const ctx=paint(off); const first=pixels(ctx);
++      const bitmap=await createImageBitmap(await off.convertToBlob({type:'image/png'}));
++      const target=new OffscreenCanvas(32,24).getContext('2d',{willReadFrequently:true});
++      target.drawImage(bitmap,0,0); bitmap.close();
++      postMessage({first,decoded:pixels(target),repeated:pixels(ctx)});
++    }catch(error){postMessage({error:String(error)})}}`;
++  const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
++  const worker=new Worker(url);
++  try {
++    const result=await new Promise((resolve,reject)=>{worker.onmessage=e=>resolve(e.data);worker.onerror=reject;worker.postMessage(null)});
++    assert_false('error' in result, result.error);
++    assert_array_equals(result.first,result.repeated);
++    assert_array_equals(result.first,result.decoded);
++    assert_array_equals(result.first,pixels(paint(canvas())));
++  } finally { worker.terminate(); URL.revokeObjectURL(url); }
++}, 'Dedicated worker Offscreen readback/export/repeat agrees with window persona');
++</script>

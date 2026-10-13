@@ -1,9 +1,29 @@
 # Fingerprint surface matrix and evidence plan
 
 Status: 2026-10-13. This is an engineering inventory, not an anonymity score.
-The public 0.8.5-preview (same core as 0.8.3) and unreleased V3 prototype must be kept separate.
+The table below preserves the comparison of the **published** 0.8.5-preview
+(same core as 0.8.3) and the held V3 prototype. The 0.8.6-preview V4b
+candidate is separate and not yet a verified public download.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
+
+## V4b candidate delta and evidence
+
+| Surface | 0.8.6-preview V4b candidate | Boundary |
+| --- | --- | --- |
+| Canvas2D and OffscreenCanvas | Opt-in opaque sRGB uint8 readbacks use a fresh in-memory session key and top-level-site scope, not V3's persistent per-profile Canvas seed. Main document, embedded same-/cross-site frames and dedicated/shared/service workers were measured. | 12/12 two-site/restart cases and 6/6 context cases (11/11 checks) passed on one Windows 11 host; no cohort or real-site compatibility proof. |
+| CPU, RAM, UTC | Limited native controls retained and audited across measured contexts. | Not a coherent full-browser fingerprint or proxy-derived timezone. |
+| WebGL/WebGPU, translucent, float16, display-p3 | Stock or unverified. | No claim of graphics-surface parity or anti-linkability. |
+| IP, DNS, UDP, IPv6, WebRTC/TURN | Proxy settings and old local tests still apply. | Independent external DNS/UDP/IPv6/TURN observation **NOT RUN**. |
+| Hardware/OS diversity | 6 + 21 + 3 native tests passed; two staged runs gave 39 byte-identical files. | Second machine **NOT RUN**; portability and public ZIP gates remain open. |
+
+This candidate is tied to Chromium source commit
+`cfaadc5a132d78e1828635aa8405a499f3e14864`,
+[V4b patch](chromium-native-persona-prototype-v4b.patch) SHA-256
+`bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`
+and `chrome.dll` SHA-256
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+These narrow local passes do not establish anonymity.
 
 | Surface | Public 0.8.5-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |

@@ -95,3 +95,49 @@ completed all 12 cases and returned expected `FAIL` for site/session variation;
 this calibrates the test, not the V4 core. Even `PASS` from a future candidate
 would not cover external origins, shared/service workers, WebGL/WebGPU, another
 machine or network anonymity; those remain separate release gates.
+
+### V4b local checkpoint (not a release approval)
+
+An incremental V4b development build on Windows 11 completed the twelve-case
+saved-profile/two-site gate: both pixel and PNG outputs changed between the
+two loopback top-level sites and across three launches. This is a narrow
+functional `PASS`, not a linkability study or an anonymity claim. The tested
+`chrome.dll` SHA-256 is
+`1ecd56eba06db5c6dbef6785fa6efe23c842ff925a723aa3192182d18d3c46de`;
+the browser source remains an uncommitted experimental Chromium checkout at
+upstream commit `cfaadc5a132d78e1828635aa8405a499f3e14864`.
+
+A separate six-context gate on that exact DLL measured main frame, same-site
+iframe, third-party iframe embedded under the same top-level site, dedicated,
+shared and service workers across a saved-profile restart. Main and both
+iframes plus dedicated worker matched the first-party context; **shared and
+service workers did not**, and therefore the overall gate is `FAIL`. The
+third-party iframe is intentionally expected to match its top-level site's
+policy; a separate top-level site is covered by the twelve-case gate. V4b is
+held from release until the worker mismatch is fixed and the gate rerun on
+the rebuilt DLL. Unit/graphics/compatibility and external network gates also
+remain open.
+
+The worker propagation fix was rebuilt locally. On the new `chrome.dll`
+SHA-256
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`,
+the saved-profile/six-context gate returned `PASS`: all six contexts were
+measured, all five matched the main frame under the same top-level site, and
+all six changed across a restart. The separate 12-case/two-site gate also
+returned `PASS` on that exact DLL. This replaces the prior *candidate's*
+worker FAIL, not the remaining release gates: Chromium unit tests, external
+network observation, a second machine/GPU class, WebGL/WebGPU and compatibility
+checks are still pending. The DLL is a development binary, not the public ZIP.
+An opt-in readback/liveness smoke on the same DLL also returned `PASS` for
+Canvas2D in the main page and dedicated worker and for WebGL `readPixels`
+without a hang. This checks availability only: it does **not** test WebGL
+fingerprint protection, WebGPU, visual correctness or real-site compatibility.
+The schema-2 profile still stores a legacy numeric seed and passes it as a
+persona-mode switch. In V4b the Canvas hooks use the fresh session/site key,
+not that saved seed; the remaining seed contract is migration/cleanup debt,
+not evidence of a per-profile Canvas identifier. Removing it requires a
+versioned profile migration and separate compatibility tests.
+An ordinary-mode comparison against the clean Chromium build at the same
+upstream commit passed all nine local checks, including all measured
+JS/HTTP/graphics surfaces and CPU/RAM parity. This verifies the no-persona
+default on one host; it is not a cross-platform equivalence or privacy proof.

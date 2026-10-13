@@ -25,9 +25,11 @@ class OrdinaryIdentityTests(unittest.TestCase):
             receipt["native_persona_patch_sha256"] = NATIVE_PREVIEW_PATCH_SHA256
             receipt["native_persona_core_info"] = {
                 "engine_id": "neantik-chromium", "schema": 2,
+                "compiled_stage": 11,
                 "version": receipt["chromium_version"], "source_commit": receipt["source_commit"],
                 "capabilities": {key: True for key in ("stable_seed", "hardware_concurrency",
-                                                  "device_memory", "canvas_opaque_srgb_uint8", "timezone")}}
+                                                  "device_memory", "canvas_site_scoped_experimental", "timezone")}
+                                | {"canvas": False, "canvas_opaque_srgb_uint8": False}}
         (engine / "ENGINE_PROVENANCE.json").write_text(json.dumps(receipt), encoding="utf-8")
         return engine / "chrome.exe"
 
@@ -123,6 +125,19 @@ class OrdinaryIdentityTests(unittest.TestCase):
             receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
             receipt["native_persona_core_info"]["schema"] = 1
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
+
+    def test_native_preview_rejects_old_stable_canvas_capability(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-native-canvas-guard-") as temporary:
+            root = Path(temporary)
+            storage = Storage(AppPaths(root))
+            engine = self.fake_bundled_core(root, native=True)
+            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            capabilities = receipt["native_persona_core_info"]["capabilities"]
+            capabilities["canvas_opaque_srgb_uint8"] = True
+            capabilities["canvas_site_scoped_experimental"] = False
             receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
             self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
 

@@ -76,7 +76,7 @@ NATIVE_JOURNAL_FORMAT = "neantik-operation-v3"
 NATIVE_BACKUP_FORMAT = "neantik-profile-backup-v3"
 SCHEMA_VERSION = "1"
 DB_BUSY_TIMEOUT_MS = 8_000
-NATIVE_PREVIEW_PATCH_SHA256 = "40aeda86ee42b9c6b56227effd3842be3dd58aa4ee06bd337513641856ac0193"
+NATIVE_PREVIEW_PATCH_SHA256 = "bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708"
 
 THEME_SYSTEM = "system"
 THEME_LIGHT = "light"
@@ -1567,14 +1567,17 @@ class BrowserLauncher:
             info = receipt.get("native_persona_core_info")
             capabilities = info.get("capabilities") if isinstance(info, dict) else None
             required = ("stable_seed", "hardware_concurrency", "device_memory",
-                        "canvas_opaque_srgb_uint8", "timezone")
+                        "canvas_site_scoped_experimental", "timezone")
             if (receipt.get("format") != "neantik-chromium-source-build-v1" or
                     receipt.get("privacy_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
                     receipt.get("native_persona_patch_sha256") != NATIVE_PREVIEW_PATCH_SHA256 or
                     not isinstance(info, dict) or info.get("engine_id") != "neantik-chromium" or
-                    info.get("schema") != 2 or info.get("version") != receipt.get("chromium_version") or
+                    info.get("schema") != 2 or info.get("compiled_stage") != 11 or
+                    info.get("version") != receipt.get("chromium_version") or
                     info.get("source_commit") != receipt.get("source_commit") or
                     not isinstance(capabilities, dict) or
+                    capabilities.get("canvas_opaque_srgb_uint8") is not False or
+                    capabilities.get("canvas") is not False or
                     not all(capabilities.get(key) is True for key in required)):
                 return None
             return {key: bool(value) for key, value in capabilities.items()}
@@ -2127,7 +2130,7 @@ class ProfileDialog(BaseDialog):
                                             style="Input.TCombobox", state="readonly")
             self.mode_choice.current(0)
             self.mode_choice.pack(fill="x", pady=(0, 7))
-            ttk.Label(body, text="Экспериментальный режим: отдельный постоянный Canvas-seed и общие CPU/RAM/UTC. Это не гарантия анонимности; необычный Canvas может повысить узнаваемость профиля.",
+            ttk.Label(body, text="Экспериментальный режим: Canvas2D в проверенных контекстах меняется между сеансами и сайтами; CPU/RAM/UTC используют общие значения. Это не гарантия анонимности: WebGL и другие сигналы остаются проверяемыми.",
                       style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 12))
         elif self.identity["mode"] == NATIVE_PREVIEW:
             ttk.Label(body, text="Экспериментальный fingerprint-профиль. Его режим и seed сохраняются при редактировании; для другой идентичности создайте чистую копию.",

@@ -1,4 +1,4 @@
-"""Export or verify the experimental Chromium native-persona patch.
+"""Export or verify the experimental Chromium V4b native-persona patch.
 
 The export is deterministic and includes untracked new files without staging
 or modifying the Chromium checkout. It refuses unrelated source changes.
@@ -22,20 +22,31 @@ TRACKED_RUNTIME = {
     "chrome/browser/renderer_preferences_util.h",
     "chrome/browser/renderer_preferences_util_unittest.cc",
     "content/browser/renderer_host/render_process_host_impl.cc",
+    "content/renderer/worker/embedded_shared_worker_stub.cc",
     "third_party/blink/common/BUILD.gn",
     "third_party/blink/common/device_memory/approximated_device_memory.cc",
     "third_party/blink/public/common/BUILD.gn",
+    "third_party/blink/public/web/web_shared_worker.h",
+    "third_party/blink/renderer/core/exported/web_shared_worker_impl.cc",
+    "third_party/blink/renderer/core/exported/web_shared_worker_impl.h",
     "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.cc",
+    "third_party/blink/renderer/core/html/build.gni",
     "third_party/blink/renderer/core/html/canvas/html_canvas_element.cc",
     "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.cc",
     "third_party/blink/renderer/core/timezone/timezone_controller.cc",
+    "third_party/blink/renderer/core/workers/worker_global_scope.cc",
+    "third_party/blink/renderer/core/workers/worker_global_scope.h",
     "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc",
+    "third_party/blink/renderer/modules/service_worker/service_worker_global_scope.cc",
+    "third_party/blink/renderer/modules/service_worker/service_worker_global_scope.h",
     "third_party/blink/renderer/platform/BUILD.gn",
 }
 NEW_RUNTIME = {
     "third_party/blink/common/fingerprinting/neantik_fingerprint.cc",
     "third_party/blink/common/fingerprinting/neantik_fingerprint_unittest.cc",
     "third_party/blink/public/common/fingerprinting/neantik_fingerprint.h",
+    "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.cc",
+    "third_party/blink/renderer/core/html/canvas/neantik_canvas_site_key.h",
     "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.cc",
     "third_party/blink/renderer/platform/graphics/neantik_canvas_readback.h",
     "third_party/blink/renderer/platform/graphics/neantik_canvas_readback_test.cc",
