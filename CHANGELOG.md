@@ -8,6 +8,8 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   browser to renderer through early Mojo initialization, not a process command
   line. A missing key for an active persona stops the renderer rather than
   silently returning the unmodified Canvas readback.
+- The manager now accepts only the V5 core receipt for this opt-in mode; it
+  rejects the previous V4b core instead of silently launching it as V5.
 - Local candidate checks: Chromium native parser 21/21, Canvas 6/6, and a
   loopback main/frame/worker + two-BrowserContext/session-rotation test 7/7. It inspected
   15 owned Chromium process command lines, including 9 renderers, without

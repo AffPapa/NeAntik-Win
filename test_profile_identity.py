@@ -141,6 +141,19 @@ class OrdinaryIdentityTests(unittest.TestCase):
             receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
             self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
 
+    def test_native_preview_rejects_previous_v4b_core(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-native-old-patch-") as temporary:
+            root = Path(temporary)
+            storage = Storage(AppPaths(root))
+            engine = self.fake_bundled_core(root, native=True)
+            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            old_hash = "bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708"
+            receipt["privacy_patch_sha256"] = old_hash
+            receipt["native_persona_patch_sha256"] = old_hash
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
+
     def test_native_preview_uses_only_verified_bundled_core(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-launch-") as temporary:
             root = Path(temporary)

@@ -35,6 +35,13 @@ Local packaged verification and public-download integrity are separate gates;
 the latter must be checked against the exact published ZIP. No version
 guarantees anonymity.
 
+The unreleased 0.8.8-preview V5 candidate changes the Canvas key transport to
+early browser-to-renderer Mojo IPC and pins the opt-in launcher to the V5
+patch receipt. A previous V4b engine is rejected for this mode. Local native,
+cross-context and session-rotation tests passed on one Windows 11 host, but
+packaged/public-download and external-network gates remain separate. This
+does not make the browser generally anonymous.
+
 ## Product boundary
 
 This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source and a published native privacy patch. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. The patch caps exposed logical CPU count and approximated device memory; it does not create a coherent per-profile identity or establish anonymity. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
