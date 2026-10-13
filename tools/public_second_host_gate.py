@@ -117,21 +117,27 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
     with tempfile.TemporaryDirectory(prefix="neantik-second-host-") as temporary:
         root = Path(temporary)
         archive = root / asset_name
+        print("Gate stage: download", flush=True)
         download_exact(url, archive, archive_sha256)
         extraction = root / "extracted"
         extraction.mkdir()
         verifier = repository / "tools" / "verify-release-archive.ps1"
+        print("Gate stage: archive verification and extraction", flush=True)
         executable, provenance = extract_verified(archive, extraction, archive_sha256, verifier)
         if (provenance["version"] != tag.removeprefix("v") or
                 provenance["source_commit"] != source_commit):
             raise ValueError("Verified archive version or source commit differs")
         portable_root = executable.parent.resolve()
+        print("Gate stage: source provenance", flush=True)
         assert_runner_source_matches_release(repository, portable_root)
+        print("Gate stage: bundled Chromium layout", flush=True)
         engine, chrome = bundled_chromium(portable_root)
         # Chromium's AppContainer children need read/execute access to this
         # public engine tree only. Never grant access to Data or the user tree.
+        print("Gate stage: AppContainer ACL", flush=True)
         checked_process(["icacls.exe", str(engine), "/grant:r",
                          "*S-1-15-2-1:(OI)(CI)RX", "/T"], cwd=root, timeout=120)
+        print("Gate stage: packaged self-test", flush=True)
         checked_process([str(executable), "--self-test"], cwd=portable_root, timeout=120)
         harness_tmp = root / "harness-temp"
         harness_tmp.mkdir()
@@ -139,6 +145,7 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
         environment = os.environ.copy()
         environment["TMP"] = str(harness_tmp)
         environment["TEMP"] = str(harness_tmp)
+        print("Gate stage: synthetic loopback storage", flush=True)
         checked_process([sys.executable, str(repository / "tools" / "browser_integration.py"),
                          "--chrome", str(chrome), "--output", str(report)],
                         cwd=repository, timeout=480, environment=environment)
