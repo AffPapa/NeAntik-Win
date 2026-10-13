@@ -26,6 +26,15 @@ for that synthetic 407 case only. Correct/wrong credentials, GUI prompt,
 external proxy, system DNS and packet capture remain **NOT RUN**. See
 [`https_proxy_integration.py`](../tools/https_proxy_integration.py).
 
+A later headless CDP Fetch attempt to supply synthetic Basic credentials on
+the exact 0.8.13 core yielded no `Fetch.authRequired` event; the local proxy
+returned two 407 responses and the target received no request. After one
+bounded readiness repair, the result stayed **INCONCLUSIVE** as a test of
+Chromium's GUI authentication prompt. No experimental code was retained.
+The correct/wrong-password gate is still **NOT RUN**; next use a disposable
+GUI profile with the native prompt, a positive direct target control and
+aggregate proxy counters, never real credentials.
+
 On the exact 0.8.8-preview core (`chrome.dll` SHA-256
 `9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`),
 an additional private-WSL STUN gate passed direct positive control (5 Binding

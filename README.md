@@ -2,7 +2,12 @@
 
 Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. In the current V5 core, ordinary profiles report stock CPU, memory and timezone values; only the separate opt-in experimental mode caps exposed CPU at 4, device memory at 8 GiB and selects UTC. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint changes do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
 
-**0.8.13-preview** makes the two transfer choices explicit in Settings:
+**0.8.14-preview** avoids a duplicate notification when exporting profile
+settings without a selected profile. A new bounded WebGL1/2 parity gate covers
+one synthetic scene on one GPU; the bundled Chromium V5 engine remains
+unchanged. This is not a population-uniqueness or anonymity claim.
+
+**0.8.13-preview** made the two transfer choices explicit in Settings:
 full-folder backup for the same Windows account and settings-only export for
 another PC or account. Export now explains when no profile is selected. The
 bundled Chromium V5 engine is unchanged. New bounded local checks cover

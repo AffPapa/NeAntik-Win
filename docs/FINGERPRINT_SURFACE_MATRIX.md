@@ -18,6 +18,15 @@ For 32 batches of 16 readbacks, measured p95 per operation was 0.019 ms
 timings are not a general browsing benchmark, real-site compatibility proof
 or anonymity estimate. See [`v5_canvas_compat_perf_gate.py`](../tools/v5_canvas_compat_perf_gate.py).
 
+The exact 0.8.13 core also passed **16/16** bounded WebGL1/2 checks across
+six disposable launches against source-matched stock Chromium: extensions,
+selected limits, shader precision and an 8×8 pixel readback were repeatable
+and equal in ordinary and opt-in modes. The gate reports only verdicts and
+binary hashes, not raw graphics traits. This shows no measured divergence in
+one scene on one GPU; it does not reduce WebGL uniqueness, cover all contexts,
+prove real-site compatibility or establish anonymity. See
+[`webgl_surface_consistency_gate.py`](../tools/webgl_surface_consistency_gate.py).
+
 ## Published V4b delta and bounded evidence
 
 | Surface | Public 0.8.6-preview V4b | Boundary |

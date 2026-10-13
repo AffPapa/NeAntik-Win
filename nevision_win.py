@@ -3247,9 +3247,11 @@ class NeVisionApp:
         self.refresh_profiles(select_id=new_id)
 
     def export_selected_template(self) -> None:
+        if not self.selected_id:
+            messagebox.showinfo(APP_NAME, "Сначала выберите профиль для экспорта настроек.", parent=self.root)
+            return
         profile = self.selected_profile()
         if not profile:
-            messagebox.showinfo(APP_NAME, "Сначала выберите профиль для экспорта настроек.", parent=self.root)
             return
         if not messagebox.askyesno(
             APP_NAME,

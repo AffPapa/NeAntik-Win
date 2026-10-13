@@ -1135,12 +1135,15 @@ class InterfaceLogicTests(unittest.TestCase):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
         app.storage = MagicMock()
+        app.selected_id = None
         app.selected_profile = MagicMock(return_value=None)
         with patch("nevision_win.messagebox.showinfo") as info, patch(
             "nevision_win.messagebox.askyesno"
         ) as confirm:
             app.export_selected_template()
         self.assertIn("Сначала выберите профиль", info.call_args.args[1])
+        info.assert_called_once()
+        app.selected_profile.assert_not_called()
         confirm.assert_not_called()
         app.storage.export_profile_template.assert_not_called()
 
@@ -1148,6 +1151,7 @@ class InterfaceLogicTests(unittest.TestCase):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
         app.storage = MagicMock()
+        app.selected_id = "synthetic-id"
         app.selected_profile = MagicMock(return_value={"id": "synthetic-id"})
         app.set_status = MagicMock()
         app.storage.export_profile_template.return_value = Path("C:/synthetic/template.neantik-profile.json")

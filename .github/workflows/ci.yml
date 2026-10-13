@@ -43,6 +43,9 @@ jobs:
       - name: Verify bounded Canvas gate verdicts
         run: python -m unittest discover -s tools -p test_v5_canvas_compat_perf_gate.py -v
 
+      - name: Verify bounded WebGL gate verdicts
+        run: python -m unittest discover -s tools -p test_webgl_surface_consistency_gate.py -v
+
       - name: Verify two-manager process locking and recovery
         run: python -m unittest discover -s tools -p test_two_manager_process_gate.py -v
 

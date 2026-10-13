@@ -4,6 +4,21 @@ This is a dated **P5.1 decision record**, not a standing claim that the
 portable browser is current or secure. Check the live release channel again
 before each new release and after a security advisory.
 
+## 14 October checkpoint for 0.8.13-preview
+
+The exact 0.8.13 portable ZIP still bundles Chromium `155.0.8059.40`, with
+`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
+Its source/binary tag is `4543ce34b92a6428f3540ed511b888ca64c19b12`;
+the public ZIP SHA-256 is
+`41cb553778d476e2dc175c9b57bd24d0b316af99d46e614e6043ad6eb05fac62`.
+On 14 October, the official desktop [general Stable post of 6 October](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_086471744.html)
+still listed Windows `155.0.8059.39/.40`; the [7 October Early Stable post](https://chromereleases.googleblog.com/2026/10/early-stable-update-for-desktop.html)
+listed `156.0.8078.12/.13` for a small percentage of users. Do not treat
+Early Stable alone as proof that the shipped general-Stable core is obsolete.
+This is a point-in-time channel observation, not a security certificate or a
+waiver of an urgent advisory.
+
 ## Exact shipped core
 
 - Public portable release: `v0.8.7-preview`; downloaded ZIP SHA-256
