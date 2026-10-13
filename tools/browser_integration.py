@@ -42,6 +42,7 @@ import zipfile
 REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 from nevision_win import APP_VERSION, AppPaths, BrowserLauncher, NeVisionApp, Storage  # noqa: E402
+from privacy_defaults import initialize_privacy_defaults  # noqa: E402
 
 EMPTY = {"cookie": None, "local_storage": None, "indexed_db": None,
          "indexed_db_namespace": False,
@@ -112,7 +113,10 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>NeVision isol
       await navigator.serviceWorker.register('/nevision-qa-service-worker.js?token=' + config.token, {scope: '/'});
       await navigator.serviceWorker.ready;
     }
+    const geolocation = (await navigator.permissions.query({name: 'geolocation'})).state;
+    const notifications = (await navigator.permissions.query({name: 'notifications'})).state;
     result = {token: config.token, operation: config.operation, before, after: await snapshot(),
+      geolocation, notifications,
       user_agent: navigator.userAgent, version_details: versionDetails, origin: location.origin, error: null};
   } catch (error) {
     result = {token: config.token, error: String(error), user_agent: navigator.userAgent, origin: location.origin};
@@ -341,6 +345,7 @@ def visit(chrome: Path, storage: Storage, profile_id: str, server: LoopbackServe
     folder = storage.profile_path(profile_id).resolve()
     require(folder.parent == storage.paths.profiles.resolve(), "Profile escaped disposable Storage root")
     storage.ensure_profile_closed(profile_id)
+    initialize_privacy_defaults(folder)
     token, url = server.add_case(operation, value)
     arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={folder}",
                  "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
@@ -380,6 +385,8 @@ def visit(chrome: Path, storage: Storage, profile_id: str, server: LoopbackServe
         require(result.get("origin") == f"http://127.0.0.1:{server.server_port}", f"{label}: wrong origin")
         require(result.get("operation") == operation, f"{label}: wrong operation")
         step["before"], step["after"] = result["before"], result["after"]
+        step["geolocation"] = result["geolocation"]
+        step["notifications"] = result["notifications"]
         step["dom_matches_server_result"] = True
         step["status"] = "completed"
         report["browser_user_agent"] = result["user_agent"]
@@ -409,6 +416,17 @@ def visit(chrome: Path, storage: Storage, profile_id: str, server: LoopbackServe
 def check(report: dict[str, Any], name: str, condition: bool) -> None:
     report["assertions"].append({"name": name, "passed": bool(condition)})
     require(condition, name)
+
+
+def allow_notification_in_disposable_profile(storage: Storage, profile_id: str, origin: str) -> None:
+    """Simulate a site-specific permission choice in a closed disposable profile."""
+    await_profile_closed(storage, profile_id)
+    preferences = storage.profile_path(profile_id) / "Default" / "Preferences"
+    require(preferences.is_file() and not preferences.is_symlink(), "Disposable Preferences are missing or linked")
+    payload = json.loads(preferences.read_text(encoding="utf-8"))
+    exceptions = payload.setdefault("profile", {}).setdefault("content_settings", {}).setdefault("exceptions", {}).setdefault("notifications", {})
+    exceptions[f"{origin},*"] = {"last_modified": "0", "setting": 1}
+    preferences.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
 def configuration_clone(storage: Storage, source_id: str) -> tuple[str, str]:
@@ -455,13 +473,18 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
         a = visit(chrome, storage, profile_a, server, "write", value_a, "A writes all storage APIs", report)
         check(report, "A initially has no test cookie/localStorage/IndexedDB/Cache Storage/service worker", a["before"] == EMPTY)
         check(report, "A writes and reads five independent browser storage states", a["after"] == state(value_a))
+        check(report, "New A profile blocks geolocation and notifications", a["geolocation"] == a["notifications"] == "denied")
         b = visit(chrome, storage, profile_b, server, "write", value_b, "B isolated write", report)
         check(report, "B cannot see A's test storage values", b["before"] == EMPTY)
         check(report, "B stores its own distinct values", b["after"] == state(value_b))
+        check(report, "New B profile independently blocks geolocation and notifications", b["geolocation"] == b["notifications"] == "denied")
+        allow_notification_in_disposable_profile(storage, profile_a, report["loopback_origin"])
         a_again = visit(chrome, storage, profile_a, server, "read", None, "A restart persistence", report)
         check(report, "A restart retains all five states without a rewrite", a_again["before"] == a_again["after"] == state(value_a))
+        check(report, "A's synthetic notification choice survives restart", a_again["notifications"] == "granted")
         b_again = visit(chrome, storage, profile_b, server, "read", None, "B restart persistence", report)
         check(report, "B restart retains its five distinct states without a rewrite", b_again["before"] == b_again["after"] == state(value_b))
+        check(report, "A's notification choice does not affect B", b_again["notifications"] == "denied")
         # A real non-null binding makes the restore reset assertion non-vacuous.
         # This fixture is not used by visits, which use the rejecting QA proxy.
         fixture_proxy = storage.save_proxy({"name": "Synthetic local proxy fixture", "scheme": "http",
@@ -483,6 +506,7 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
         check(report, "Restore has a new profile ID and no proxy assignment", restored_id not in (profile_a, profile_b) and restored_profile["proxy_id"] is None)
         restored = visit(chrome, storage, restored_id, server, "read", None, "Restored A reads copied storage", report)
         check(report, "Same-machine restored profile retains five browser storage states", restored["before"] == restored["after"] == state(value_a))
+        check(report, "Same-machine restore carries A's notification setting", restored["notifications"] == "granted")
         clone_id, clone_status = configuration_clone(storage, profile_a)
         clone = storage.get_profile(clone_id)
         check(report, "Configuration clone copies metadata into a new profile", clone_id not in (profile_a, profile_b, restored_id)
@@ -490,9 +514,11 @@ def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
         check(report, "Configuration clone folder starts empty", not any(storage.profile_path(clone_id).iterdir()))
         clone_result = visit(chrome, storage, clone_id, server, "read", None, "Configuration-only clone is clean", report)
         check(report, "Configuration clone has no inherited browser storage state", clone_result["before"] == clone_result["after"] == EMPTY)
+        check(report, "Configuration clone does not inherit A's notification choice", clone_result["notifications"] == "denied")
         report["configuration_clone"] = {"actual_handler": "NeVisionApp.clone_selected", "view": "test double, no GUI", "status_text": clone_status}
         a_final = visit(chrome, storage, profile_a, server, "read", None, "Original A remains intact", report)
         check(report, "Backup/restore/clone leave original A's values intact", a_final["before"] == a_final["after"] == state(value_a))
+        check(report, "Backup/restore/clone leave A's notification choice intact", a_final["notifications"] == "granted")
         for profile in storage.list_profiles():
             await_profile_closed(storage, profile["id"])
         completed = True
@@ -525,7 +551,7 @@ def main() -> int:
     if output.exists() and not args.overwrite_report:
         parser.error("Output already exists; choose another output or explicitly use --overwrite-report")
     report: dict[str, Any] = {
-        "format": "nevision-browser-storage-integration-v1",
+        "format": "nevision-browser-storage-integration-v2",
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": "running", "application_version": APP_VERSION,
         "source_sha256": hashlib.sha256((REPOSITORY / "nevision_win.py").read_bytes()).hexdigest(),
@@ -535,7 +561,7 @@ def main() -> int:
         "assertions": [], "visits": [],
         "limitations": [
             "This is source-level headless browser/storage integration, not packaged EXE, GUI, accessibility, or performance QA.",
-            "Does not test fingerprint spoofing, proxy authentication, extension behavior, downloads, or real third-party accounts.",
+            "Notifications are tested with a synthetic closed-profile Preferences change, not an end-user permission click; extensions, downloads, proxy authentication, fingerprint spoofing and real third-party accounts remain untested here.",
             "Restore is tested on the same machine, OS account, Chrome binary and local origin; this does not guarantee cross-machine DPAPI/App-Bound encrypted data portability.",
             "Test values are synthetic; persistent cookies are explicitly given Max-Age, not session-only cookies.",
             "Only our loopback URL is navigated; background HTTP(S) is sent to a rejecting loopback proxy, no forwarding; no packet capture was performed.",
