@@ -162,6 +162,16 @@ class GuiTests(unittest.TestCase):
             preview_dialog.save()
             preview = next(item for item in self.storage.list_profiles() if item["name"] == "Preview")
             self.assertEqual(preview["fingerprint"]["mode"], nv.NATIVE_PREVIEW)
+            edit_dialog = nv.ProfileDialog(self.app, preview)
+            self.app.root.update()
+            def visible_labels(widget):
+                for child in widget.winfo_children():
+                    if isinstance(child, nv.ttk.Label):
+                        yield str(child.cget("text"))
+                    yield from visible_labels(child)
+            self.assertTrue(any("seed остаётся метаданными совместимости" in value
+                                for value in visible_labels(edit_dialog)))
+            edit_dialog.destroy()
             self.app.refresh_profiles(preview["id"])
             self.app.clone_selected()
             clone = self.storage.get_profile(self.app.selected_id)

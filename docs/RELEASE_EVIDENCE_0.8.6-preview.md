@@ -23,6 +23,7 @@ Public download and site still serve 0.8.5-preview until independently verified.
 - Managed per-profile downloads and portable relocation: 3 cases.
 - HTTPS third-party-cookie positive/negative control: allow profile stores cookie; block profile does not.
 - Packaged launcher integration, including first-run AppContainer ACL and opt-in V4 core: 4 cases.
+- WSL STUN receiver in a separate local network namespace: direct positive control received, proxy case passed; 2 cases. This is not an external DNS/IPv6/TURN gate.
 - Windows Defender custom scan of the exact ZIP completed with no detection associated with this candidate; signatures were last updated on 2026-10-12. This is one scanner observation, not proof that the binary is safe.
 
 These tests use synthetic data and local endpoints. Raw device observations and any private network logs are kept outside Git.

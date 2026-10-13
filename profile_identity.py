@@ -19,7 +19,7 @@ def ordinary_identity() -> dict[str, Any]:
 
 
 def native_preview_identity(seed: int | None = None) -> dict[str, Any]:
-    """Create a distinct stable local identity; not an anonymity promise."""
+    """Create schema-2 compatibility metadata; V4 Canvas does not use this seed."""
     if seed is None:
         seed = secrets.randbelow(UINT64_MAX) + 1
     if type(seed) is not int or not 1 <= seed <= UINT64_MAX:

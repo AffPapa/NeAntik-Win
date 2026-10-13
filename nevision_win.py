@@ -2133,7 +2133,7 @@ class ProfileDialog(BaseDialog):
             ttk.Label(body, text="Экспериментальный режим: Canvas2D в проверенных контекстах меняется между сеансами и сайтами; CPU/RAM/UTC используют общие значения. Это не гарантия анонимности: WebGL и другие сигналы остаются проверяемыми.",
                       style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 12))
         elif self.identity["mode"] == NATIVE_PREVIEW:
-            ttk.Label(body, text="Экспериментальный fingerprint-профиль. Его режим и seed сохраняются при редактировании; для другой идентичности создайте чистую копию.",
+            ttk.Label(body, text="Экспериментальный режим сохраняется при редактировании. Canvas2D меняется между сеансами и сайтами; сохранённый seed остаётся метаданными совместимости, а не постоянной Canvas-идентичностью. Чистая копия не переносит cookies и историю.",
                       style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 12))
         if not profile and app.launcher.bundled_browser():
             ttk.Label(body, text="Новый профиль: сторонние cookies, геолокация, уведомления, камера и микрофон блокируются по умолчанию. При необходимости измените разрешения в Chromium.", style="Muted.TLabel", wraplength=470).pack(anchor="w", pady=(0, 10))
