@@ -83,3 +83,36 @@ Windows 11 host. It does **not** test Chrome Web Store installation, extension
 network privileges, a malicious extension, extension updates, another Windows
 account or portable restoration on another machine. Extension data in backups
 may be sensitive and backups remain unencrypted. P3 is still open.
+
+## Public 0.8.7-preview profile and cookie follow-up — 13 October 2026
+
+The `browser_integration.py` and `cookie_integration.py` harnesses were run
+against the engine extracted from the repeat-downloaded public 0.8.7-preview
+ZIP (ZIP SHA-256
+`9bf12392f8c8057763024cb88666679e8d9938e73cc050f976e7057b5c5234d1`,
+`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`). The
+release was built from source commit
+`d2e6eac9a50f5edfa474ec72aff9ace64c2e8801`; `nevision_win.py` is unchanged
+between that commit and the audit checkout. The engine's AppContainer ACL was
+prepared only inside the isolated public-download extraction; profile data
+and test reports remained outside the repository.
+
+- **Storage/permissions/backup/clone: PASS**, 21 assertions over seven real
+  headless Chromium visits. Synthetic Profile A and B were isolated across
+  cookies, localStorage, IndexedDB, Cache Storage, service workers and
+  permissions; product backup/restore retained A's synthetic state, while a
+  configuration-only clone began without it. The notification choice was
+  inserted into A's closed disposable Preferences file, so this does not test
+  the GUI permission workflow.
+- **Third-party cookies: PASS**, with a positive control. The allow-control
+  profile sent the synthetic third-party cookie; the privacy-default profile
+  did not. Two loopback HTTPS test names, a generated test certificate and a
+  rejecting proxy constrained the run.
+
+Private summaries are
+`C:\NeAntikBuild\qa\profile-isolation-followup-0.8.7-20261013.json` and
+`C:\NeAntikBuild\qa\cookie-isolation-followup-0.8.7-20261013.json`; neither
+report nor any profile values are committed. These remain one-host tests; they
+do not cover every permission, downloads, extension behavior, another Windows
+account or cross-machine encrypted session portability. P3 remains open.

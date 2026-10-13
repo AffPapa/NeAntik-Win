@@ -304,6 +304,13 @@ main frame и двух iframe. Это только базовая линия о�
   точном 0.8.4 дополнительно проверено одно синтетическое Manifest V3
   расширение: `chrome.storage.local` разделено между A/B, сохраняется после
   рестарта и локального восстановления, но не переходит в чистый клон.
+  На точном публичном Chromium 0.8.7 повторно прошли 21 assertion из семи
+  браузерных визитов для cookies, localStorage, IndexedDB, Cache Storage,
+  service workers, permissions, backup/restore и конфигурационного clone;
+  отдельный positive-control тест третьих cookies подтвердил отправку в
+  allow-профиле и блокировку в privacy-default профиле. Выбор notification
+  permission был synthetic Preferences fixture, не UI-тест; результаты и
+  границы перечислены в [протоколе P3.1](PROFILE_ISOLATION_2026-10.md).
   Старые профили не меняются; произвольные расширения и межмашинное
   восстановление не проверены.
   [Протокол загрузок](DOWNLOAD_ISOLATION_2026-10.md).
