@@ -84,3 +84,14 @@ Brave's [published farbling design](https://brave.com/privacy-updates/4-fingerpr
 motivates session/site scoping, while the [W3C fingerprinting guidance](https://www.w3.org/TR/fingerprinting-guidance/)
 warns that randomization is not by itself a universal defense. Neither source
 validates our unbuilt V4b implementation.
+
+The local `tools/native_canvas_v4_gate.py` is a deliberately narrow first
+measurement gate: two disposable saved profiles, three launches each, and two
+loopback top-level sites per launch. It reports only aggregate invariants and
+the SHA-256 of both `chrome.exe` and the adjacent `chrome.dll`. A stock 0.8.5
+core (`chrome.dll` SHA-256:
+`022aa456ffb934e683ea805aada52be45525c5abcc884d54cef5bf4f8dd57930`)
+completed all 12 cases and returned expected `FAIL` for site/session variation;
+this calibrates the test, not the V4 core. Even `PASS` from a future candidate
+would not cover external origins, shared/service workers, WebGL/WebGPU, another
+machine or network anonymity; those remain separate release gates.
