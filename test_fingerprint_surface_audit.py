@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from fingerprint_surface_audit import compare_fresh_profiles, evaluate  # noqa: E402
+from fingerprint_surface_audit import compare_fresh_profiles, compare_repeat_launches, evaluate  # noqa: E402
 
 
 def report():
@@ -152,6 +152,15 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
     def test_fresh_profile_count_is_required(self):
         with self.assertRaises(ValueError):
             compare_fresh_profiles([report()])
+
+    def test_repeat_launch_mismatch_is_rejected(self):
+        first, second = report(), report()
+        second["surfaces"]["main"]["canvasPixelSha256"] = "d" * 64
+        self.assertFalse(compare_repeat_launches([first, second])["repeat_surfaces_equal"])
+
+    def test_repeat_launch_count_is_required(self):
+        with self.assertRaises(ValueError):
+            compare_repeat_launches([report()])
 
 if __name__ == "__main__":
     unittest.main()

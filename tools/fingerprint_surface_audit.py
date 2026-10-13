@@ -1,7 +1,7 @@
 """Loopback-only audit of fingerprint consistency across browser contexts.
 
 This is an observation tool, not fingerprint spoofing or an anonymity test.
-It launches two fresh Chromium profiles in owned Windows Jobs, never touches
+It launches two fresh Chromium profiles twice in owned Windows Jobs, never touches
 user data, and rejects any attempted proxy request to an external origin.
 The JSON report may reveal local device traits; keep it private.
 """
@@ -347,9 +347,13 @@ class AuditHandler(BaseHTTPRequestHandler):
             self.reply(400, b"Invalid report")
 
 
-def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = ()) -> dict:
+def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
+                  reuse_existing: bool = False) -> dict:
     profile = root / "Profile"
-    if not initialize_privacy_defaults(profile):
+    if reuse_existing:
+        if not profile.is_dir() or not (profile / "Default" / "Preferences").is_file():
+            raise RuntimeError("Existing disposable profile is missing")
+    elif not initialize_privacy_defaults(profile):
         raise RuntimeError("Could not initialize a fresh profile")
     token = uuid.uuid4().hex
     cross_server = AuditServer(token)
@@ -497,6 +501,13 @@ def compare_fresh_profiles(reports: list[dict]) -> dict[str, bool]:
     }
 
 
+def compare_repeat_launches(reports: list[dict]) -> dict[str, bool]:
+    if len(reports) != 2:
+        raise ValueError("Exactly two launches of one profile are required")
+    return {key.replace("profile_", "repeat_", 1): value
+            for key, value in compare_fresh_profiles(reports).items()}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -507,21 +518,40 @@ def main() -> int:
         parser.error("An existing Windows chrome.exe is required")
     if args.output.exists():
         parser.error("Refusing to overwrite an existing audit report")
-    reports = []
-    for _ in range(2):
-        with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
-            reports.append(audit_profile(chrome, Path(temporary)))
+    # A raw extracted portable core needs the same AppContainer read access
+    # that the launcher grants; prepare only an isolated QA copy, not the
+    # downloaded package or the caller's installation.
+    from native_persona_context_audit import prepare_disposable_engine
+
+    launches = []
+    with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-engine-") as engine_temporary:
+        chrome = prepare_disposable_engine(chrome, Path(engine_temporary))
+        for _ in range(2):
+            with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
+                root = Path(temporary)
+                launches.append([audit_profile(chrome, root),
+                                 audit_profile(chrome, root, reuse_existing=True)])
+    reports = [pair[0] for pair in launches]
     consistency = evaluate(reports)
+    repeat_consistency = [compare_repeat_launches(pair) for pair in launches]
+    repeat_context_consistency = [evaluate([pair[1]])[0] for pair in launches]
     profile_consistency = compare_fresh_profiles(reports)
     output = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
-              "scope": "two disposable profiles; loopback only; no public leak or anonymity conclusion",
+              "scope": "two disposable profiles, two launches each; loopback only; no public leak or anonymity conclusion",
               **profile_consistency,
-              "context_consistency": consistency, "profiles": reports}
+              "context_consistency": consistency,
+              "repeat_consistency": repeat_consistency,
+              "repeat_context_consistency": repeat_context_consistency,
+              "profiles": reports, "repeat_profiles": [pair[1] for pair in launches]}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"report": str(args.output), "profile_consistency": profile_consistency,
-                      "context_consistency": consistency}, ensure_ascii=False))
-    return 0 if all(profile_consistency.values()) and all(all(item.values()) for item in consistency) else 1
+                      "context_consistency": consistency,
+                      "repeat_consistency": repeat_consistency,
+                      "repeat_context_consistency": repeat_context_consistency}, ensure_ascii=False))
+    checks = [profile_consistency, *consistency, *repeat_consistency,
+              *repeat_context_consistency]
+    return 0 if all(all(item.values()) for item in checks) else 1
 
 
 if __name__ == "__main__":

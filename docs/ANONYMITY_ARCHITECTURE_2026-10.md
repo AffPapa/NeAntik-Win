@@ -15,15 +15,17 @@ evidence. Even Tor Project states that perfect anonymity is not guaranteed.
 ## Current measured baseline
 
 `tools/fingerprint_surface_audit.py` starts two clean bundled-Chromium profiles
-on loopback-only pages. It compares JavaScript values in the main document,
-same-origin iframe and dedicated worker, as well as the HTTP User-Agent.
-On the Windows 11 release workstation and Chromium 155.0.8059.40, the measured
-overlapping fields were consistent across contexts and the two fresh profiles.
+twice each on loopback-only pages, preparing a disposable AppContainer-readable
+copy of a portable engine. It compares main, same/cross-origin iframe and
+dedicated/shared/service-worker observations, HTTP headers, Client Hints,
+Canvas, WebGL and Audio readbacks. On one Windows 11 workstation, the exact
+0.8.5-preview engine passed the two-profile/two-launch local consistency gate.
 That is **not** an anonymity result: the browser still exposes platform,
 language, logical CPU count, approximate memory, timezone, display dimensions
-and scale, among other properties. The audit does not exercise cross-origin
-frames, shared/service workers, extensions, WebGL, Canvas, fonts, TLS, external
-DNS, STUN/TURN, real proxy exits or adversarial sites. Its local JSON report
+and scale, among other properties. The audit does not exercise extensions,
+fonts, TLS, external DNS, STUN/TURN, real proxy exits or adversarial sites.
+Loopback's rejecting proxy observed browser-initiated attempts but forwarded
+none; this is not a public-network leak test. Its local JSON report
 can contain device traits and must not be committed or uploaded.
 
 ## Threat model and order of work
