@@ -16,6 +16,7 @@ Public download and site still serve 0.8.5-preview until independently verified.
 
 - ZIP verifier: 1066 allowed files, manifest/version/hash consistency; no `Data/` in ZIP.
 - Packaged EXE self-test: exit 0. Fresh GUI starts and creates local `Data/` in the extracted folder.
+- Packaged GUI smoke on a fresh extraction at `C:\NeAntikBuild\qa-gui-086-candidate3-20261013`: a synthetic profile was created and appeared in the list, its Launch action started `Engine/Chromium/chrome.exe` from that same extraction (verified by the exact process path and window handle), the manager returned to Ready after the browser closed, and the profile remained listed after closing and reopening the manager. The tested EXE SHA-256 is `7866bcb02e2c4de83931774427e8f33b844ed378224ed4f5bc9462e032d05645`. This is a narrow GUI create/launch/persistence PASS, not a full UI, browser content or update gate.
 - V4 Canvas saved-profile/two-site/three-session gate: 12/12 cases.
 - V4 context gate: main document, same-site and third-party iframe, dedicated/shared/service workers; aggregate checks pass.
 - Storage isolation and backup/restore loopback integration: 21 assertions.
@@ -43,8 +44,9 @@ packaged launcher independently passed its first-run ACL scenario; the raw
 
 ## INCONCLUSIVE / NOT RUN
 
-- **INCONCLUSIVE:** packaged GUI profile creation by Windows UI automation. On 2026-10-13 the exact candidate EXE (SHA-256 `7866bcb02e2c4de83931774427e8f33b844ed378224ed4f5bc9462e032d05645`) opened the main window and creation dialog; the name field visibly had a caret after a screenshot-targeted click, but `type_text` entered no characters. The tool reported focus on a generic panel and did not list the modal as a separate top-level window. One refreshed, changed-target attempt was made, then the test stopped. Cancel and app close worked. This does not prove an application defect or a successful end-to-end workflow.
-- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, packaged GUI update/rollback, migration of other browser-session surfaces (including passwords/history/extensions), additional security scanners, and public downloaded-0.8.6-ZIP launch.
+- **Resolved narrow GUI-create uncertainty:** an earlier Windows UI automation attempt could not enter text with `type_text` even though a caret was visible. A fresh extraction and a changed input method (`press_key`) entered one synthetic character; saving, bundled launch and restart persistence passed as above. This does not validate arbitrary text input, keyboard layouts or the complete create/edit workflow.
+- **INCONCLUSIVE:** visual inspection of the launched Chromium window through Computer Use. The window and executable path were observed, but `get_window` rejected its returned `Chrome` owner twice, including after refreshing the window list. Do not treat this tool binding error as a browser defect or a browser-content PASS.
+- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing, packaged GUI update/rollback, migration of other browser-session surfaces (including passwords/history/extensions), additional security scanners, and public downloaded-0.8.6-ZIP launch.
 - **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, external WebSocket route, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas and route checks do not establish general anonymity.
 - **NOT PUBLISHED:** the 0.8.6 release ZIP/checksum and site update remain gated by final release review and public-download hash verification. Candidate source and this QA record are on GitHub `main`, without a 0.8.6 release tag.
 
