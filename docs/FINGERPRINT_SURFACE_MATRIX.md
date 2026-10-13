@@ -69,10 +69,14 @@ frames. Unsupported/error/timeout observations cannot become PASS. On the
 exact 0.8.8-preview Chromium extracted from the public ZIP, the expanded
 two-profile/two-launch check passed **146/146 boolean checks** on one Windows
 11 host. Only the bounded status and check count were printed; raw device
-observations stay in a local, unpublished report. This measures consistency,
-not reduced uniqueness. A same-revision stock control, second GPU/host,
-population-level linkability and real-site compatibility remain **NOT RUN**;
-no WebGL, Audio or font spoofing was added.
+observations stay in a local, unpublished report. The same test also passed
+**146/146** on the stock Chromium built from the same upstream commit. In the
+four tested fresh/repeat samples, the measured default-mode WebGL pixel,
+Canvas text, audio sample rate/audio digest and Canvas2D digests matched stock;
+the opt-in V5 mode was not part of this comparison. This measures consistency,
+not reduced uniqueness. A second GPU/host, population-level linkability and
+real-site compatibility remain **NOT RUN**; no WebGL, Audio or font spoofing
+was added.
 
 ## Public 0.8.7-preview follow-up, 2026-10-13
 
