@@ -23,14 +23,15 @@ Public download and site still serve 0.8.5-preview until independently verified.
 - Managed per-profile downloads and portable relocation: 3 cases.
 - HTTPS third-party-cookie positive/negative control: allow profile stores cookie; block profile does not.
 - Packaged launcher integration, including first-run AppContainer ACL and opt-in V4 core: 4 cases.
+- Windows Defender custom scan of the exact ZIP completed with no detection associated with this candidate; signatures were last updated on 2026-10-12. This is one scanner observation, not proof that the binary is safe.
 
 These tests use synthetic data and local endpoints. Raw device observations and any private network logs are kept outside Git.
 
 ## INCONCLUSIVE / NOT RUN
 
 - **INCONCLUSIVE:** manual profile creation by Windows UI automation. The creation dialog displayed correctly, but its text field did not accept the automation tool's input after one refreshed retry. This is not evidence of an application defect or a successful end-to-end GUI workflow.
-- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, update/rollback, Windows security scan, and public downloaded-ZIP launch.
+- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, update/rollback, additional security scanners, and public downloaded-ZIP launch.
 - **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas checks do not establish general anonymity.
-- **NOT PUBLISHED:** GitHub source commits, release ZIP/checksum and site 0.8.6 update remain gated by final release review and public-download hash verification.
+- **NOT PUBLISHED:** the 0.8.6 release ZIP/checksum and site update remain gated by final release review and public-download hash verification. Candidate source and this QA record are on GitHub `main`, without a 0.8.6 release tag.
 
 Before publication, rerun the release checklist against a final immutable ZIP, finish or explicitly scope the open GUI/security/compatibility gates, and verify the public artifact by downloading it again. Do not silently overwrite an existing versioned release.
