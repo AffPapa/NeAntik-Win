@@ -41,7 +41,7 @@ packaged launcher independently passed its first-run ACL scenario; the raw
 
 ## INCONCLUSIVE / NOT RUN
 
-- **INCONCLUSIVE:** manual profile creation by Windows UI automation. The creation dialog displayed correctly, but its text field did not accept the automation tool's input after one refreshed retry. This is not evidence of an application defect or a successful end-to-end GUI workflow.
+- **INCONCLUSIVE:** packaged GUI profile creation by Windows UI automation. On 2026-10-13 the exact candidate EXE (SHA-256 `7866bcb02e2c4de83931774427e8f33b844ed378224ed4f5bc9462e032d05645`) opened the main window and creation dialog; the name field visibly had a caret after a screenshot-targeted click, but `type_text` entered no characters. The tool reported focus on a generic panel and did not list the modal as a separate top-level window. One refreshed, changed-target attempt was made, then the test stopped. Cancel and app close worked. This does not prove an application defect or a successful end-to-end workflow.
 - **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, update/rollback, additional security scanners, and public downloaded-ZIP launch.
 - **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, WebSocket over HTTPS proxy, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas and route checks do not establish general anonymity.
 - **NOT PUBLISHED:** the 0.8.6 release ZIP/checksum and site update remain gated by final release review and public-download hash verification. Candidate source and this QA record are on GitHub `main`, without a 0.8.6 release tag.
