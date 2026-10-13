@@ -2,6 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.11-preview — fail-closed profile backup (2026-10-14)
+
+- Backup now refuses a profile containing a file symlink or Windows reparse
+  file instead of silently omitting it from a successful ZIP. The error asks
+  the user to replace that link with a separate file copy; no partial backup
+  is published. Existing profile data and backup format are unchanged.
+- The V5 cross-surface audit again accepts the current measurement schema,
+  with negative controls for missing worker UA data and unknown schemas.
+  This is test-harness repair, not a new fingerprint modification.
+- Bundled Chromium V5 is unchanged from 0.8.10-preview. This unsigned release
+  does not establish cross-PC session portability, external routing or
+  anonymity.
+
 ## 0.8.10-preview — clearer cross-PC restore limits (2026-10-14)
 
 - Settings and the quick guide now explain that Chromium-saved passwords,

@@ -12,6 +12,7 @@ import uuid
 import warnings
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from nevision_win import (
@@ -160,6 +161,53 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
         self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
         self.assertEqual(outside.read_text(encoding="utf-8"), "synthetic content outside profile")
+
+    def test_backup_rejects_file_symlink_instead_of_silently_omitting_it(self):
+        profile_id = self.storage.save_profile({"name": "File symlink boundary"})
+        outside = self.root / "outside-synthetic-symlink-target.txt"
+        outside.write_text("synthetic content outside profile", encoding="utf-8")
+        linked = self.storage.profile_path(profile_id) / "linked.txt"
+        try:
+            linked.symlink_to(outside)
+        except (NotImplementedError, OSError):
+            # Exercise the fail-closed branch even when Windows symlink creation
+            # is disabled for this account.
+            linked.write_text("synthetic placeholder", encoding="utf-8")
+            original_is_symlink = Path.is_symlink
+
+            def fake_is_symlink(path):
+                return path == filesystem_path(linked) or original_is_symlink(path)
+
+            with patch.object(Path, "is_symlink", fake_is_symlink):
+                with self.assertRaisesRegex(NeVisionError, "ссылки/reparse-файлы"):
+                    self.storage.backup_profile(profile_id)
+        else:
+            with self.assertRaisesRegex(NeVisionError, "ссылки/reparse-файлы"):
+                self.storage.backup_profile(profile_id)
+        self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
+        self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
+        self.assertEqual(outside.read_text(encoding="utf-8"), "synthetic content outside profile")
+
+    @unittest.skipUnless(hasattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT"), "Windows reparse attribute")
+    def test_backup_rejects_reparse_file_without_partial_archive(self):
+        profile_id = self.storage.save_profile({"name": "Reparse file boundary"})
+        linked = self.storage.profile_path(profile_id) / "synthetic-reparse.txt"
+        linked.write_text("synthetic file", encoding="utf-8")
+        original_lstat = Path.lstat
+
+        def fake_lstat(path, *args, **kwargs):
+            value = original_lstat(path, *args, **kwargs)
+            if path == filesystem_path(linked):
+                return SimpleNamespace(st_mode=value.st_mode,
+                                       st_file_attributes=stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            return value
+
+        with patch.object(Path, "lstat", fake_lstat):
+            with self.assertRaisesRegex(NeVisionError, "ссылки/reparse-файлы"):
+                self.storage.backup_profile(profile_id)
+        self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
+        self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
+        self.assertEqual(linked.read_text(encoding="utf-8"), "synthetic file")
 
     @unittest.skipUnless(os.name == "nt", "Windows Chromium lockfile semantics")
     def test_backup_and_delete_refuse_an_externally_locked_chromium_profile(self):

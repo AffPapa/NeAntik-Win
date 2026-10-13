@@ -48,6 +48,20 @@ def four_reports() -> list[dict]:
             report(optin=True, canvas="b")]
 
 
+def version_three_reports() -> list[dict]:
+    reports = four_reports()
+    for item in reports:
+        item["measurement_version"] = 3
+        for context in ("worker", "sharedWorker", "serviceWorker"):
+            item["surfaces"][context].update({
+                "uaBrands": [{"brand": "Synthetic", "version": "155"}],
+                "uaPlatform": "Windows",
+                "uaHighEntropy": {"fullVersionList": [{"brand": "Synthetic", "version": "155.0"}],
+                                  "platformVersion": "15.0"},
+            })
+    return reports
+
+
 class AssessmentTests(unittest.TestCase):
     def assess(self, reports: list[dict]) -> dict:
         return assess_reports(reports, [{"synthetic_context": True} for _ in reports])
@@ -56,6 +70,23 @@ class AssessmentTests(unittest.TestCase):
         result = self.assess(four_reports())
         self.assertEqual(result["status"], "PASS")
         self.assertTrue(all(result["checks"].values()))
+
+    def test_version_three_worker_ua_control_passes(self) -> None:
+        result = self.assess(version_three_reports())
+        self.assertEqual(result["status"], "PASS")
+        self.assertTrue(all(result["checks"].values()))
+
+    def test_version_three_missing_worker_ua_observation_is_inconclusive(self) -> None:
+        reports = version_three_reports()
+        del reports[2]["surfaces"]["serviceWorker"]["uaHighEntropy"]
+        with self.assertRaises(ObservationUnavailable):
+            self.assess(reports)
+
+    def test_unknown_measurement_version_is_inconclusive(self) -> None:
+        reports = version_three_reports()
+        reports[0]["measurement_version"] = 4
+        with self.assertRaises(ObservationUnavailable):
+            self.assess(reports)
 
     def test_rejected_background_requests_do_not_fail_privacy_gate(self) -> None:
         reports = four_reports()

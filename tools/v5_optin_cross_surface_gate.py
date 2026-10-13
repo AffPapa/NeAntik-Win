@@ -91,7 +91,10 @@ def _field(report: dict, context: str, name: str):
 
 
 def _observed(report: dict) -> None:
-    if report.get("measurement_version") != 2 or type(report.get("blocked_external_requests")) is not int or report["blocked_external_requests"] < 0:
+    measurement_version = report.get("measurement_version")
+    if (type(measurement_version) is not int or measurement_version not in (2, 3)
+            or type(report.get("blocked_external_requests")) is not int
+            or report["blocked_external_requests"] < 0):
         raise ObservationUnavailable("incomplete_measurement")
     for context in CONTEXTS:
         for name in ("hardwareConcurrency", "deviceMemory", "timezone", "timezoneOffsetMinutes"):
@@ -116,6 +119,16 @@ def _observed(report: dict) -> None:
     for field in ("http", "client_hints", "ua_high_entropy", "ua_brands", "ua_platform"):
         if report.get(field) is None:
             raise ObservationUnavailable("missing_http_or_ua_observation")
+    if measurement_version == 3:
+        for context in ("worker", "sharedWorker", "serviceWorker"):
+            worker = _surface(report, context)
+            high = worker.get("uaHighEntropy")
+            if (not isinstance(worker.get("uaBrands"), list)
+                    or not isinstance(worker.get("uaPlatform"), str)
+                    or not isinstance(high, dict)
+                    or not isinstance(high.get("fullVersionList"), list)
+                    or not isinstance(high.get("platformVersion"), str)):
+                raise ObservationUnavailable("worker_ua_data_unavailable")
 
 
 def assess_reports(reports: list[dict], context_checks: list[dict[str, bool]]) -> dict:

@@ -1218,9 +1218,15 @@ class Storage:
                 if file_name in excluded_files:
                     continue
                 file_path = current / file_name
-                if file_path.is_symlink():
-                    continue
                 try:
+                    file_link_stat = file_path.lstat()
+                    if (file_path.is_symlink() or
+                            (hasattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT") and
+                             getattr(file_link_stat, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)):
+                        raise NeVisionError(
+                            "Backup не поддерживает ссылки/reparse-файлы в данных профиля: "
+                            f"{file_path.name}. Замените ссылку отдельной копией файла."
+                        )
                     file_stat = file_path.stat()
                 except OSError as exc:
                     raise NeVisionError(f"Не удалось прочитать файл профиля для backup: {file_path.name}: {exc}") from exc
