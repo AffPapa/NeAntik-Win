@@ -161,16 +161,20 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
                          "*S-1-15-2-1:(OI)(CI)RX", "/T"], cwd=root, timeout=120)
         print("Gate stage: packaged self-test", flush=True)
         checked_process([str(executable), "--self-test"], cwd=portable_root, timeout=120)
-        harness_tmp = root / "harness-temp"
-        harness_tmp.mkdir()
         report = root / "storage-report.json"
-        environment = os.environ.copy()
-        environment["TMP"] = str(harness_tmp)
-        environment["TEMP"] = str(harness_tmp)
         print("Gate stage: synthetic loopback storage", flush=True)
-        checked_process([sys.executable, str(repository / "tools" / "browser_integration.py"),
-                         "--chrome", str(chrome), "--output", str(report)],
-                        cwd=repository, timeout=480, environment=environment)
+        try:
+            checked_process([sys.executable, str(repository / "tools" / "browser_integration.py"),
+                             "--chrome", str(chrome), "--output", str(report)],
+                            cwd=repository, timeout=480)
+        except RuntimeError:
+            if report.is_file():
+                raw_error = json.loads(report.read_text(encoding="utf-8")).get("error")
+                if isinstance(raw_error, str):
+                    detail = re.sub(r"(?:gh[pousr]_|sk-(?:proj-)?|xox[baprs]-)[A-Za-z0-9_-]{10,}",
+                                    "[redacted]", raw_error)
+                    print(f"Synthetic storage failure: {detail[:240]}", flush=True)
+            raise
         # Read only allowlisted aggregate fields. Do not publish the raw report.
         outcome = json.loads(report.read_text(encoding="utf-8"))
         assertions = outcome.get("assertions")
