@@ -35,7 +35,7 @@ Native unit tests (6 + 21 + 3), 12/12 two-site/restart and 6/6 context cases
 archive/public-download tests, external DNS/UDP/IPv6/TURN observation or
 second-machine QA, all still open. See the [candidate audit](NATIVE_PERSONA_PROTOTYPE_AUDIT.md).
 
-## Unreleased 0.8.8-preview V5 candidate
+## Published 0.8.8-preview V5 core
 
 The [V5 patch](chromium-native-persona-prototype-v5.patch) (84,612 bytes;
 SHA-256 `0c592ca18304823faf8f0e2534619c5f7b458072e451ede81eb528a2b8c76d22`)
@@ -94,8 +94,14 @@ machine-specific. Then:
 gclient sync --nohooks --jobs 8
 gclient runhooks
 gn gen out/NeAntik
-autoninja -C out/NeAntik -j 8 chrome
+autoninja -C out/NeAntik -j 4 chrome
 ```
+
+`-j 4` reflects this host's measured build-time free RAM/commit headroom,
+not its 16 logical CPUs. Raise concurrency only after measuring memory under
+the actual compile/link load; running out of commit can make the build slower
+or fail. Build the affected unit-test targets first, then `chrome`; do not
+relink unchanged targets for documentation-only changes.
 
 The `out/NeAntik/args.gn` contents for this build are:
 
