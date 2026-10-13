@@ -53,3 +53,34 @@ sessions and sites, (2) no browser/page hang on common graphics operations,
 (5) real-site compatibility and consented linkability measurements. Until
 then, ordinary Chromium behavior and the narrow CPU/RAM reduction remain the
 accurate public description. No single Canvas policy can prove anonymity.
+
+## V4 engineering decision (2026-10-13)
+
+The V3 pixel mask is keyed by a persistent profile seed and a non-cryptographic
+mix of pixel position. Merely rotating that number at launch would keep one
+value shared across sites in a session and would not cover WebGL/WebGPU. It is
+not a defensible privacy fix. Do not publish V3 or claim it protects Canvas.
+
+The next safe buildable increment is **V4a**: remove the four V3 Canvas
+readback/export mutations and remove the Canvas capability claim. Retain only
+the separately measured CPU/RAM/timezone settings; describe Canvas as stock
+Chromium. Verify every previously modified Canvas2D/OffscreenCanvas path and
+page compatibility against stock before treating V4a as a candidate. This is
+a safety correction, not completion of P1.
+
+**V4b** is a separate research prototype: a fresh in-memory browser-session
+secret, first-party site and storage partition context, and one policy shared
+by main frames, third-party frames and dedicated workers. No key derived from
+a persistent profile identifier may affect Canvas output. Shared/service
+workers without an unambiguous first-party context need an explicit policy,
+not fallback to the profile seed. WebGL/WebGPU and other exposed surfaces are
+separate scope; any untested surface remains stock and disclosed. A release
+gate needs saved-profile restarts and at least two local sites in addition to
+the existing fresh-profile probe, plus graphics compatibility and external
+network checks. The existing `native_canvas_linkability_audit.py` is a V3
+blocker only: its `requires_manual_review` result is not approval.
+
+Brave's [published farbling design](https://brave.com/privacy-updates/4-fingerprinting-defenses-2.0/)
+motivates session/site scoping, while the [W3C fingerprinting guidance](https://www.w3.org/TR/fingerprinting-guidance/)
+warns that randomization is not by itself a universal defense. Neither source
+validates our unbuilt V4b implementation.
