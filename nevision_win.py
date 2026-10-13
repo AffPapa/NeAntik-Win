@@ -57,6 +57,12 @@ APP_NAME = "NeAntik Win"
 APP_VERSION = json.loads((Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "release-version.json").read_text(encoding="utf-8"))["version"]
 SITE_URL = "https://nevision-win.mail782861.chatgpt.site"
 PRIVACY_CHECK_URL = SITE_URL + "/check.html"
+PORTABILITY_WARNING = (
+    "На другом ПК или под другой учётной записью Windows сохранённые в Chromium "
+    "пароли, cookies и сессии могут не работать из-за защиты Windows DPAPI и "
+    "Chromium App-Bound Encryption. Возможно, потребуется войти на сайты заново. "
+    "Proxy-пароли в backup не включаются — введите их повторно."
+)
 DB_NAME = "nevision.db"
 PROFILE_DIR_NAME = "Profiles"
 BACKUP_DIR_NAME = "Backups"
@@ -2351,8 +2357,9 @@ class SettingsDialog(BaseDialog):
             self.toggle_compatibility()
         ttk.Separator(body).pack(fill="x", pady=8)
         ttk.Label(body, text="Где мои данные?", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
-        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Новые профили встроенного Chromium сохраняют загрузки в папке Downloads своего профиля; backup включает эти файлы и может стать большим. Для переноса копируйте всю папку; proxy-пароли Windows DPAPI на другом ПК могут потребовать повторного ввода.",
+        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Новые профили встроенного Chromium сохраняют загрузки в папке Downloads своего профиля; backup включает эти файлы и может стать большим. Для переноса копируйте всю папку.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w")
+        ttk.Label(body, text=PORTABILITY_WARNING, style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(5, 0))
         self.footer(body, self.save, "Сохранить")
 
     def toggle_compatibility(self) -> None:
@@ -3118,6 +3125,13 @@ class NeVisionApp:
         archive = filedialog.askopenfilename(parent=self.root, title="Выберите backup NeAntik", filetypes=[("Backup профиля", "*.zip"), ("Все файлы", "*.*")])
         if not archive:
             return
+        if not messagebox.askyesno(
+            APP_NAME,
+            f"Backup может содержать незашифрованные данные сайтов. {PORTABILITY_WARNING}\n\nВосстановить профиль?",
+            parent=self.root,
+            icon="warning",
+        ):
+            return
         archive_path = Path(archive)
         self.set_status("Восстанавливаю backup…")
 
@@ -3316,7 +3330,7 @@ class NeVisionApp:
             "3. Proxy добавьте через Vault и назначьте профилю. TCP-проверка не подтверждает внешний IP или отсутствие утечек.\n"
             "   Загрузки новых профилей встроенного Chromium находятся в папке Downloads профиля; откройте её через меню «Профиль → Папка профиля».\n"
             "4. Перед переносом или обновлением закройте браузер и сохраните всю папку Data. Backup ZIP содержит незашифрованные данные сайтов.\n"
-            "5. На другом компьютере сохранённые proxy-пароли могут потребовать повторного ввода из-за Windows DPAPI.\n\n"
+            f"5. {PORTABILITY_WARNING}\n\n"
             "Наведите курсор на кнопку или выделите её клавишей Tab — появится подсказка.",
             parent=self.root,
         )

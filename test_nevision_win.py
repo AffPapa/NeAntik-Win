@@ -23,6 +23,7 @@ from nevision_win import (
     LIGHT_COLORS,
     NeVisionError,
     NeVisionApp,
+    PORTABILITY_WARNING,
     SecretVault,
     Storage,
     THEME_DARK,
@@ -974,6 +975,37 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_portability_warning_explains_browser_data_and_proxy_limits(self):
+        self.assertIn("пароли, cookies и сессии", PORTABILITY_WARNING)
+        self.assertIn("DPAPI", PORTABILITY_WARNING)
+        self.assertIn("App-Bound Encryption", PORTABILITY_WARNING)
+        self.assertIn("Proxy-пароли в backup не включаются", PORTABILITY_WARNING)
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        with patch("nevision_win.messagebox.showinfo") as show:
+            app.show_quick_guide()
+        self.assertIn(PORTABILITY_WARNING, show.call_args.args[1])
+
+    def test_restore_requires_portability_confirmation_before_starting(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.set_status = MagicMock()
+        app._run_in_background = MagicMock()
+        archive = "C:/synthetic/backup.zip"
+        with patch("nevision_win.filedialog.askopenfilename", return_value=archive), patch(
+            "nevision_win.messagebox.askyesno", return_value=False
+        ) as confirm:
+            app.restore_backup()
+        self.assertIn(PORTABILITY_WARNING, confirm.call_args.args[1])
+        app._run_in_background.assert_not_called()
+        app.set_status.assert_not_called()
+        with patch("nevision_win.filedialog.askopenfilename", return_value=archive), patch(
+            "nevision_win.messagebox.askyesno", return_value=True
+        ):
+            app.restore_backup()
+        app._run_in_background.assert_called_once()
+        app.set_status.assert_called_once_with("Восстанавливаю backup…")
+
     def test_about_describes_actual_browser_bundle(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()

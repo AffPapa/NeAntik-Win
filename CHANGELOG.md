@@ -2,6 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.10-preview — clearer cross-PC restore limits (2026-10-14)
+
+- Settings and the quick guide now explain that Chromium-saved passwords,
+  cookies and sessions may not work on another Windows account or PC because
+  of Windows DPAPI and Chromium App-Bound Encryption. Proxy-vault passwords
+  remain outside backup and must be entered again after a move.
+- Restore now asks for confirmation with this warning before touching the
+  archive. Cancel leaves local data unchanged. This is a usability/safety
+  change; profile format and the bundled Chromium V5 engine are unchanged.
+- The unchanged public 0.8.9 Chromium passed new one-host concurrent-profile,
+  seasonal-timezone and IPv6-loopback proxy checks. These bounded tests do not
+  prove cross-PC session portability, external routing or anonymity.
+
 ## 0.8.9-preview — ordinary/experimental mode clarity (2026-10-14)
 
 - Corrected the manager's profile, create-dialog and About descriptions: the

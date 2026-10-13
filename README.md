@@ -2,12 +2,13 @@
 
 Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. In the current V5 core, ordinary profiles report stock CPU, memory and timezone values; only the separate opt-in experimental mode caps exposed CPU at 4, device memory at 8 GiB and selects UTC. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint changes do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
 
-**0.8.9-preview** corrects the manager's ordinary/experimental mode descriptions
-without changing the bundled Chromium or profile data. The public
-[0.8.8 release evidence](docs/RELEASE_PUBLICATION_0.8.8-preview.md) records
-the previous exact ZIP, hash, tests and open gates. That release kept backup
-hardlink rejection and moved the optional Canvas session key from renderer
-arguments into early browser-to-renderer Mojo IPC. Ordinary mode does not
+**0.8.10-preview** makes cross-PC backup/restore limits visible before
+restoring a profile. Browser-saved passwords, cookies and sessions may require
+new sign-in under a different Windows account or on another PC; proxy-vault
+passwords are not included in backups. This release does not change the
+bundled Chromium engine or profile format. The previous
+[0.8.9 release evidence](docs/RELEASE_PUBLICATION_0.8.9-preview.md) records
+the exact public ZIP, hash, tests and open gates. Ordinary mode does not
 apply the experimental CPU/RAM/UTC controls.
 Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
 source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed

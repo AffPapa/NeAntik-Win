@@ -2,10 +2,12 @@
 
 Run: python tools/proxy_integration.py
 Tests direct positive control, HTTP and SOCKS5 without auth, then unavailable
-proxies with no DIRECT fallback, including an IPv6 loopback target. Uses
+proxies with no DIRECT fallback, including IPv6 loopback target and proxy
+endpoints. Uses
 NeVision Storage/proxy_endpoint, but does not exercise the packaged GUI or
-BrowserLauncher.launch. Imports the gated
-Windows Job launcher from browser_integration; no existing browser is controlled.
+BrowserLauncher.launch. Copies the supplied portable engine into this run's
+disposable root for AppContainer ACL preparation. Imports the gated Windows
+Job launcher from browser_integration; no existing browser is controlled.
 """
 
 from __future__ import annotations
@@ -32,8 +34,9 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
-from browser_integration import (APP_VERSION, AppPaths, BrowserLauncher, HarnessError, OwnedJob,
+from browser_integration import (APP_VERSION, AppPaths, OwnedJob,
                                  REPOSITORY, Storage, await_profile_closed, check, require, spawn_owned_browser)
+from native_persona_context_audit import prepare_disposable_engine
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 
 TEST_HOST = "nevision-qa.invalid"
@@ -168,6 +171,10 @@ class SocksServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
 
 
+class IPv6SocksServer(SocksServer):
+    address_family = socket.AF_INET6
+
+
 class SocksProxy(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         client: socket.socket = self.request
@@ -282,23 +289,59 @@ def launch(chrome: Path, storage: Storage, profile_id: str, url: str, endpoint: 
                     stream.close()
 
 
+def case_plan(http_port: int, socks_port: int, http_v6_port: int, socks_v6_port: int,
+              dead_port: int, dead_v6_port: int) -> list[tuple[str, str | None, str | None, int | None, str]]:
+    """Fixed loopback-only routes: (name, scheme, proxy host, proxy port, target host)."""
+    return [
+        ("direct", None, None, None, TEST_HOST),
+        ("http", "http", "127.0.0.1", http_port, TEST_HOST),
+        ("http_loopback", "http", "127.0.0.1", http_port, "127.0.0.1"),
+        ("http_unavailable", "http", "127.0.0.1", dead_port, TEST_HOST),
+        ("socks5", "socks5", "127.0.0.1", socks_port, TEST_HOST),
+        ("socks5_loopback", "socks5", "127.0.0.1", socks_port, "127.0.0.1"),
+        ("socks5_unavailable", "socks5", "127.0.0.1", dead_port, TEST_HOST),
+        ("direct_v6", None, None, None, "::1"),
+        ("http_v6", "http", "127.0.0.1", http_port, "::1"),
+        ("socks5_v6", "socks5", "127.0.0.1", socks_port, "::1"),
+        ("http_v6_unavailable", "http", "127.0.0.1", dead_port, "::1"),
+        ("socks5_v6_unavailable", "socks5", "127.0.0.1", dead_port, "::1"),
+        ("http_proxy_endpoint_v6", "http", "::1", http_v6_port, TEST_HOST),
+        ("socks5_proxy_endpoint_v6", "socks5", "::1", socks_v6_port, TEST_HOST),
+        ("http_proxy_endpoint_v6_unavailable", "http", "::1", dead_v6_port, TEST_HOST),
+        ("socks5_proxy_endpoint_v6_unavailable", "socks5", "::1", dead_v6_port, TEST_HOST),
+        ("direct_after", None, None, None, TEST_HOST),
+    ]
+
+
 def run(report: dict[str, Any], args: argparse.Namespace) -> None:
     root = Path(tempfile.mkdtemp(prefix="nevision-proxy-integration-"))
     report["disposable_root"] = str(root)
     storage = Storage(AppPaths(root))
-    chrome = Path(args.chrome).resolve() if args.chrome else BrowserLauncher(storage).resolve_browser().resolve()
-    require(chrome.is_file() and chrome.name.lower() == "chrome.exe", "Installed Chrome chrome.exe is required")
-    report["browser_executable"] = str(chrome)
+    source_chrome = Path(args.chrome).resolve()
+    require(source_chrome.is_file() and source_chrome.name.lower() == "chrome.exe",
+            "An extracted portable chrome.exe is required")
+    require((source_chrome.parent / "ENGINE_PROVENANCE.json").is_file(),
+            "Portable engine provenance is required; installed Chrome is not an equivalent runtime")
+    source_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+    chrome = prepare_disposable_engine(source_chrome, root / "engine")
+    require(chrome.resolve() == (root / "engine" / "qa-portable" / "Engine" / "Chromium" / "chrome.exe").resolve(),
+            "Disposable engine escaped the owned root")
+    require(hashlib.sha256(chrome.read_bytes()).hexdigest() == source_hash,
+            "Disposable engine executable hash changed during copy")
+    report["browser_executable_sha256"] = source_hash
+    report["disposable_engine_acl_prepared"] = True
     evidence = Evidence()
     target = LocalHTTPServer(("127.0.0.1", 0), Target)
     ipv6_target = LocalIPv6HTTPServer(("::1", 0), Target)
     proxy = LocalHTTPServer(("127.0.0.1", 0), HTTPProxy)
     socks = SocksServer(("127.0.0.1", 0), SocksProxy)
-    for server in (target, ipv6_target, proxy, socks):
+    ipv6_proxy = LocalIPv6HTTPServer(("::1", 0), HTTPProxy)
+    ipv6_socks = IPv6SocksServer(("::1", 0), SocksProxy)
+    for server in (target, ipv6_target, proxy, socks, ipv6_proxy, ipv6_socks):
         server.evidence = evidence
         server.target_port = target.server_port
         server.ipv6_target_port = ipv6_target.server_port
-    servers = (target, ipv6_target, proxy, socks)
+    servers = (target, ipv6_target, proxy, socks, ipv6_proxy, ipv6_socks)
     threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in servers]
     for thread in threads:
         thread.start()
@@ -306,20 +349,15 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
     unavailable.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
     unavailable.bind(("127.0.0.1", 0))  # Reserved for the entire test; intentionally never listen().
     dead_port = unavailable.getsockname()[1]
+    unavailable_v6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    unavailable_v6.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+    unavailable_v6.bind(("::1", 0))  # Separate, reserved IPv6 proxy endpoint; never listen().
+    dead_v6_port = unavailable_v6.getsockname()[1]
     completed = False
     try:
-        legs = [("direct", None, None), ("http", "http", proxy.server_port),
-                ("http_loopback", "http", proxy.server_port),
-                ("http_unavailable", "http", dead_port), ("socks5", "socks5", socks.server_address[1]),
-                ("socks5_loopback", "socks5", socks.server_address[1]),
-                ("socks5_unavailable", "socks5", dead_port),
-                ("direct_v6", None, None),
-                ("http_v6", "http", proxy.server_port),
-                ("socks5_v6", "socks5", socks.server_address[1]),
-                ("http_v6_unavailable", "http", dead_port),
-                ("socks5_v6_unavailable", "socks5", dead_port),
-                ("direct_after", None, None)]
-        for name, scheme, port in legs:
+        legs = case_plan(proxy.server_port, socks.server_address[1],
+                         ipv6_proxy.server_port, ipv6_socks.server_address[1], dead_port, dead_v6_port)
+        for name, scheme, proxy_host, port, target_host in legs:
             token = uuid.uuid4().hex
             with evidence.lock:
                 evidence.tokens.add(token)
@@ -327,14 +365,14 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
             endpoint = None
             profile = {"name": f"Disposable proxy QA {name}"}
             if scheme:
-                proxy_id = storage.save_proxy({"name": name, "scheme": scheme, "host": "127.0.0.1", "port": port})
+                proxy_id = storage.save_proxy({"name": name, "scheme": scheme, "host": proxy_host, "port": port})
                 profile["proxy_id"] = proxy_id
                 endpoint = proxy_endpoint(storage.get_proxy(proxy_id))
+                check(report, f"{name}: endpoint formats proxy host", endpoint ==
+                      f"{scheme}://{'[::1]' if proxy_host == '::1' else '127.0.0.1'}:{port}")
             profile_id = storage.save_profile(profile)
-            is_ipv6 = "_v6" in name
-            target_host = "::1" if is_ipv6 else "127.0.0.1" if name.endswith("_loopback") else TEST_HOST
-            target_port = ipv6_target.server_port if is_ipv6 else target.server_port
-            url_host = f"[{target_host}]" if is_ipv6 else target_host
+            target_port = ipv6_target.server_port if target_host == "::1" else target.server_port
+            url_host = f"[{target_host}]" if target_host == "::1" else target_host
             url = f"http://{url_host}:{target_port}/probe?token={token}"
             dom = launch(chrome, storage, profile_id, url, endpoint, report, name)
             with evidence.lock:
@@ -368,11 +406,12 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 if scheme == "socks5" and target_host == TEST_HOST:
                     check(report, "SOCKS5 sends hostname to controlled proxy (remote resolution mode)",
                           any(item.get("address_type") == 3 for item in forwards))
-                report["browser_user_agent"] = result["user_agent"]
+                report["browser_user_agent_present"] = bool(result["user_agent"])
         report["rejected_background_proxy_requests"] = evidence.rejected
         completed = True
     finally:
         unavailable.close()
+        unavailable_v6.close()
         for server in servers:
             server.shutdown()
             server.server_close()
@@ -390,7 +429,7 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--chrome")
+    parser.add_argument("--chrome", required=True, help="Extracted published portable Engine/Chromium/chrome.exe")
     parser.add_argument("--output", type=Path, default=REPOSITORY / "docs" / "qa" / f"proxy-integration-{APP_VERSION.removesuffix('-preview')}.json")
     parser.add_argument("--overwrite-report", action="store_true")
     args = parser.parse_args()
@@ -405,11 +444,11 @@ def main() -> int:
             "method": "Specified Chrome headless --dump-dom; real Storage/proxy_endpoint; new profiles; gated Windows Jobs; loopback-only target and proxy fixtures",
         "assertions": [], "launches": [],
         "limitations": [
-            "Source integration, not packaged EXE or GUI/BrowserLauncher.launch wiring.",
+            "Source integration using a hash-identical ACL-prepared copy of the supplied portable engine, not packaged EXE or GUI/BrowserLauncher.launch wiring.",
             "Only unauthenticated HTTP and SOCKS5 to an HTTP loopback test target; HTTPS proxy/TLS CONNECT, proxy auth prompts and commercial proxies are not tested.",
             "No fingerprint, WebRTC/UDP leak, packet-capture or all-traffic anonymity claim.",
             "The source-built strict proxy flags are exercised with synthetic hostname and 127.0.0.1 URL cases; successful loopback cases must be observed via the controlled proxy.",
-            "IPv6 coverage uses ::1 direct and working HTTP/SOCKS5 proxy positive controls plus unavailable IPv4 loopback proxies; it does not observe external IPv6 egress or DNS.",
+            "IPv6 coverage uses ::1 target and HTTP/SOCKS5 proxy endpoint positive and unavailable controls; it does not observe external IPv6 egress or DNS.",
             "Direct positive controls before and after negative cases verify the local target and hostname mapping work.",
             "Browser exit code zero alone is not a success signal: positive cases require target/proxy evidence; unavailable cases require the specific proxy error and zero target requests.",
             "All fixture forwarding is hardcoded to our own loopback target; external destinations/HTTP CONNECT are rejected.",

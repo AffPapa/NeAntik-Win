@@ -207,6 +207,26 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(dialog.compatibility.winfo_ismapped())
         dialog.destroy()
 
+    def test_settings_portability_warning_and_footer_are_visible(self):
+        dialog = nv.SettingsDialog(self.app)
+        self.app.root.update()
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+        labels = [widget for widget in walk(dialog) if isinstance(widget, nv.ttk.Label)
+                  and str(widget.cget("text")) == nv.PORTABILITY_WARNING]
+        self.assertEqual(len(labels), 1)
+        warning = labels[0]
+        self.assertTrue(warning.winfo_ismapped())
+        self.assertLessEqual(warning.winfo_rooty() + warning.winfo_height(),
+                             dialog.winfo_rooty() + dialog.winfo_height())
+        save = [widget for widget in walk(dialog) if isinstance(widget, nv.ttk.Button)
+                and str(widget.cget("text")) == "Сохранить"]
+        self.assertEqual(len(save), 1)
+        self.assertTrue(save[0].winfo_ismapped())
+        dialog.destroy()
+
     def test_important_actions_have_plain_language_hints(self):
         self.app.refresh_profiles(self.profile)
         self.app.root.update()
