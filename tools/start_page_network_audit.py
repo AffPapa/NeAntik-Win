@@ -109,8 +109,14 @@ def evaluate_proxy_route(case: dict) -> dict[str, bool]:
     }
 
 
+def evaluate_local_new_tab(case: dict) -> dict[str, bool]:
+    """The managed new-tab preference must render no remote NTP document."""
+    return {"new_tab_document_is_blank": case.get("blank_document") is True,
+            "new_tab_preference_persisted": case.get("new_tab_preference_persisted") is True}
+
+
 def run_case(chrome: Path, root: Path, name: str, url: str,
-             proxy_port: int | None = None) -> dict:
+             proxy_port: int | None = None, startup_privacy: bool = False) -> dict:
     profile = root / name / "Profile"
     profile.parent.mkdir(parents=True)
     if not initialize_privacy_defaults(profile):
@@ -119,6 +125,9 @@ def run_case(chrome: Path, root: Path, name: str, url: str,
     arguments = [str(chrome), "--headless", "--dump-dom", "--virtual-time-budget=5000",
                  f"--user-data-dir={profile}", "--no-first-run",
                  "--no-default-browser-check", f"--log-net-log={log}"]
+    if startup_privacy:
+        arguments.extend(["--disable-background-networking", "--disable-sync",
+                          "--disable-component-update", "--metrics-recording-only"])
     if proxy_port is not None:
         proxy = {"scheme": "http", "host": "127.0.0.1", "port": proxy_port}
         arguments.extend([f"--proxy-server={proxy_endpoint(proxy)}",
@@ -128,7 +137,7 @@ def run_case(chrome: Path, root: Path, name: str, url: str,
     process: subprocess.Popen[bytes] | None = None
     try:
         process = spawn_owned_browser(arguments, profile.parent, job)
-        _stdout, stderr = process.communicate(input=b"G", timeout=40)
+        stdout, stderr = process.communicate(input=b"G", timeout=40)
         if process.returncode != 0:
             raise RuntimeError(f"Chromium {name} exited {process.returncode}: {stderr.decode(errors='replace')[-300:]}")
     finally:
@@ -137,7 +146,11 @@ def run_case(chrome: Path, root: Path, name: str, url: str,
             process.kill()
     if not log.is_file():
         raise RuntimeError(f"Chromium did not write the {name} NetLog")
-    return summarize_netlog(json.loads(log.read_text(encoding="utf-8")))
+    summary = summarize_netlog(json.loads(log.read_text(encoding="utf-8")))
+    summary["blank_document"] = stdout.strip() == b"<html><head></head><body></body></html>"
+    preferences = json.loads((profile / "Default" / "Preferences").read_text(encoding="utf-8"))
+    summary["new_tab_preference_persisted"] = preferences.get("newtab_page_location_override") == "about:blank"
+    return summary
 
 
 def main() -> int:
@@ -146,6 +159,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--proxy-startup", action="store_true",
                         help="Also run a blank-page startup against a rejecting loopback HTTP proxy")
+    parser.add_argument("--startup-privacy", action="store_true",
+                        help="Test proposed bundled-core background network flags")
     args = parser.parse_args()
     chrome = args.chrome.resolve()
     if os.name != "nt" or not chrome.is_file() or chrome.name.lower() != "chrome.exe":
@@ -158,15 +173,18 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-start-page-qa-") as temporary:
             root = Path(temporary)
-            report["cases"]["blank"] = run_case(chrome, root, "blank", "about:blank")
-            report["cases"]["new_tab"] = run_case(chrome, root, "new-tab", "chrome://newtab")
+            report["cases"]["blank"] = run_case(chrome, root, "blank", "about:blank",
+                                                  startup_privacy=args.startup_privacy)
+            report["cases"]["new_tab"] = run_case(chrome, root, "new-tab", "chrome://newtab",
+                                                    startup_privacy=args.startup_privacy)
             if args.proxy_startup:
                 proxy = RejectingProxy()
                 thread = threading.Thread(target=proxy.serve_forever, daemon=True)
                 thread.start()
                 try:
                     report["cases"]["proxy_blank"] = run_case(
-                        chrome, root, "proxy-blank", "about:blank", proxy.server_port)
+                        chrome, root, "proxy-blank", "about:blank", proxy.server_port,
+                        startup_privacy=args.startup_privacy)
                     report["cases"]["proxy_blank"]["proxy_observed_hosts"] = dict(
                         sorted(proxy.host_counts.items()))
                 finally:
@@ -176,6 +194,9 @@ def main() -> int:
                 proxy_case = report["cases"]["proxy_blank"]
                 report["proxy_route_checks"] = evaluate_proxy_route(proxy_case)
         report["status"] = "measured"
+        report["new_tab_checks"] = evaluate_local_new_tab(report["cases"]["new_tab"])
+        if not all(report["new_tab_checks"].values()):
+            report["status"] = "inconclusive"
         if args.proxy_startup and not all(report["proxy_route_checks"].values()):
             report["status"] = "inconclusive"
     except Exception as error:
@@ -188,6 +209,7 @@ def main() -> int:
                                         "udp_send_count": case["udp_send_count"]}
                                 for name, case in report["cases"].items()},
                       "proxy_route_checks": report.get("proxy_route_checks"),
+                      "new_tab_checks": report.get("new_tab_checks"),
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
     return 0 if report["status"] == "measured" else 1
 

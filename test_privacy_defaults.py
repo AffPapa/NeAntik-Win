@@ -23,6 +23,7 @@ class PrivacyDefaultsTests(unittest.TestCase):
         prefs = json.loads((self.root / "Default" / "Preferences").read_text("utf-8"))
         self.assertEqual(prefs["profile"]["cookie_controls_mode"], 1)
         self.assertEqual(prefs["net"]["network_prediction_options"], 2)
+        self.assertEqual(prefs["newtab_page_location_override"], "about:blank")
         self.assertEqual(prefs["profile"]["default_content_setting_values"], {
             "geolocation": 2,
             "notifications": 2,

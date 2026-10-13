@@ -5,10 +5,17 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from start_page_network_audit import evaluate_proxy_route, summarize_netlog  # noqa: E402
+from start_page_network_audit import evaluate_local_new_tab, evaluate_proxy_route, summarize_netlog  # noqa: E402
 
 
 class StartPageNetlogTests(unittest.TestCase):
+    def test_local_new_tab_requires_blank_document(self):
+        self.assertTrue(all(evaluate_local_new_tab({"blank_document": True,
+                                                    "new_tab_preference_persisted": True}).values()))
+        self.assertFalse(evaluate_local_new_tab({"blank_document": False})["new_tab_document_is_blank"])
+        self.assertFalse(evaluate_local_new_tab({})["new_tab_document_is_blank"])
+        self.assertFalse(evaluate_local_new_tab({"blank_document": True})["new_tab_preference_persisted"])
+
     def test_only_http_hosts_are_retained(self):
         report = summarize_netlog({
             "constants": {"logEventTypes": {"URL_REQUEST_START_JOB": 7,

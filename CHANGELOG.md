@@ -2,6 +2,21 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.4-preview — blank new tab for new profiles (2026-10-13)
+
+- New, empty bundled-Chromium profiles open a blank document for
+  `chrome://newtab` instead of Chromium's default remote new-tab content.
+  Existing profiles and installed Chrome/Edge are unchanged; a later user
+  choice in Chromium is not rewritten.
+- The exact 0.8.3 Chromium core was reused. Local headless QA verified the
+  blank new-tab document and persisted preference. This removes the remote
+  new-tab **page**, not all Chromium background networking: even `about:blank`
+  produced Google-related HTTP requests and UDP attempts on the test host.
+  An assigned proxy remained the route for the tested startup requests;
+  independent public-network DNS/UDP assurance is still open.
+- No profile/backup migration. Portable Windows 11 x64 preview remains unsigned;
+  Chromium has no automatic core updater. [Startup protocol](docs/START_PAGE_NETWORK_2026-10.md).
+
 ## 0.8.3-preview — portable profile downloads (2026-10-13)
 
 - New bundled-Chromium profiles save downloads into their own

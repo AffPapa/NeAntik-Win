@@ -28,6 +28,7 @@ MAX_PREFERENCES_BYTES = 16 * 1024 * 1024
 # chrome/browser/preloading/preloading_prefs.h (kDisabled=2)
 _INITIAL_PREFERENCES = {
     "net": {"network_prediction_options": 2},
+    "newtab_page_location_override": "about:blank",
     "profile": {
         "cookie_controls_mode": 1,
         "default_content_setting_values": {
