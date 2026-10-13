@@ -15,11 +15,12 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
         "userAgent": "test-UA", "platform": "test-platform", "language": "en-US",
         "languages": ["en-US"], "hardwareConcurrency": cpu,
         "deviceMemory": memory, "timezone": timezone,
+        "timezoneOffsetMinutes": 0 if timezone == "UTC" else -420,
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
     }
     worker = {key: main[key] for key in (
         "userAgent", "platform", "language", "languages",
-        "hardwareConcurrency", "deviceMemory", "timezone",
+        "hardwareConcurrency", "deviceMemory", "timezone", "timezoneOffsetMinutes",
     )}
     return {
         "surfaces": {
@@ -55,6 +56,12 @@ class NativePersonaContextAuditTests(unittest.TestCase):
         checks = check_reports(self.core, self.baseline, self.runs)
         self.assertFalse(checks["cpu_bounded_by_stock"])
         self.assertFalse(checks["memory_bounded_by_stock"])
+
+    def test_rejects_date_timezone_disagreement(self) -> None:
+        self.runs[0]["surfaces"]["serviceWorker"]["timezoneOffsetMinutes"] = -420
+        checks = check_reports(self.core, self.baseline, self.runs)
+        self.assertFalse(checks["date_timezone_offset_is_zero_in_all_contexts"])
+        self.assertFalse(checks["all_contexts_and_http_hints_agree"])
 
 
 if __name__ == "__main__":

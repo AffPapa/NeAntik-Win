@@ -79,6 +79,9 @@ assertions, 14 browser-storage isolation assertions and the third-party-cookie
 positive/negative controls also passed. The application Python suite passed
 115 tests with three skipped, and the release-tool suite passed 50 checks.
 These tests do not observe a public network path.
+The next audit revision also compared `Date.getTimezoneOffset()` with `Intl`
+timezone in all six browser contexts. Its eighth check passed on the clean
+staged core, and the ordinary two-profile context audit stayed consistent.
 It deliberately still uses the development source's `0.8.1-preview` filename
 and must not overwrite the already-published, different 0.8.1 ZIP. Raw QA
 reports and this internal ZIP remain outside Git.

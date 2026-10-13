@@ -13,6 +13,9 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Published a surface-by-surface measurement matrix for HTTP/JS/worker,
   graphics, media, network and profile-state behavior, with explicit controls
   and criteria for evaluating whether fingerprint changes actually help.
+- Added a `Date.getTimezoneOffset()` cross-context check to the loopback
+  fingerprint audit. It passed on the clean V3 development core alongside the
+  existing `Intl` timezone and Device-Memory Client Hint checks.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

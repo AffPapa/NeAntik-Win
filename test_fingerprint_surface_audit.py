@@ -12,7 +12,7 @@ from fingerprint_surface_audit import evaluate  # noqa: E402
 def report():
     common = {"userAgent": "Chromium test", "platform": "Win32", "language": "en-US",
               "languages": ["en-US"], "hardwareConcurrency": 4, "deviceMemory": 8,
-              "timezone": "Etc/UTC"}
+              "timezone": "Etc/UTC", "timezoneOffsetMinutes": 0}
     window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1}
     return {"surfaces": {"main": window.copy(), "iframe": window.copy(),
                          "crossOriginFrame": window.copy(), "worker": common.copy(),
@@ -44,6 +44,11 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
     def test_mismatched_service_worker_is_rejected(self):
         value = deepcopy(report())
         value["surfaces"]["serviceWorker"]["deviceMemory"] = 16
+        self.assertFalse(evaluate([value])[0]["main_service_worker_common"])
+
+    def test_mismatched_date_timezone_offset_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["serviceWorker"]["timezoneOffsetMinutes"] = -420
         self.assertFalse(evaluate([value])[0]["main_service_worker_common"])
 
     def test_mismatched_client_hint_is_rejected(self):

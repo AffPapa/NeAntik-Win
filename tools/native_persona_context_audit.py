@@ -53,6 +53,10 @@ def check_reports(core_info: dict, baseline: dict, runs: list[dict]) -> dict[str
             all(surface["timezone"] == "UTC" for surface in run["surfaces"].values())
             for run in runs
         ),
+        "date_timezone_offset_is_zero_in_all_contexts": all(
+            all(surface["timezoneOffsetMinutes"] == 0 for surface in run["surfaces"].values())
+            for run in runs
+        ),
     }
 
 

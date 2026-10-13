@@ -40,6 +40,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     hardwareConcurrency: view.navigator.hardwareConcurrency,
     deviceMemory: view.navigator.deviceMemory ?? null,
     timezone: new view.Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffsetMinutes: new view.Date().getTimezoneOffset(),
     screen: [view.screen.width, view.screen.height, view.screen.colorDepth],
     devicePixelRatio: view.devicePixelRatio,
   });
@@ -109,6 +110,7 @@ WORKER = r'''postMessage({
   hardwareConcurrency: navigator.hardwareConcurrency,
   deviceMemory: navigator.deviceMemory ?? null,
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+  timezoneOffsetMinutes: new Date().getTimezoneOffset(),
 });'''
 
 SHARED_WORKER = r'''onconnect = (event) => {
@@ -121,6 +123,7 @@ SHARED_WORKER = r'''onconnect = (event) => {
     hardwareConcurrency: navigator.hardwareConcurrency,
     deviceMemory: navigator.deviceMemory ?? null,
     timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   });
 };'''
 
@@ -133,6 +136,7 @@ SERVICE_WORKER = r'''self.addEventListener('message', (event) => {
     hardwareConcurrency: navigator.hardwareConcurrency,
     deviceMemory: navigator.deviceMemory ?? null,
     timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   });
 });'''
 
@@ -148,6 +152,7 @@ const surface = {
   hardwareConcurrency: navigator.hardwareConcurrency,
   deviceMemory: navigator.deviceMemory ?? null,
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+  timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   screen: [screen.width, screen.height, screen.colorDepth],
   devicePixelRatio,
 };
@@ -311,7 +316,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = ()) 
 
 def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
     keys = ("userAgent", "platform", "language", "languages", "hardwareConcurrency",
-            "deviceMemory", "timezone")
+            "deviceMemory", "timezone", "timezoneOffsetMinutes")
     consistency = []
     for report in reports:
         surfaces = report["surfaces"]
