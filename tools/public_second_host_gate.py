@@ -97,6 +97,14 @@ def assert_runner_source_matches_release(repository: Path, portable_root: Path) 
             raise ValueError("Runner product source differs from the verified release")
 
 
+def bundled_chromium(portable_root: Path) -> tuple[Path, Path]:
+    engine = portable_root / "Engine" / "Chromium"
+    chrome = engine / "chrome.exe"
+    if not chrome.is_file() or engine.resolve().parent != (portable_root / "Engine").resolve():
+        raise ValueError("Verified archive has no bundled Chromium at the expected path")
+    return engine, chrome
+
+
 def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | int]:
     tag, archive_sha256, source_commit = validated_inputs(tag, archive_sha256, source_commit)
     if os.name != "nt":
@@ -119,10 +127,7 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
             raise ValueError("Verified archive version or source commit differs")
         portable_root = executable.parent.resolve()
         assert_runner_source_matches_release(repository, portable_root)
-        engine = portable_root / "Engine" / "Chromium"
-        chrome = engine / "chrome.exe"
-        if not chrome.is_file() or engine.resolve().parent != portable_root:
-            raise ValueError("Verified archive has no bundled Chromium at the expected path")
+        engine, chrome = bundled_chromium(portable_root)
         # Chromium's AppContainer children need read/execute access to this
         # public engine tree only. Never grant access to Data or the user tree.
         checked_process(["icacls.exe", str(engine), "/grant:r",

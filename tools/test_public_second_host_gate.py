@@ -77,6 +77,18 @@ class SecondHostGateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 gate.assert_runner_source_matches_release(repository, portable)
 
+    def test_bundled_chromium_is_inside_engine_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            portable = Path(folder)
+            engine = portable / "Engine" / "Chromium"
+            engine.mkdir(parents=True)
+            chrome = engine / "chrome.exe"
+            chrome.write_bytes(b"synthetic binary")
+            self.assertEqual(gate.bundled_chromium(portable), (engine, chrome))
+            chrome.unlink()
+            with self.assertRaises(ValueError):
+                gate.bundled_chromium(portable)
+
 
 if __name__ == "__main__":
     unittest.main()
