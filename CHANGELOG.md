@@ -11,6 +11,11 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   stable per-profile V3 Canvas mode from release as a privacy feature; it is
   not a population or real-site anonymity measurement. The public ZIP and
   site download are unchanged.
+- Extended the consented external HTTPS fail-closed audit with a rejecting
+  SOCKS5 proxy. Its domain-form CONNECT request, non-rendered target page,
+  loopback-only TCP and zero NetLog UDP checks passed on public 0.8.1 and the
+  clean V3 development core. This does not certify OS DNS, IPv6 or WebRTC
+  routes; no public binary was changed.
 - Completed a clean-from-scratch development build of the experimental V3
   Chromium core and an internal-only portable QA archive. Exact patch/build
   provenance, Canvas and cross-context loopback probes, the archive checker,

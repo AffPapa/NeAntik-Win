@@ -142,3 +142,25 @@ It does not prove that DNS, IPv6, WebRTC/STUN/TURN, extension traffic or all
 other destinations are routed correctly, nor can Chromium NetLog replace
 independent packet capture or server-side observation from a separate egress
 node. The P2 release gate remains open.
+
+### SOCKS5 HTTPS negative control — 13 October 2026
+
+The same [external route probe](../tools/external_proxy_fail_closed_audit.py)
+now runs a third fresh profile through a rejecting loopback SOCKS5 fixture.
+Its direct positive control rendered the project's no-store HTTPS JSON page.
+The SOCKS5 fixture observed a CONNECT request with the destination **domain
+name** (SOCKS5 address type 3), then returned a failure without forwarding.
+The browser did not render the page, and Chromium NetLog for that profile
+showed only `127.0.0.1` TCP endpoints and zero UDP sends. All eight SOCKS5
+assertions passed on both the byte-verified public 0.8.1 core and the clean
+V3 development core, alongside the seven HTTP-proxy assertions. The local
+reports are outside Git and store only host counts and address types, not
+response bodies, cookies or full URLs.
+
+This establishes that this tested HTTPS request was handed to the SOCKS5
+proxy as a domain and did not silently fall back to a visible direct Chromium
+connection on this host. It does **not** prove that Windows or Chromium made
+no parallel DNS query, that another destination or proxy configuration is
+safe, or that IPv6, WebRTC/TURN and other processes cannot bypass the route.
+Independent DNS/packet observation and a second egress topology remain P2
+requirements.
