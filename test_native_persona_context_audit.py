@@ -18,6 +18,7 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
         "timezoneOffsetMinutes": 0 if timezone == "UTC" else -420,
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
         "canvas2dSha256": "a" * 64,
+        "canvasPixelSha256": "c" * 64,
         "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                   "unmaskedRenderer": None},
     }
@@ -25,6 +26,7 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
         "userAgent", "platform", "language", "languages",
         "hardwareConcurrency", "deviceMemory", "timezone", "timezoneOffsetMinutes",
     )}
+    worker["canvasPixelSha256"] = main["canvasPixelSha256"]
     return {
         "surfaces": {
             "main": main, "iframe": dict(main), "crossOriginFrame": dict(main),
@@ -74,6 +76,8 @@ class NativePersonaContextAuditTests(unittest.TestCase):
         for surface in self.runs[2]["surfaces"].values():
             if "canvas2dSha256" in surface:
                 surface["canvas2dSha256"] = "b" * 64
+            if "canvasPixelSha256" in surface:
+                surface["canvasPixelSha256"] = "d" * 64
         checks = check_reports(self.core, self.baseline, self.runs)
         self.assertTrue(checks["different_seed_keeps_common_surfaces"])
         self.assertFalse(checks["different_seed_canvas_identical"])

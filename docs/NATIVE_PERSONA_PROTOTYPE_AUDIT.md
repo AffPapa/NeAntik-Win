@@ -156,9 +156,11 @@ consented multi-device cohort before any default or public release.
 
 The 2026-10-13 expanded frame audit adds a SHA-256 of one Canvas2D scene and
 WebGL vendor/renderer observations to the main, same-origin and cross-origin
-frames. On the exact 0.8.3 public core, two disposable profiles agreed in all
-three contexts. On the clean V3 core, repeating a seed repeated the measured
-surface, while changing the seed changed the Canvas hash; the non-Canvas
+frames, plus a pixel-readback comparison with a dedicated worker's
+OffscreenCanvas. On the exact 0.8.3 public core, two disposable profiles
+agreed in all measured contexts. On the clean V3 core, repeating a seed
+repeated the measured surface, while changing the seed changed the Canvas
+hashes; the non-Canvas
 surfaces stayed equal. The V3 audit now reports these as separate checks, so
 the linkability warning cannot be hidden inside a generic mismatch. This
 remains a single-host, headless loopback observation, not a population study.

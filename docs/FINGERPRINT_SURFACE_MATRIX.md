@@ -12,7 +12,7 @@ privacy. Raw reports can reveal device traits and stay outside the repository.
 | `hardwareConcurrency` | Narrow native reduction | Host-bounded profile value | Check Window, same/cross-origin frames and Dedicated/Shared/Service Workers against the same build's stock host result. |
 | `deviceMemory` and Device-Memory Client Hint | Narrow native reduction | Host-bounded profile value | Check every JavaScript context plus `Sec-CH-Device-Memory`; reject missing hints and claims above stock. |
 | Timezone, `Date`, `Intl` | System timezone | Profile UTC in V3 | Check all contexts, daylight-saving transitions, time arithmetic, rendered dates and real-site compatibility; proxy geography is not a reliable timezone source. |
-| Canvas2D and OffscreenCanvas | Stock readback; the current loopback audit hashes one Canvas2D scene in main/same-origin/cross-origin frames | Seeded opaque sRGB uint8 readback only; **held from release** after local linkability control | Repeat reads, subregions, PNG/blob decode, workers, alpha, color spaces, text, performance and consented linkability cohort. One scene on one host does not characterize Canvas tracking. Other paths must be reported as unmodified. |
+| Canvas2D and OffscreenCanvas | Stock readback; the current loopback audit hashes one Canvas2D scene in main/same-origin/cross-origin frames and compares its pixel readback with a dedicated worker's OffscreenCanvas | Seeded opaque sRGB uint8 readback only; **held from release** after local linkability control | Repeat reads, subregions, PNG/blob decode, shared/service workers, alpha, color spaces, text, performance and consented linkability cohort. One scene on one host does not characterize Canvas tracking. Other paths must be reported as unmodified. |
 | WebGL and WebGPU | Stock; the current loopback audit records WebGL vendor/renderer in three frame contexts | Stock | Record extensions, precision, pixels, WebGPU, GPU class and graphics compatibility on at least two GPU classes. Do not invent values before coherent native implementation and testing. |
 | AudioContext and media devices | Stock | Stock | Measure offline-audio output, device enumeration/permissions and timing; evaluate compatibility and whether permission limits reduce exposure. |
 | Fonts, text metrics and screen geometry | Stock | Stock | Measure font availability, layout/text metrics, scaling, window/fullscreen dimensions and accessibility at 100–200% DPI. |
@@ -52,8 +52,10 @@ baseline is anonymous or that every site can observe the difference.
 
 The expanded audit run on 2026-10-13 observed equal Canvas2D scene hashes and
 WebGL vendor/renderer objects across two fresh public-core profiles and their
-main, same-origin and cross-origin frames. The same-seed V3 run repeated its
-Canvas hash, but a different seed changed it while the measured non-Canvas
-surfaces stayed equal. V3 therefore still fails the release gate. Raw reports
-remain private; these observations cover one Windows 11 host, one scene and
-headless loopback contexts, not a population anonymity estimate.
+main, same-origin and cross-origin frames. Pixel readback also matched a
+dedicated worker's OffscreenCanvas in both profiles. The same-seed V3 run
+repeated its Canvas hashes, but a different seed changed them while the
+measured non-Canvas surfaces stayed equal. V3 therefore still fails the
+release gate. Raw reports remain private; these observations cover one
+Windows 11 host, one scene and headless loopback contexts, not a population
+anonymity estimate.

@@ -14,11 +14,12 @@ def report():
               "languages": ["en-US"], "hardwareConcurrency": 4, "deviceMemory": 8,
               "timezone": "Etc/UTC", "timezoneOffsetMinutes": 0}
     window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1,
-              "canvas2dSha256": "a" * 64,
+              "canvas2dSha256": "a" * 64, "canvasPixelSha256": "c" * 64,
               "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                         "unmaskedRenderer": None}}
+    worker = {**common, "canvasPixelSha256": "c" * 64}
     return {"surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
-                         "crossOriginFrame": deepcopy(window), "worker": common.copy(),
+                         "crossOriginFrame": deepcopy(window), "worker": worker,
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
             "http": {"userAgent": "Chromium test"},
             "client_hints": {"deviceMemory": "8", "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
@@ -49,6 +50,11 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         checks = evaluate([value])[0]
         self.assertFalse(checks["canvas2d_iframe_parity"])
         self.assertFalse(checks["webgl_cross_origin_parity"])
+
+    def test_worker_canvas_pixel_mismatch_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["worker"]["canvasPixelSha256"] = "d" * 64
+        self.assertFalse(evaluate([value])[0]["canvas_pixels_dedicated_worker_parity"])
 
     def test_missing_rendering_observation_is_rejected(self):
         value = deepcopy(report())

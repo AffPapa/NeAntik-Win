@@ -43,6 +43,8 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     const encoded = new view.TextEncoder().encode(canvas.toDataURL());
     const digest = await view.crypto.subtle.digest('SHA-256', encoded);
     const canvas2dSha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const pixels = await view.crypto.subtle.digest('SHA-256', context.getImageData(0, 0, 320, 80).data);
+    const canvasPixelSha256 = Array.from(new Uint8Array(pixels), byte => byte.toString(16).padStart(2, '0')).join('');
     const gl = view.document.createElement('canvas').getContext('webgl');
     const info = gl?.getExtension('WEBGL_debug_renderer_info');
     const webgl = gl ? {
@@ -50,7 +52,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
       unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
       unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
     } : null;
-    return {canvas2dSha256, webgl};
+    return {canvas2dSha256, canvasPixelSha256, webgl};
   };
   const surface = async (view) => ({
     userAgent: view.navigator.userAgent,
@@ -129,7 +131,16 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
 })().catch(error => { document.getElementById('result').textContent = 'error:' + String(error); });
 </script></body></html>'''
 
-WORKER = r'''postMessage({
+WORKER = r'''(async () => {
+const canvas = new OffscreenCanvas(320, 80);
+const context = canvas.getContext('2d');
+if (!context) throw new Error('OffscreenCanvas2D unavailable');
+context.fillStyle = '#25335a'; context.fillRect(0, 0, 320, 80);
+context.fillStyle = '#e9f1ff'; context.font = '19px Arial';
+context.fillText('NeAntik audit 0123456789', 9, 36);
+const pixels = await crypto.subtle.digest('SHA-256', context.getImageData(0, 0, 320, 80).data);
+const canvasPixelSha256 = Array.from(new Uint8Array(pixels), byte => byte.toString(16).padStart(2, '0')).join('');
+postMessage({
   userAgent: navigator.userAgent,
   platform: navigator.platform,
   language: navigator.language,
@@ -138,7 +149,9 @@ WORKER = r'''postMessage({
   deviceMemory: navigator.deviceMemory ?? null,
   timezone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
   timezoneOffsetMinutes: new Date().getTimezoneOffset(),
-});'''
+  canvasPixelSha256,
+});
+})().catch(error => postMessage({auditError: String(error)}));'''
 
 SHARED_WORKER = r'''onconnect = (event) => {
   const port = event.ports[0];
@@ -182,6 +195,8 @@ context.fillText('NeAntik audit 0123456789', 9, 36);
 const encoded = new TextEncoder().encode(canvas.toDataURL());
 const digest = await crypto.subtle.digest('SHA-256', encoded);
 const canvas2dSha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+const pixels = await crypto.subtle.digest('SHA-256', context.getImageData(0, 0, 320, 80).data);
+const canvasPixelSha256 = Array.from(new Uint8Array(pixels), byte => byte.toString(16).padStart(2, '0')).join('');
 const gl = document.createElement('canvas').getContext('webgl');
 const info = gl?.getExtension('WEBGL_debug_renderer_info');
 const webgl = gl ? {
@@ -200,7 +215,7 @@ const surface = {
   timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   screen: [screen.width, screen.height, screen.colorDepth],
   devicePixelRatio,
-  canvas2dSha256, webgl,
+  canvas2dSha256, canvasPixelSha256, webgl,
 };
 parent.postMessage({token: params.get('token'), surface}, parentOrigin);
 }
@@ -405,6 +420,12 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             and bool(re.fullmatch(r"[a-f0-9]{64}", surfaces["main"]["canvas2dSha256"])),
             "canvas2d_iframe_parity": surfaces["main"].get("canvas2dSha256") == surfaces["iframe"].get("canvas2dSha256"),
             "canvas2d_cross_origin_parity": surfaces["main"].get("canvas2dSha256") == surfaces["crossOriginFrame"].get("canvas2dSha256"),
+            "canvas_pixels_observed": isinstance(surfaces["main"].get("canvasPixelSha256"), str)
+            and bool(re.fullmatch(r"[a-f0-9]{64}", surfaces["main"]["canvasPixelSha256"])),
+            "canvas_pixels_dedicated_worker_parity": (
+                surfaces["main"].get("canvasPixelSha256") == surfaces["worker"].get("canvasPixelSha256")
+                and isinstance(surfaces["worker"].get("canvasPixelSha256"), str)
+            ),
             "webgl_observed": isinstance(surfaces["main"].get("webgl"), dict),
             "webgl_iframe_parity": surfaces["main"].get("webgl") == surfaces["iframe"].get("webgl"),
             "webgl_cross_origin_parity": surfaces["main"].get("webgl") == surfaces["crossOriginFrame"].get("webgl"),
