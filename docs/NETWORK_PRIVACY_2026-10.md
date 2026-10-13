@@ -44,10 +44,12 @@ proxy-server logs, or traffic outside the tested Chromium URL paths.
 ## Evidence gates
 
 - `tools/proxy_integration.py`: disposable local target, HTTP proxy and SOCKS5
-  proxy; eight real Chromium launches. Hostname and 127.0.0.1 URL cases must
+  proxy; eleven real Chromium launches. Hostname and 127.0.0.1 URL cases must
   reach the target *through* the controlled proxy. Unreachable proxies must
-  fail without direct fallback. The SOCKS5 fixture observes a hostname rather
-  than a client-resolved address for the synthetic remote name.
+  fail without direct fallback. An IPv6 `::1` direct positive control must
+  work, while unavailable HTTP/SOCKS5 proxies must not reach that same IPv6
+  target. The SOCKS5 fixture observes a hostname rather than a client-resolved
+  address for the synthetic remote name.
 - `tools/launcher_integration.py`: packaged `BrowserLauncher` passes exact
   proxy/privacy flags to a copied engine before a real Chromium process starts.
 - `tools/privacy_browser_integration.py`: new-profile permission denials and
@@ -164,6 +166,21 @@ no parallel DNS query, that another destination or proxy configuration is
 safe, or that IPv6, WebRTC/TURN and other processes cannot bypass the route.
 Independent DNS/packet observation and a second egress topology remain P2
 requirements.
+
+### IPv6 loopback fail-closed control — 13 October 2026
+
+The disposable [proxy integration](../tools/proxy_integration.py) now binds a
+second test target to IPv6 loopback `::1`. A fresh direct profile reached it;
+fresh profiles with unavailable HTTP and SOCKS5 proxies both reported
+`ERR_PROXY_CONNECTION_FAILED`, and the IPv6 target saw zero requests from
+either. The extracted public 0.8.2 Chromium passed 31 assertions over eleven
+launches. The generated report is kept outside Git at
+`C:\NeAntikBuild\qa\proxy-ipv6-v0.8.2-20261013.json`.
+
+This extends the local fail-closed evidence to an IPv6 URL without implying
+that an external IPv6 route, operating-system DNS, WebRTC/TURN or a working
+IPv6 proxy is covered. P2 remains open pending independent packet capture and
+a second egress topology.
 
 An attempt to use Windows PktMon on the QA host returned **Access denied**:
 the current process is not elevated. The DNS Client Operational log is also

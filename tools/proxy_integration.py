@@ -2,8 +2,9 @@
 
 Run: python tools/proxy_integration.py
 Tests direct positive control, HTTP and SOCKS5 without auth, then unavailable
-proxies with no DIRECT fallback. Uses NeVision Storage/proxy_endpoint, but does
-not exercise the packaged GUI or BrowserLauncher.launch. Imports the gated
+proxies with no DIRECT fallback, including an IPv6 loopback target. Uses
+NeVision Storage/proxy_endpoint, but does not exercise the packaged GUI or
+BrowserLauncher.launch. Imports the gated
 Windows Job launcher from browser_integration; no existing browser is controlled.
 """
 
@@ -81,6 +82,10 @@ class QuietHTTP(BaseHTTPRequestHandler):
 
 class LocalHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
+
+
+class LocalIPv6HTTPServer(LocalHTTPServer):
+    address_family = socket.AF_INET6
 
 
 class Target(QuietHTTP):
@@ -226,7 +231,7 @@ def launch(chrome: Path, storage: Storage, profile_id: str, url: str, endpoint: 
         arguments.extend(bundled_proxy_privacy_arguments(proxy))
     else:
         arguments.extend(["--no-proxy-server", "--disable-quic",
-                          f"--host-resolver-rules=MAP {TEST_HOST} 127.0.0.1, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"])
+                          f"--host-resolver-rules=MAP {TEST_HOST} 127.0.0.1, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE ::1"])
     arguments.append(url)
     step: dict[str, Any] = {"name": label, "profile_id": profile_id, "status": "started",
                             "arguments": [value.replace(str(storage.paths.root), "<disposable-root>") for value in arguments]}
@@ -279,12 +284,13 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
     report["browser_executable"] = str(chrome)
     evidence = Evidence()
     target = LocalHTTPServer(("127.0.0.1", 0), Target)
+    ipv6_target = LocalIPv6HTTPServer(("::1", 0), Target)
     proxy = LocalHTTPServer(("127.0.0.1", 0), HTTPProxy)
     socks = SocksServer(("127.0.0.1", 0), SocksProxy)
-    for server in (target, proxy, socks):
+    for server in (target, ipv6_target, proxy, socks):
         server.evidence = evidence
         server.target_port = target.server_port
-    servers = (target, proxy, socks)
+    servers = (target, ipv6_target, proxy, socks)
     threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in servers]
     for thread in threads:
         thread.start()
@@ -298,7 +304,11 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 ("http_loopback", "http", proxy.server_port),
                 ("http_unavailable", "http", dead_port), ("socks5", "socks5", socks.server_address[1]),
                 ("socks5_loopback", "socks5", socks.server_address[1]),
-                ("socks5_unavailable", "socks5", dead_port), ("direct_after", None, None)]
+                ("socks5_unavailable", "socks5", dead_port),
+                ("direct_v6", None, None),
+                ("http_v6_unavailable", "http", dead_port),
+                ("socks5_v6_unavailable", "socks5", dead_port),
+                ("direct_after", None, None)]
         for name, scheme, port in legs:
             token = uuid.uuid4().hex
             with evidence.lock:
@@ -311,8 +321,11 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 profile["proxy_id"] = proxy_id
                 endpoint = proxy_endpoint(storage.get_proxy(proxy_id))
             profile_id = storage.save_profile(profile)
-            target_host = "127.0.0.1" if name.endswith("_loopback") else TEST_HOST
-            url = f"http://{target_host}:{target.server_port}/probe?token={token}"
+            is_ipv6 = "_v6" in name
+            target_host = "::1" if is_ipv6 else "127.0.0.1" if name.endswith("_loopback") else TEST_HOST
+            target_port = ipv6_target.server_port if is_ipv6 else target.server_port
+            url_host = f"[{target_host}]" if is_ipv6 else target_host
+            url = f"http://{url_host}:{target_port}/probe?token={token}"
             dom = launch(chrome, storage, profile_id, url, endpoint, report, name)
             with evidence.lock:
                 requests = [item for item in evidence.requests if item["token"] == token]
@@ -386,6 +399,7 @@ def main() -> int:
             "Only unauthenticated HTTP and SOCKS5 to an HTTP loopback test target; HTTPS proxy/TLS CONNECT, proxy auth prompts and commercial proxies are not tested.",
             "No fingerprint, WebRTC/UDP leak, packet-capture or all-traffic anonymity claim.",
             "The source-built strict proxy flags are exercised with synthetic hostname and 127.0.0.1 URL cases; successful loopback cases must be observed via the controlled proxy.",
+            "IPv6 coverage uses only a ::1 direct positive control and unavailable IPv4 loopback proxies; it does not observe external IPv6 egress or DNS.",
             "Direct positive controls before and after negative cases verify the local target and hostname mapping work.",
             "Browser exit code zero alone is not a success signal: positive cases require target/proxy evidence; unavailable cases require the specific proxy error and zero target requests.",
             "All fixture forwarding is hardcoded to our own loopback target; external destinations/HTTP CONNECT are rejected.",
