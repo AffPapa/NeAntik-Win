@@ -84,6 +84,10 @@ class StunSink:
         self.socket.close()
         self.thread.join(timeout=2)
 
+    def snapshot(self) -> dict[str, int]:
+        return {"stun_binding_requests": self.count,
+                "all_udp_datagrams": self.all_datagrams}
+
 
 def netlog_udp_summary(path: Path, stun_host: str, stun_port: int) -> dict[str, int]:
     """Count attempted UDP sends without copying sensitive NetLog URLs to a report."""
@@ -189,9 +193,12 @@ class ProbeHandler(BaseHTTPRequestHandler):
 
 def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
              force_default_policy: bool = False, net_log_dir: Path | None = None,
-             diagnostic_disable_network_sandbox: bool = False) -> dict:
+             diagnostic_disable_network_sandbox: bool = False,
+             remote_sink: object | None = None) -> dict:
     token = uuid.uuid4().hex
-    stun = StunSink(stun_host)
+    stun = remote_sink if remote_sink is not None else StunSink(stun_host)
+    if remote_sink is not None:
+        stun.reset()
     server = ProbeServer(token, stun_host, stun.port)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -226,9 +233,10 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
             raise RuntimeError("Browser DOM and loopback report differ")
         if server.result.get("error"):
             raise RuntimeError(f"WebRTC page error: {server.result['error']}")
+        receiver = stun.snapshot()
         return {"proxy_bound": proxy_bound, "stun_destination_port": stun.port,
-                "stun_binding_requests": stun.count,
-                "all_udp_datagrams": stun.all_datagrams,
+                "stun_binding_requests": receiver["stun_binding_requests"],
+                "all_udp_datagrams": receiver["all_udp_datagrams"],
                 "netlog": netlog_udp_summary(net_log_path, stun_host, stun.port),
                 "candidate_types": server.result.get("candidateTypes", []),
                 "rejected_external_requests": server.rejected_external_requests}
@@ -244,7 +252,8 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
-        stun.close()
+        if remote_sink is None:
+            stun.close()
 
 
 def main() -> int:

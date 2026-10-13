@@ -215,3 +215,26 @@ warns that disabling the network sandbox increases security risk. We will
 **not** disable it in the shipped browser to make a test pass. Independent
 packet observation and tests on another Windows/network topology remain
 necessary before any WebRTC leak claim.
+
+### Separate WSL network-namespace STUN control — 13 October 2026
+
+The new [private receiver](../tools/remote_stun_sink.py) ran in Ubuntu WSL on
+its own private IPv4 interface. The [Windows orchestrator](../tools/wsl_stun_route_audit.py)
+used the exact extracted public 0.8.3 Chromium, normal network-service
+sandboxing, two disposable profiles and the existing loopback WebRTC page.
+The receiver counted UDP packets independently of Chromium NetLog. In the
+direct case it received **five STUN Binding requests**, matching five NetLog
+sends to that WSL address. In the proxy-bound case it received **zero** and
+NetLog recorded **zero UDP sends**; the rejecting proxy observed nine
+background external attempts. The authenticated control endpoint was bound
+only to the private WSL address; the QA report retained counts, not packet
+payloads or peer addresses. One completed run produced status
+`cross_namespace_passed`; the raw report remains outside Git.
+
+This resolves the missing direct positive control for **this** distinct
+network namespace without weakening Chromium's sandbox. It does not prove
+the behavior of public STUN/TURN servers, Windows system DNS, IPv6, a working
+external proxy, other interfaces or another Windows host. WSL and Windows
+still share one physical computer; P2's independent public-network and packet
+capture gates remain open. The earlier host-local inconclusive result is not
+rewritten as a pass.
