@@ -32,6 +32,7 @@ from nevision_win import (
     filesystem_path,
     normalize_theme_preference,
     normalize_proxy_host,
+    proxy_host_requires_local_name_resolution,
     palette_for_theme,
     proxy_endpoint,
     proxy_choices,
@@ -262,6 +263,12 @@ class StorageTests(unittest.TestCase):
 
 
 class ProxyHostTests(unittest.TestCase):
+    def test_route_disclosure_distinguishes_name_from_ip_literal(self):
+        self.assertTrue(proxy_host_requires_local_name_resolution("Proxy.Example"))
+        self.assertTrue(proxy_host_requires_local_name_resolution("прокси.рф"))
+        self.assertFalse(proxy_host_requires_local_name_resolution("192.0.2.14"))
+        self.assertFalse(proxy_host_requires_local_name_resolution("[2001:db8::1]"))
+
     def test_dns_host_normalizes_case_idna_and_outer_whitespace(self):
         self.assertEqual(normalize_proxy_host("  EXAMPLE.COM.  "), "example.com")
         self.assertEqual(normalize_proxy_host("прокси.рф"), "xn--h1adldfi.xn--p1ai")

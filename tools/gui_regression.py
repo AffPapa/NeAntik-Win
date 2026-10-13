@@ -136,6 +136,15 @@ class GuiTests(unittest.TestCase):
         dialog.save()
         self.assertEqual(self.storage.get_profile(self.profile)["proxy_id"], first)
 
+    def test_proxy_hostname_disclosure_after_save(self):
+        dialog = nv.ProxyDialog(self.app)
+        self.app.root.update()
+        dialog.name.insert(0, "Named proxy")
+        dialog.host.insert(0, "proxy.example")
+        dialog.port.insert(0, "8080")
+        dialog.save()
+        self.assertIn("Имя proxy может разрешаться локально", self.app.status_label.cget("text"))
+
     def test_native_preview_is_opt_in_and_clone_gets_fresh_seed(self):
         with patch.object(self.app.launcher, "native_persona_capabilities", return_value={"stable_seed": True}):
             ordinary_dialog = nv.ProfileDialog(self.app)

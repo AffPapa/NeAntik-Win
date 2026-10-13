@@ -164,3 +164,11 @@ no parallel DNS query, that another destination or proxy configuration is
 safe, or that IPv6, WebRTC/TURN and other processes cannot bypass the route.
 Independent DNS/packet observation and a second egress topology remain P2
 requirements.
+
+An attempt to use Windows PktMon on the QA host returned **Access denied**:
+the current process is not elevated. The DNS Client Operational log is also
+disabled. Neither source produced a packet trace, so there is no new claim
+about absence of local DNS queries. The manager's unreleased source now makes
+the proxy-hostname caveat visible in Settings and when saving a named proxy;
+using an IP literal removes only the lookup of the proxy host itself, not
+other possible DNS paths.

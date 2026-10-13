@@ -16,6 +16,11 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   loopback-only TCP and zero NetLog UDP checks passed on public 0.8.1 and the
   clean V3 development core. This does not certify OS DNS, IPv6 or WebRTC
   routes; no public binary was changed.
+- Clarified the proxy-hostname DNS boundary in the unreleased manager UI:
+  Settings and the proxy-host hint explain that the proxy's own hostname may
+  resolve locally; the save status distinguishes a hostname from an IP
+  literal. A local packet-capture attempt was denied without administrator
+  rights, so the DNS leak gate remains open. The public ZIP is unchanged.
 - Completed a clean-from-scratch development build of the experimental V3
   Chromium core and an internal-only portable QA archive. Exact patch/build
   provenance, Canvas and cross-context loopback probes, the archive checker,

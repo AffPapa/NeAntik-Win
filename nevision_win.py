@@ -291,6 +291,16 @@ def normalize_proxy_host(value: str) -> str:
     return ascii_host.lower()
 
 
+def proxy_host_requires_local_name_resolution(value: str) -> bool:
+    """Distinguish a proxy hostname from an IP literal for route disclosure."""
+    host = normalize_proxy_host(value)
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return True
+    return False
+
+
 def proxy_endpoint(proxy: dict[str, Any]) -> str:
     host = normalize_proxy_host(str(proxy["host"]))
     if ":" in host:
@@ -2162,6 +2172,12 @@ class ProxyDialog(BaseDialog):
         self.scheme.set(proxy.get("scheme", "http") if proxy else "http")
         self.scheme.pack(fill="x", pady=(0, 14))
         self.host = self.labeled_entry(body, "Сервер / IP *", proxy.get("host", "") if proxy else "")
+        self.host_route_hint = HoverTip(
+            self.host,
+            "Если указано имя сервера, адрес самого proxy может разрешаться локально. "
+            "IP-адрес убирает только этот DNS-шаг; отсутствие других утечек не доказано.",
+            app.colors,
+        )
         self.port = self.labeled_entry(body, "Порт *", str(proxy.get("port", "")) if proxy else "")
         self.username = self.labeled_entry(body, "Логин", proxy.get("username", "") if proxy else "")
         ttk.Label(body, text="Пароль" + (" (оставьте пустым, чтобы не менять)" if proxy else ""), style="Label.TLabel").pack(anchor="w", pady=(0, 5))
@@ -2189,7 +2205,10 @@ class ProxyDialog(BaseDialog):
             messagebox.showerror(APP_NAME, str(exc), parent=self)
             return
         self.app.refresh_profiles()
-        self.app.set_status(f"Proxy сохранён: {proxy_id[:8]}")
+        if proxy_host_requires_local_name_resolution(self.host.get()):
+            self.app.set_status(f"Proxy сохранён: {proxy_id[:8]}. Имя proxy может разрешаться локально.")
+        else:
+            self.app.set_status(f"Proxy сохранён: {proxy_id[:8]}. IP proxy не требует разрешения имени узла.")
         if self.after_save:
             self.after_save()
         self.destroy()
@@ -2281,7 +2300,7 @@ class SettingsDialog(BaseDialog):
         ttk.Label(body, text="Браузер", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         ttk.Label(body, text="Новые профили открываются во встроенном Chromium. Отдельный Chrome не нужен.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 5))
-        ttk.Label(body, text="Встроенный Chromium с proxy не обходит его для localhost, ограничивает фоновый DNS и прямой WebRTC UDP. Локальные сайты и звонки могут работать иначе; часовой пояс остаётся системным.",
+        ttk.Label(body, text="Встроенный Chromium с proxy не обходит его для localhost, ограничивает фоновый DNS и прямой WebRTC UDP. Имя самого proxy может разрешаться локально. Локальные сайты и звонки могут работать иначе; часовой пояс остаётся системным.",
                   style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(0, 9))
         self.compatibility_button = ttk.Button(body, text="Совместимость со старыми профилями ▸", style="Ghost.TButton", command=self.toggle_compatibility)
         self.compatibility_button.pack(anchor="w", pady=(0, 7))
