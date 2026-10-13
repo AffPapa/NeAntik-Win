@@ -15,7 +15,7 @@ is allowed and disclosed; do not combine it with the V4b candidate patch. A vers
 number and a provenance JSON alone do not prove security or byte-for-byte
 reproducibility; use the official source and verify the build yourself.
 
-## 0.8.6-preview V4b candidate (not published)
+## Published 0.8.6–0.8.7-preview V4b core
 
 The candidate uses the same upstream commit
 `cfaadc5a132d78e1828635aa8405a499f3e14864` and the reviewed
@@ -34,6 +34,19 @@ Native unit tests (6 + 21 + 3), 12/12 two-site/restart and 6/6 context cases
 (11/11 checks) passed on one Windows 11 host. These do not replace portable
 archive/public-download tests, external DNS/UDP/IPv6/TURN observation or
 second-machine QA, all still open. See the [candidate audit](NATIVE_PERSONA_PROTOTYPE_AUDIT.md).
+
+## Unreleased 0.8.8-preview V5 candidate
+
+The [V5 patch](chromium-native-persona-prototype-v5.patch) (84,612 bytes;
+SHA-256 `0c592ca18304823faf8f0e2534619c5f7b458072e451ede81eb528a2b8c76d22`)
+replaces V4b and is applied to the same pinned Chromium source commit. It
+removes the Canvas session key from renderer argv and sends it via early Mojo
+initialization. Candidate `chrome.dll` SHA-256 is
+`9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`.
+Native parser tests passed 21/21, Canvas unit tests 6/6, and local
+main/frame/worker + BrowserContext/session-rotation checks 7/7. Two staging
+runs produced 39 byte-identical files. These results precede portable-package
+and public-download verification; they do not establish general anonymity.
 
 ## Build-only dependency exception
 

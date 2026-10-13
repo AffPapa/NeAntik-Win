@@ -43,6 +43,20 @@ cannot cross BrowserContexts, keep it out of argv/profile storage, and add
 renderer/worker argv absence and cross-context isolation tests. See the
 [master implementation plan](MASTER_IMPLEMENTATION_PLAN.md#p1--проверяемое-снижение-fingerprint-энтропии), P1.2a.
 
+### Unreleased V5 key-transport candidate, 2026-10-13
+
+The V5 source patch moves the random key into the early `InitializeRenderer`
+Mojo payload. The renderer stores it once in process memory; the Canvas hot
+path reads this initialized state without IPC. Active persona plus missing key
+is a renderer failure, not a fallback to raw Canvas pixels. On the local
+Chromium 155 candidate (`chrome.dll` SHA-256
+`9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`),
+native tests passed 21/21 and 6/6; the loopback two-BrowserContext
+main/frame/worker, BrowserContext and session-rotation gate passed 7/7 and
+inspected 15 owned process command
+lines (9 renderers) without finding the key. This is not yet a packaged or
+published binary, and it does not establish general anonymity.
+
 ## Public 0.8.7-preview follow-up, 2026-10-13
 
 Three fresh loopback-only audits were run against the Chromium binary extracted

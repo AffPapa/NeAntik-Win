@@ -6,6 +6,10 @@ The published **0.8.7-preview** rejects hardlinks found during profile backup,
 preventing that path from copying a file outside the profile into an unencrypted
 backup ZIP. The [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md)
 records the exact ZIP, hash, tests and open gates.
+The unreleased **0.8.8-preview candidate** moves the optional Canvas session
+key out of renderer process arguments into early browser-to-renderer Mojo IPC.
+Its local native and cross-context tests passed; packaged and public-download
+checks are still required before it replaces 0.8.7 on the download page.
 Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
 source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed
 per browser session and top-level site; CPU, RAM and UTC controls are partial.

@@ -2,6 +2,22 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.8-preview — candidate, not yet published (2026-10-13)
+
+- The optional Canvas2D mode now sends its ephemeral 32-byte session key from
+  browser to renderer through early Mojo initialization, not a process command
+  line. A missing key for an active persona stops the renderer rather than
+  silently returning the unmodified Canvas readback.
+- Local candidate checks: Chromium native parser 21/21, Canvas 6/6, and a
+  loopback main/frame/worker + two-BrowserContext/session-rotation test 7/7. It inspected
+  15 owned Chromium process command lines, including 9 renderers, without
+  finding the key. Two staged runtimes had 39 identical files. These results
+  are tied to the V5 patch and candidate `chrome.dll`, not to a public ZIP.
+- The local proxy-loss/recovery test added for this cycle passed 10/10 on the
+  unchanged public 0.8.7 Chromium. External leak testing, second-machine QA,
+  portable-package checks and public-download verification remain open. No
+  general anonymity guarantee is made.
+
 ## 0.8.7-preview — backup hardlink boundary (2026-10-13)
 
 - Profile backup now stops with an explicit error if a hardlinked file is found

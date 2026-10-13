@@ -301,7 +301,13 @@ function python {
 }
 $failedBuildOutput = Join-Path $testRoot 'failed-build'
 Expect-Failure 'public portable version requires Chromium' { & (Join-Path $projectRoot 'build.ps1') -OutputDirectory $failedBuildOutput } 'requires EngineDirectory'
-Expect-Failure 'PyInstaller exit stops packaging' { & (Join-Path $projectRoot 'build.ps1') -EngineDirectory (Join-Path $testRoot 'not-used-before-freeze') -OutputDirectory $failedBuildOutput } 'PyInstaller failed \(exit 77\)'
+# Public packaging correctly requires a clean committed tree. Test the later
+# PyInstaller failure branch in an isolated local clone instead of depending
+# on whether the developer's working tree happens to be clean.
+$cleanBuildRepo = Join-Path $testRoot 'clean-build-repo'
+& git clone --local --no-hardlinks --quiet $projectRoot $cleanBuildRepo
+if ($LASTEXITCODE -ne 0) { throw 'Cannot create clean local build-test clone.' }
+Expect-Failure 'PyInstaller exit stops packaging' { & (Join-Path $cleanBuildRepo 'build.ps1') -EngineDirectory (Join-Path $testRoot 'not-used-before-freeze') -OutputDirectory $failedBuildOutput } 'PyInstaller failed \(exit 77\)'
 if (@(Get-ChildItem -LiteralPath $failedBuildOutput -Filter '*.zip' -ErrorAction SilentlyContinue).Count) { throw 'Failed build left a publishable ZIP.' }
 Remove-Item -LiteralPath Function:\python
 Write-Output "Release tooling: PASS ($script:passed checks). Synthetic fixtures retained at $testRoot"

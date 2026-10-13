@@ -1,4 +1,4 @@
-"""Export or verify the experimental Chromium V4b native-persona patch.
+"""Export or verify a pinned Chromium native-persona patch.
 
 The export is deterministic and includes untracked new files without staging
 or modifying the Chromium checkout. It refuses unrelated source changes.
@@ -22,6 +22,9 @@ TRACKED_RUNTIME = {
     "chrome/browser/renderer_preferences_util.h",
     "chrome/browser/renderer_preferences_util_unittest.cc",
     "content/browser/renderer_host/render_process_host_impl.cc",
+    "content/common/renderer.mojom",
+    "content/renderer/render_thread_impl.cc",
+    "content/renderer/render_thread_impl.h",
     "content/renderer/worker/embedded_shared_worker_stub.cc",
     "third_party/blink/common/BUILD.gn",
     "third_party/blink/common/device_memory/approximated_device_memory.cc",

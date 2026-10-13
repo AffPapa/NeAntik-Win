@@ -15,9 +15,12 @@ function Get-StagedFileBytes([string]$RelativePath) {
     $start = [System.Diagnostics.ProcessStartInfo]::new()
     $start.FileName = (Get-Command git -CommandType Application | Select-Object -First 1).Source
     $start.WorkingDirectory = $projectRoot
-    $start.ArgumentList.Add('cat-file')
-    $start.ArgumentList.Add('blob')
-    $start.ArgumentList.Add(":" + $RelativePath.Replace('\', '/'))
+    # Windows PowerShell 5.1 uses .NET Framework, where ArgumentList does not
+    # exist. Reject quoting/control characters and pass one quoted Git object
+    # name so spaces in staged paths remain a single argument.
+    if ($RelativePath -match '["\r\n]') { throw "Unsupported staged path: $RelativePath" }
+    $objectName = ':' + $RelativePath.Replace('\', '/')
+    $start.Arguments = 'cat-file blob "' + $objectName + '"'
     $start.UseShellExecute = $false
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
