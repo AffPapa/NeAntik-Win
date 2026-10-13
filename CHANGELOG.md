@@ -4,6 +4,12 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 
 ## Unreleased — expanded local QA (2026-10-13)
 
+- Completed a clean-from-scratch development build of the experimental V3
+  Chromium core and an internal-only portable QA archive. Exact patch/build
+  provenance, Canvas and cross-context loopback probes, the archive checker,
+  EXE self-test and four ordinary/native launch cases passed. This did **not**
+  replace or update the public 0.8.1-preview download; multi-device,
+  cross-API, external-network and privacy-benefit gates remain open.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

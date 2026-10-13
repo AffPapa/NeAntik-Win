@@ -24,7 +24,8 @@ exact changed-file allowlist, reverse-application to the development checkout
 and forward application from the pinned upstream files to byte-identical
 sources without changing that checkout. Modified Chromium files retain their
 upstream BSD-style license; new Chromium-tree files declare the same license.
-No public binary has been built or released from this exported patch yet.
+A clean-from-scratch development binary has now been built from this patch;
+no public binary has been released from it.
 
 The local staging tool now accepts this patch only with its exact approved
 SHA-256 and exact public patch bytes. A development-core staging run recorded
@@ -63,6 +64,20 @@ This QA ZIP deliberately reuses the source's current version number and is
 **not publishable**: it is an incremental test artifact, not an immutable new
 release from the clean build.
 
+On 2026-10-13 a separate clean-from-scratch Chromium build completed from the
+final V3 sources. The resulting `chrome.exe` reports schema 2, Chromium
+`155.0.8059.40`, and the pinned source commit. The staging tool verified the
+exact patch and build-only patch hashes, source/build provenance, compiled
+handshake, 36 runtime files, and bundled license/credits. A fresh loopback
+Canvas probe and the seven-check context/Client-Hint audit both passed on this
+clean staged core. A new **internal-only** portable ZIP was then built from
+that core; its 1,066-file archive check, extracted EXE self-test, and four
+ordinary/native launcher cases passed. Its SHA-256 is
+`fb9f566cdc1bc6a37f6d699d42f839f8724a07ffb959bf15b372fb1d1accbc33`.
+It deliberately still uses the development source's `0.8.1-preview` filename
+and must not overwrite the already-published, different 0.8.1 ZIP. Raw QA
+reports and this internal ZIP remain outside Git.
+
 ## What was measured on one Windows 11 x64 computer
 
 The local Chromium 155 development build reports a compiled native capability
@@ -92,16 +107,17 @@ untouched. Cross-API and real-site compatibility are not yet established.
 Code review found that V1 could return CPU-thread and memory bucket values
 larger than those of the host. V3 bounds both values by stock Chromium's
 observed host values, including the shared HTTP device-memory hint source.
-The revised code still needs a completed clean-from-scratch rebuild, broader
-cross-API and real-site compatibility tests, and validation on a second
-hardware class before any release.
+The clean-from-scratch rebuild is complete. The revised code still needs
+broader cross-API and real-site compatibility tests, empirical cohort and
+linkability evaluation, and validation on a second hardware class before any
+release.
 
 ## Gates before any public release
 
-1. Patch export, byte-for-byte source reconstruction and development-core
-   staging with a compiled capability handshake are done. Before a release,
-   rebuild from a clean application of this patch, verify license notices and
-   record exact source/build hashes in the engine and ZIP receipts.
+1. Patch export, byte-for-byte source reconstruction, clean-core build,
+   development staging, compiled capability handshake, license notices and
+   source/build hashes in the engine and ZIP receipts are done locally.
+   Repeat these checks after any source or build change before a release.
 2. Choose the privacy model using empirical cohort and linkability testing.
    Do not enable stable per-profile variation merely because different hashes
    look like successful spoofing. Prefer coordinated, understandable defaults.
