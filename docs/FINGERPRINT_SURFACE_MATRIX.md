@@ -1,9 +1,11 @@
 # Fingerprint surface matrix and evidence plan
 
-Status: 2026-10-13. This is an engineering inventory, not an anonymity score.
+Status: 2026-10-14. This is an engineering inventory, not an anonymity score.
 The historical table below preserves the comparison of 0.8.5-preview
-(same core as 0.8.3) and the held V3 prototype. The opt-in V4b core is now
-published in the verified [0.8.6-preview](RELEASE_PUBLICATION_0.8.6-preview.md).
+(same core as 0.8.3) and the held V3 prototype. The opt-in V4b core was
+published in [0.8.6-preview](RELEASE_PUBLICATION_0.8.6-preview.md); the
+current [0.8.8-preview V5](RELEASE_PUBLICATION_0.8.8-preview.md) changes its
+session-key transport, not the full fingerprint coverage.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
@@ -29,21 +31,20 @@ hashes but no raw device traits. See
 and the [publication evidence](RELEASE_PUBLICATION_0.8.6-preview.md).
 These narrow local passes do not establish anonymity.
 
-### Key handling review, 2026-10-13
+### Historical V4b key handling review, 2026-10-13
 
 Static review of the exact published V4b patch found that its random Canvas
 session key is appended to renderer process command lines and then parsed from
 the renderer command line. This does not expose the value to ordinary website
 JavaScript, but same-user process inspection, diagnostics, or crash artifacts
-may observe it. Therefore the patch's “in-memory only” wording is too broad for
-the current transport. The public 0.8.7 binary is unchanged; no retroactive
-security guarantee is implied. Before another release, move the key into an
-early browser-to-renderer Mojo initialization payload, verify renderer reuse
-cannot cross BrowserContexts, keep it out of argv/profile storage, and add
+may observe it. Therefore the patch's “in-memory only” wording was too broad
+for that transport. The public 0.8.7 binary remains unchanged; no retroactive
+security guarantee is implied. The 0.8.8 V5 release moved the key into an
+early browser-to-renderer Mojo initialization payload and added bounded
 renderer/worker argv absence and cross-context isolation tests. See the
 [master implementation plan](MASTER_IMPLEMENTATION_PLAN.md#p1--проверяемое-снижение-fingerprint-энтропии), P1.2a.
 
-### Unreleased V5 key-transport candidate, 2026-10-13
+### Published V5 key transport, 2026-10-14
 
 The V5 source patch moves the random key into the early `InitializeRenderer`
 Mojo payload. The renderer stores it once in process memory; the Canvas hot
@@ -54,8 +55,24 @@ Chromium 155 candidate (`chrome.dll` SHA-256
 native tests passed 21/21 and 6/6; the loopback two-BrowserContext
 main/frame/worker, BrowserContext and session-rotation gate passed 7/7 and
 inspected 15 owned process command
-lines (9 renderers) without finding the key. This is not yet a packaged or
-published binary, and it does not establish general anonymity.
+lines (9 renderers) without finding the key. The exact packaged and
+repeat-downloaded 0.8.8 ZIP passed archive verification and self-test;
+see the [publication record](RELEASE_PUBLICATION_0.8.8-preview.md). These
+single-host checks do not establish general anonymity.
+
+### P1.3 measurement expansion, 2026-10-14
+
+The loopback-only [`fingerprint_surface_audit.py`](../tools/fingerprint_surface_audit.py)
+now observes a tiny deterministic WebGL pixel readback, Canvas text metrics
+and OfflineAudioContext sample rate in main, same-origin and cross-origin
+frames. Unsupported/error/timeout observations cannot become PASS. On the
+exact 0.8.8-preview Chromium extracted from the public ZIP, the expanded
+two-profile/two-launch check passed **146/146 boolean checks** on one Windows
+11 host. Only the bounded status and check count were printed; raw device
+observations stay in a local, unpublished report. This measures consistency,
+not reduced uniqueness. A same-revision stock control, second GPU/host,
+population-level linkability and real-site compatibility remain **NOT RUN**;
+no WebGL, Audio or font spoofing was added.
 
 ## Public 0.8.7-preview follow-up, 2026-10-13
 

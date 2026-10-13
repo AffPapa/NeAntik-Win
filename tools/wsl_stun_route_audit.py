@@ -22,7 +22,8 @@ import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from webrtc_udp_integration import evaluate_cases, run_case
+from native_persona_context_audit import prepare_disposable_engine
+from webrtc_udp_integration import evaluate_cases, evaluate_socks_case, run_case
 
 
 class RemoteSink:
@@ -118,10 +119,14 @@ def main() -> int:
         sink.snapshot()  # Positive control for host-to-WSL TCP reachability.
         root = Path(tempfile.mkdtemp(prefix="neantik-wsl-stun-qa-"))
         try:
-            report["cases"].append(run_case(args.chrome, root, False, args.wsl_host,
+            chrome = prepare_disposable_engine(args.chrome, root)
+            report["cases"].append(run_case(chrome, root, False, args.wsl_host,
                                             remote_sink=sink))
-            report["cases"].append(run_case(args.chrome, root, True, args.wsl_host,
+            report["cases"].append(run_case(chrome, root, True, args.wsl_host,
                                             remote_sink=sink))
+            report["cases"].append(run_case(chrome, root, True, args.wsl_host,
+                                            remote_sink=sink, verify_proxy_route=True,
+                                            proxy_scheme="socks5"))
         finally:
             temp_parent = Path(tempfile.gettempdir()).resolve()
             if root.resolve().parent != temp_parent or not root.name.startswith("neantik-wsl-stun-qa-") or root.is_symlink():
@@ -137,8 +142,11 @@ def main() -> int:
                     time.sleep(0.25)
             if cleanup_error is not None:
                 raise RuntimeError(f"WSL STUN QA files remain locked: {cleanup_error}")
-        local_result = evaluate_cases(report["cases"][0], report["cases"][1], False)
-        report["status"] = "cross_namespace_passed" if local_result == "passed" else "inconclusive"
+        http_result = evaluate_cases(report["cases"][0], report["cases"][1], False)
+        socks_result = evaluate_socks_case(report["cases"][0], report["cases"][2])
+        report["route_checks"] = {"http": http_result, "socks5": socks_result}
+        report["status"] = ("cross_namespace_passed" if http_result == "passed" and
+                            socks_result == "passed" else "inconclusive")
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"

@@ -27,9 +27,72 @@ from browser_integration import OwnedJob, spawn_owned_browser
 from privacy_defaults import initialize_privacy_defaults
 
 
+class AuditTimeoutError(RuntimeError):
+    """An owned Chromium process exceeded the bounded local probe time."""
+
+
+P13_JS = r'''
+async function p13Digest(view, bytes) {
+  const digest = await view.crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+async function p13WebglPixels(view, gl) {
+  if (!gl || typeof gl.readPixels !== 'function') return {status: 'unsupported'};
+  try {
+    if (gl.isContextLost()) return {status: 'unsupported'};
+    // One tiny synchronous readback; the owned browser has an outer process timeout.
+    gl.viewport(0, 0, 4, 4);
+    gl.clearColor(0.125, 0.5, 0.75, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    const pixels = new Uint8Array(4 * 4 * 4);
+    gl.readPixels(0, 0, 4, 4, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    if (gl.getError() !== gl.NO_ERROR) return {status: 'error'};
+    return {status: 'ok', sha256: await p13Digest(view, pixels)};
+  } catch (_) { return {status: 'error'}; }
+}
+async function p13TextMetrics(view, context) {
+  if (!context?.measureText || !view.document.fonts?.check) return {status: 'unsupported'};
+  try {
+    const sample = context.measureText('NeAntik audit 0123456789');
+    const values = [sample.width, sample.actualBoundingBoxLeft,
+      sample.actualBoundingBoxRight, sample.actualBoundingBoxAscent,
+      sample.actualBoundingBoxDescent];
+    if (!values.every(Number.isFinite)) return {status: 'unsupported'};
+    const available = view.document.fonts.check('19px Arial');
+    const bytes = new view.TextEncoder().encode(JSON.stringify([values, available]));
+    return {status: 'ok', sha256: await p13Digest(view, bytes)};
+  } catch (_) { return {status: 'error'}; }
+}
+async function p13Audio(view) {
+  if (typeof view.OfflineAudioContext !== 'function')
+    return {sha256: null, sampleRate: {status: 'unsupported'}};
+  let context;
+  try {
+    context = new view.OfflineAudioContext(1, 4096, 44100);
+    const oscillator = context.createOscillator();
+    oscillator.type = 'triangle'; oscillator.frequency.value = 997;
+    const gain = context.createGain(); gain.gain.value = 0.35;
+    oscillator.connect(gain); gain.connect(context.destination);
+    oscillator.start(0);
+    let timer;
+    const rendered = await Promise.race([
+      context.startRendering(),
+      new Promise((_, reject) => { timer = view.setTimeout(() => reject('timeout'), 5000); }),
+    ]).finally(() => view.clearTimeout(timer));
+    const samples = rendered.getChannelData(0).slice(256, 2304);
+    return {sha256: await p13Digest(view, samples),
+      sampleRate: {status: 'ok', hz: context.sampleRate}};
+  } catch (error) {
+    return {sha256: null, sampleRate: {status: error === 'timeout' ? 'timeout' : 'error'}};
+  } finally { if (context && typeof context.close === 'function') context.close(); }
+}
+'''
+
+
 PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
 <body><pre id="result">pending</pre><img src="/barrier?token=__TOKEN__" alt="load barrier">
 <script>
+__P13_JS__
 (async () => {
   const token = '__TOKEN__';
   const rendering = async (view) => {
@@ -52,21 +115,13 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
       unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
       unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
     } : null;
-    return {canvas2dSha256, canvasPixelSha256, webgl};
+    return {canvas2dSha256, canvasPixelSha256, webgl,
+      webglPixel: await p13WebglPixels(view, gl),
+      textMetrics: await p13TextMetrics(view, context)};
   };
-  const audio = async (view) => {
-    const context = new view.OfflineAudioContext(1, 4096, 44100);
-    const oscillator = context.createOscillator();
-    oscillator.type = 'triangle'; oscillator.frequency.value = 997;
-    const gain = context.createGain(); gain.gain.value = 0.35;
-    oscillator.connect(gain); gain.connect(context.destination);
-    oscillator.start(0);
-    const rendered = await context.startRendering();
-    const samples = rendered.getChannelData(0).slice(256, 2304);
-    const digest = await view.crypto.subtle.digest('SHA-256', samples);
-    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-  };
-  const surface = async (view) => ({
+  const surface = async (view) => {
+    const audio = await p13Audio(view);
+    return ({
     userAgent: view.navigator.userAgent,
     platform: view.navigator.platform,
     language: view.navigator.language,
@@ -79,8 +134,10 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     screen: [view.screen.width, view.screen.height, view.screen.colorDepth],
     devicePixelRatio: view.devicePixelRatio,
     ...(await rendering(view)),
-    audioSha256: await audio(view),
-  });
+    audioSha256: audio.sha256,
+    audioSampleRate: audio.sampleRate,
+    });
+  };
   const main = await surface(window);
   const frame = document.createElement('iframe');
   frame.src = '/frame?token=' + token;
@@ -201,6 +258,7 @@ SERVICE_WORKER = r'''self.addEventListener('message', (event) => {
 
 CROSS_ORIGIN_FRAME = r'''<!doctype html><html><head><meta charset="utf-8"></head><body>
 <script>
+__P13_JS__
 const params = new URLSearchParams(location.search);
 const parentOrigin = params.get('parent');
 async function measure() {
@@ -223,16 +281,7 @@ const webgl = gl ? {
   unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
   unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
 } : null;
-const audio = new OfflineAudioContext(1, 4096, 44100);
-const oscillator = audio.createOscillator();
-oscillator.type = 'triangle'; oscillator.frequency.value = 997;
-const gain = audio.createGain(); gain.gain.value = 0.35;
-oscillator.connect(gain); gain.connect(audio.destination);
-oscillator.start(0);
-const rendered = await audio.startRendering();
-const samples = rendered.getChannelData(0).slice(256, 2304);
-const audioDigest = await crypto.subtle.digest('SHA-256', samples);
-const audioSha256 = Array.from(new Uint8Array(audioDigest), byte => byte.toString(16).padStart(2, '0')).join('');
+const audio = await p13Audio(window);
 const surface = {
   userAgent: navigator.userAgent,
   platform: navigator.platform,
@@ -245,7 +294,10 @@ const surface = {
   timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   screen: [screen.width, screen.height, screen.colorDepth],
   devicePixelRatio,
-  canvas2dSha256, canvasPixelSha256, webgl, audioSha256,
+  canvas2dSha256, canvasPixelSha256, webgl, audioSha256: audio.sha256,
+  webglPixel: await p13WebglPixels(window, gl),
+  textMetrics: await p13TextMetrics(window, context),
+  audioSampleRate: audio.sampleRate,
 };
 parent.postMessage({token: params.get('token'), surface}, parentOrigin);
 }
@@ -310,7 +362,8 @@ class AuditHandler(BaseHTTPRequestHandler):
                 "secChUaPlatform": self.headers.get("Sec-CH-UA-Platform"),
             }
             self.reply(200, PAGE.replace("__TOKEN__", self.server.token)
-                       .replace("__CROSS_ORIGIN__", self.server.cross_origin).encode(), "text/html; charset=utf-8",
+                       .replace("__CROSS_ORIGIN__", self.server.cross_origin)
+                       .replace("__P13_JS__", P13_JS).encode(), "text/html; charset=utf-8",
                        {"Accept-CH": "Sec-CH-Device-Memory, Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version"})
         elif route == "/hints":
             self.server.hints_seen = {
@@ -324,7 +377,7 @@ class AuditHandler(BaseHTTPRequestHandler):
         elif route == "/frame":
             self.reply(200, b"<!doctype html><html><body>frame</body></html>", "text/html; charset=utf-8")
         elif route == "/cross-frame":
-            self.reply(200, CROSS_ORIGIN_FRAME.encode(), "text/html; charset=utf-8")
+            self.reply(200, CROSS_ORIGIN_FRAME.replace("__P13_JS__", P13_JS).encode(), "text/html; charset=utf-8")
         elif route == "/worker.js":
             self.reply(200, WORKER.encode(), "application/javascript; charset=utf-8")
         elif route == "/shared-worker.js":
@@ -386,9 +439,12 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
                      "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost",
                      *native_flags, url]
         process = spawn_owned_browser(arguments, root, job)
-        stdout, stderr = process.communicate(input=b"G", timeout=45)
+        try:
+            stdout, stderr = process.communicate(input=b"G", timeout=45)
+        except subprocess.TimeoutExpired as error:
+            raise AuditTimeoutError("browser_timeout") from error
         if process.returncode != 0:
-            raise RuntimeError(f"Chromium exit {process.returncode}: {stderr.decode(errors='replace')[-500:]}")
+            raise RuntimeError(f"Chromium exit {process.returncode}")
         result = server.result
         if not isinstance(result, dict):
             raise RuntimeError("The local audit page did not report results")
@@ -400,6 +456,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
         surfaces = {key: result[key] for key in ("main", "iframe", "crossOriginFrame",
                                                    "worker", "sharedWorker", "serviceWorker")}
         return {"surfaces": surfaces, "http": server.headers_seen,
+                "measurement_version": 2,
                 "client_hints": server.hints_seen,
                 "ua_high_entropy": result.get("uaHighEntropy"),
                 "ua_brands": result.get("uaBrands"),
@@ -480,7 +537,7 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             and platform_header.startswith('"') and platform_header.endswith('"')
             and platform_header[1:-1] == report.get("ua_platform")
         )
-        consistency.append({
+        checks = {
             "main_iframe": surfaces["main"] == surfaces["iframe"],
             "main_cross_origin_frame": surfaces["main"] == surfaces["crossOriginFrame"],
             "canvas2d_observed": isinstance(surfaces["main"].get("canvas2dSha256"), str)
@@ -511,7 +568,35 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "ua_brand_hint_parity": low_brands_match,
             "ua_platform_hint_parity": ua_platform_matches,
             "ua_platform_version_hint_parity": ua_platform_version_matches,
-        })
+        }
+        if report.get("measurement_version", 1) >= 2:
+            def observed_digest(value: object) -> bool:
+                return (isinstance(value, dict) and value.get("status") == "ok"
+                        and isinstance(value.get("sha256"), str)
+                        and bool(re.fullmatch(r"[a-f0-9]{64}", value["sha256"])))
+
+            for field, name in (("webglPixel", "webgl_pixel"),
+                                ("textMetrics", "text_metrics")):
+                checks[f"{name}_observed"] = observed_digest(surfaces["main"].get(field))
+                checks[f"{name}_iframe_parity"] = (
+                    observed_digest(surfaces["iframe"].get(field))
+                    and surfaces["main"].get(field) == surfaces["iframe"].get(field))
+                checks[f"{name}_cross_origin_parity"] = (
+                    observed_digest(surfaces["crossOriginFrame"].get(field))
+                    and surfaces["main"].get(field) == surfaces["crossOriginFrame"].get(field))
+            rate = surfaces["main"].get("audioSampleRate")
+            checks["audio_sample_rate_observed"] = (
+                isinstance(rate, dict) and rate.get("status") == "ok"
+                and isinstance(rate.get("hz"), (int, float))
+                and not isinstance(rate.get("hz"), bool)
+                and 8000 <= rate["hz"] <= 192000)
+            for context, suffix in (("iframe", "iframe"),
+                                    ("crossOriginFrame", "cross_origin")):
+                other = surfaces[context].get("audioSampleRate")
+                checks[f"audio_sample_rate_{suffix}_parity"] = (
+                    isinstance(other, dict) and other.get("status") == "ok"
+                    and checks["audio_sample_rate_observed"] and rate == other)
+        consistency.append(checks)
     return consistency
 
 
@@ -536,6 +621,18 @@ def compare_repeat_launches(reports: list[dict]) -> dict[str, bool]:
             for key, value in compare_fresh_profiles(reports).items()}
 
 
+def observation_statuses(reports: list[dict]) -> list[str | None]:
+    """Return only bounded state labels, never measured hashes or traits."""
+    statuses = []
+    for report in reports:
+        for context in ("main", "iframe", "crossOriginFrame"):
+            surface = report["surfaces"][context]
+            for field in ("webglPixel", "textMetrics", "audioSampleRate"):
+                value = surface.get(field)
+                statuses.append(value.get("status") if isinstance(value, dict) else None)
+    return statuses
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -552,13 +649,17 @@ def main() -> int:
     from native_persona_context_audit import prepare_disposable_engine
 
     launches = []
-    with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-engine-") as engine_temporary:
-        chrome = prepare_disposable_engine(chrome, Path(engine_temporary))
-        for _ in range(2):
-            with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
-                root = Path(temporary)
-                launches.append([audit_profile(chrome, root),
-                                 audit_profile(chrome, root, reuse_existing=True)])
+    try:
+        with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-engine-") as engine_temporary:
+            chrome = prepare_disposable_engine(chrome, Path(engine_temporary))
+            for _ in range(2):
+                with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
+                    root = Path(temporary)
+                    launches.append([audit_profile(chrome, root),
+                                     audit_profile(chrome, root, reuse_existing=True)])
+    except AuditTimeoutError:
+        print(json.dumps({"status": "INCONCLUSIVE", "reason": "browser_timeout"}))
+        return 2
     reports = [pair[0] for pair in launches]
     consistency = evaluate(reports)
     repeat_consistency = [compare_repeat_launches(pair) for pair in launches]
@@ -573,13 +674,17 @@ def main() -> int:
               "profiles": reports, "repeat_profiles": [pair[1] for pair in launches]}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"report": str(args.output), "profile_consistency": profile_consistency,
-                      "context_consistency": consistency,
-                      "repeat_consistency": repeat_consistency,
-                      "repeat_context_consistency": repeat_context_consistency}, ensure_ascii=False))
+    statuses = observation_statuses([report for pair in launches for report in pair])
+    inconclusive = any(status in ("unsupported", "timeout") for status in statuses)
     checks = [profile_consistency, *consistency, *repeat_consistency,
               *repeat_context_consistency]
-    return 0 if all(all(item.values()) for item in checks) else 1
+    status = "INCONCLUSIVE" if inconclusive else (
+        "PASS" if all(all(item.values()) for item in checks) else "FAIL")
+    failed = sorted({name for group in checks for name, passed in group.items() if not passed})
+    print(json.dumps({"status": status, "report": str(args.output),
+                      "check_count": sum(len(group) for group in checks),
+                      "failed_checks": failed}, ensure_ascii=False))
+    return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[status]
 
 
 if __name__ == "__main__":

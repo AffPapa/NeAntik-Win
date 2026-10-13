@@ -35,11 +35,12 @@ Local packaged verification and public-download integrity are separate gates;
 the latter must be checked against the exact published ZIP. No version
 guarantees anonymity.
 
-The unreleased 0.8.8-preview V5 candidate changes the Canvas key transport to
+The published 0.8.8-preview V5 release changes the Canvas key transport to
 early browser-to-renderer Mojo IPC and pins the opt-in launcher to the V5
 patch receipt. A previous V4b engine is rejected for this mode. Local native,
-cross-context and session-rotation tests passed on one Windows 11 host, but
-packaged/public-download and external-network gates remain separate. This
+cross-context and session-rotation tests passed on one Windows 11 host. The
+portable ZIP was repeat-downloaded, hash-checked and self-tested; external
+network gates remain separate. This
 does not make the browser generally anonymous.
 
 ## Product boundary

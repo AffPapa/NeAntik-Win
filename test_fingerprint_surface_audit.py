@@ -6,7 +6,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from fingerprint_surface_audit import compare_fresh_profiles, compare_repeat_launches, evaluate  # noqa: E402
+from fingerprint_surface_audit import (compare_fresh_profiles, compare_repeat_launches,
+                                       evaluate, observation_statuses)  # noqa: E402
 
 
 def report():
@@ -17,10 +18,14 @@ def report():
     window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1,
               "canvas2dSha256": "a" * 64, "canvasPixelSha256": "c" * 64,
               "audioSha256": "e" * 64,
+              "webglPixel": {"status": "ok", "sha256": "1" * 64},
+              "textMetrics": {"status": "ok", "sha256": "2" * 64},
+              "audioSampleRate": {"status": "ok", "hz": 44100},
               "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                         "unmaskedRenderer": None}}
     worker = {**common, "canvasPixelSha256": "c" * 64}
-    return {"surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
+    return {"measurement_version": 2,
+            "surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
                          "crossOriginFrame": deepcopy(window), "worker": worker,
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
             "http": {"userAgent": "Chromium test", "acceptLanguage": "en-US,en;q=0.9",
@@ -80,6 +85,41 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         checks = evaluate([value])[0]
         self.assertFalse(checks["canvas2d_observed"])
         self.assertFalse(checks["webgl_observed"])
+
+    def test_webgl_pixel_digest_mismatch_is_rejected(self):
+        value = report()
+        value["surfaces"]["crossOriginFrame"]["webglPixel"]["sha256"] = "3" * 64
+        self.assertFalse(evaluate([value])[0]["webgl_pixel_cross_origin_parity"])
+
+    def test_text_metrics_missing_or_malformed_is_rejected(self):
+        value = report()
+        value["surfaces"]["main"]["textMetrics"] = {"status": "ok", "sha256": "not-a-digest"}
+        self.assertFalse(evaluate([value])[0]["text_metrics_observed"])
+
+    def test_unsupported_webgl_and_timed_out_audio_are_not_pass(self):
+        value = report()
+        value["surfaces"]["main"]["webglPixel"] = {"status": "unsupported"}
+        value["surfaces"]["main"]["audioSampleRate"] = {"status": "timeout"}
+        checks = evaluate([value])[0]
+        self.assertFalse(checks["webgl_pixel_observed"])
+        self.assertFalse(checks["audio_sample_rate_observed"])
+        self.assertIn("unsupported", observation_statuses([value]))
+        self.assertIn("timeout", observation_statuses([value]))
+
+    def test_audio_sample_rate_mismatch_is_rejected(self):
+        value = report()
+        value["surfaces"]["iframe"]["audioSampleRate"]["hz"] = 48000
+        self.assertFalse(evaluate([value])[0]["audio_sample_rate_iframe_parity"])
+
+    def test_legacy_report_without_new_fields_remains_evaluable(self):
+        value = report()
+        del value["measurement_version"]
+        for context in ("main", "iframe", "crossOriginFrame"):
+            for field in ("webglPixel", "textMetrics", "audioSampleRate"):
+                del value["surfaces"][context][field]
+        checks = evaluate([value])[0]
+        self.assertTrue(all(checks.values()))
+        self.assertNotIn("webgl_pixel_observed", checks)
 
     def test_mismatched_shared_worker_is_rejected(self):
         value = deepcopy(report())

@@ -16,14 +16,18 @@ import json
 import os
 from pathlib import Path
 import re
+import select
 import socket
+import socketserver
 import subprocess
 import tempfile
 import threading
+import time
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
 from browser_integration import OwnedJob, spawn_owned_browser
+from proxy_integration import receive_exact
 
 
 PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head><body>
@@ -117,6 +121,89 @@ def evaluate_cases(direct: dict, proxy: dict, diagnostic_disable_network_sandbox
     return "diagnostic_control_only" if diagnostic_disable_network_sandbox else "passed"
 
 
+def evaluate_socks_case(direct: dict, proxy: dict) -> str:
+    """A private STUN negative control is valid only with an observed SOCKS route."""
+    checks_pass = (direct["stun_binding_requests"] > 0 and
+                   direct["netlog"]["stun_destination_sends"] > 0 and
+                   proxy.get("proxy_bound") is True and
+                   proxy.get("proxy_scheme") == "socks5" and
+                   proxy["stun_binding_requests"] == 0 and
+                   proxy["all_udp_datagrams"] == 0 and
+                   proxy["netlog"]["all_udp_sends"] == 0 and
+                   proxy["route_control_requests"] > 0 and
+                   proxy["proxied_page_requests"] > 0)
+    return "passed" if checks_pass else "inconclusive"
+
+
+class RouteSocksServer(socketserver.ThreadingTCPServer):
+    """Only a disposable loopback probe page may be forwarded."""
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def __init__(self, page_port: int):
+        super().__init__(("127.0.0.1", 0), RouteSocksHandler)
+        self.page_port = page_port
+        self.lock = threading.Lock()
+        self.route_control_requests = 0
+        self.proxied_page_requests = 0
+        self.rejected_requests = 0
+
+    def snapshot(self) -> dict[str, int]:
+        with self.lock:
+            return {"route_control_requests": self.route_control_requests,
+                    "proxied_page_requests": self.proxied_page_requests,
+                    "rejected_external_requests": self.rejected_requests}
+
+
+class RouteSocksHandler(socketserver.BaseRequestHandler):
+    server: RouteSocksServer
+
+    def handle(self) -> None:
+        client: socket.socket = self.request
+        client.settimeout(5)
+        try:
+            version, count = receive_exact(client, 2)
+            methods = receive_exact(client, count)
+            if version != 5 or 0 not in methods:
+                client.sendall(b"\x05\xff")
+                return
+            client.sendall(b"\x05\x00")
+            version, command, reserved, kind = receive_exact(client, 4)
+            if kind == 1:
+                host = socket.inet_ntoa(receive_exact(client, 4))
+            elif kind == 3:
+                host = receive_exact(client, receive_exact(client, 1)[0]).decode("ascii")
+            elif kind == 4:
+                host = socket.inet_ntop(socket.AF_INET6, receive_exact(client, 16))
+            else:
+                raise ValueError("Unsupported SOCKS address type")
+            port = int.from_bytes(receive_exact(client, 2), "big")
+            valid_command = (version, command, reserved) == (5, 1, 0)
+            page = valid_command and host == "127.0.0.1" and port == self.server.page_port
+            with self.server.lock:
+                if page:
+                    self.server.proxied_page_requests += 1
+                elif valid_command and host == "neantik-route-control.invalid" and port == 80:
+                    self.server.route_control_requests += 1
+                else:
+                    self.server.rejected_requests += 1
+            if not page:
+                client.sendall(b"\x05\x02\x00\x01" + b"\x00" * 6)
+                return
+            with socket.create_connection(("127.0.0.1", self.server.page_port), timeout=5) as upstream:
+                client.sendall(b"\x05\x00\x00\x01" + socket.inet_aton("127.0.0.1") + b"\x00\x00")
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    readable, _, _ = select.select([client, upstream], [], [], 1)
+                    for source in readable:
+                        chunk = source.recv(65536)
+                        if not chunk:
+                            return
+                        (upstream if source is client else client).sendall(chunk)
+        except (OSError, ValueError, ConnectionError):
+            return
+
+
 class ProbeServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -203,9 +290,12 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
              force_default_policy: bool = False, net_log_dir: Path | None = None,
              diagnostic_disable_network_sandbox: bool = False,
              remote_sink: object | None = None,
-             verify_proxy_route: bool = False) -> dict:
+             verify_proxy_route: bool = False,
+             proxy_scheme: str = "http") -> dict:
     if verify_proxy_route and not proxy_bound:
         raise ValueError("Proxy route control requires a proxy-bound case")
+    if proxy_scheme not in ("http", "socks5"):
+        raise ValueError("Only the synthetic HTTP and SOCKS5 proxies are supported")
     token = uuid.uuid4().hex
     stun = remote_sink if remote_sink is not None else StunSink(stun_host)
     if remote_sink is not None:
@@ -214,12 +304,17 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
     server.verify_proxy_route = verify_proxy_route
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    socks = RouteSocksServer(server.server_port) if proxy_bound and proxy_scheme == "socks5" else None
+    socks_thread = threading.Thread(target=socks.serve_forever, daemon=True) if socks is not None else None
+    if socks_thread is not None:
+        socks_thread.start()
     job = OwnedJob()
     process: subprocess.Popen[bytes] | None = None
     try:
-        profile = root / ("proxy" if proxy_bound else "direct")
+        profile_name = ("proxy-socks5" if proxy_scheme == "socks5" else "proxy") if proxy_bound else "direct"
+        profile = root / profile_name
         log_dir = net_log_dir or root
-        net_log_path = log_dir / ("proxy.json" if proxy_bound else "direct.json")
+        net_log_path = log_dir / f"{profile_name}.json"
         url = f"http://127.0.0.1:{server.server_port}/case?token={token}"
         arguments = [str(chrome), "--headless", "--dump-dom", f"--user-data-dir={profile}",
                      "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
@@ -228,7 +323,8 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
         if diagnostic_disable_network_sandbox:
             arguments.append("--disable-features=NetworkServiceSandbox")
         if proxy_bound:
-            arguments += [f"--proxy-server=http://127.0.0.1:{server.server_port}",
+            proxy_port = socks.server_address[1] if socks is not None else server.server_port
+            arguments += [f"--proxy-server={proxy_scheme}://127.0.0.1:{proxy_port}",
                           "--proxy-bypass-list=<-loopback>",
                           "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
                           "--webrtc-ip-handling-policy=disable_non_proxied_udp"]
@@ -239,20 +335,26 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
         process = spawn_owned_browser([*arguments, url], root, job)
         stdout, stderr = process.communicate(input=b"G", timeout=45)
         if process.returncode != 0 or not isinstance(server.result, dict):
-            raise RuntimeError(f"Browser did not complete WebRTC case: exit={process.returncode}; stderr={stderr.decode(errors='replace')[-400:]}")
+            raise RuntimeError(f"Browser did not complete WebRTC case: exit={process.returncode}")
         match = re.search(r'<pre id="result">(.*?)</pre>', stdout.decode("utf-8", errors="replace"), re.S)
         if not match or json.loads(html.unescape(match.group(1))) != server.result:
             raise RuntimeError("Browser DOM and loopback report differ")
         if server.result.get("error"):
             raise RuntimeError(f"WebRTC page error: {server.result['error']}")
         receiver = stun.snapshot()
+        route = socks.snapshot() if socks is not None else {
+            "route_control_requests": server.route_control_requests,
+            "proxied_page_requests": 0,
+            "rejected_external_requests": server.rejected_external_requests}
         return {"proxy_bound": proxy_bound, "stun_destination_port": stun.port,
+                "proxy_scheme": proxy_scheme if proxy_bound else "direct",
                 "stun_binding_requests": receiver["stun_binding_requests"],
                 "all_udp_datagrams": receiver["all_udp_datagrams"],
                 "netlog": netlog_udp_summary(net_log_path, stun_host, stun.port),
                 "candidate_types": server.result.get("candidateTypes", []),
-                "rejected_external_requests": server.rejected_external_requests,
-                "route_control_requests": server.route_control_requests}
+                "rejected_external_requests": route["rejected_external_requests"],
+                "route_control_requests": route["route_control_requests"],
+                "proxied_page_requests": route["proxied_page_requests"]}
     finally:
         if process is not None and process.poll() is None:
             process.terminate()
@@ -265,6 +367,10 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+        if socks is not None:
+            socks.shutdown()
+            socks.server_close()
+            socks_thread.join(timeout=5)
         if remote_sink is None:
             stun.close()
 
