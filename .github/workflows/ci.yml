@@ -55,6 +55,9 @@ jobs:
       - name: Verify packaged-startup harness safety
         run: python -m unittest discover -s tools -p test_benchmark_packaged_startup.py -v
 
+      - name: Verify manual second-host gate safety
+        run: python -m unittest discover -s tools -p test_public_second_host_gate.py -v
+
       - name: Run source self-test
         run: python .\nevision_win.py --self-test
 

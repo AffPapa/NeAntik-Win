@@ -1,0 +1,63 @@
+name: Public portable second-host QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Exact published tag, e.g. v0.8.15-preview'
+        required: true
+        type: string
+      zip_sha256:
+        description: 'Expected SHA-256 of the public ZIP (64 lowercase hex digits)'
+        required: true
+        type: string
+      source_commit:
+        description: 'Exact 40-digit binary source commit from release manifest'
+        required: true
+        type: string
+
+# Read-only by design; no release edits, artifacts, or credentials persistence.
+permissions:
+  contents: read
+
+jobs:
+  public-portable:
+    name: Verify published ZIP on hosted Windows
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - name: Validate dispatch inputs before checkout
+        shell: pwsh
+        env:
+          QA_RELEASE_TAG: ${{ inputs.release_tag }}
+          QA_ZIP_SHA256: ${{ inputs.zip_sha256 }}
+          QA_SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          if ($env:QA_RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+-preview$' -or
+              $env:QA_ZIP_SHA256 -cnotmatch '^[0-9a-f]{64}$' -or
+              $env:QA_SOURCE_COMMIT -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'Invalid release tag, ZIP SHA-256, or source commit input.'
+          }
+
+      - name: Checkout trusted default-branch QA harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Verify exact public ZIP, packaged self-test and isolated storage
+        shell: pwsh
+        env:
+          QA_RELEASE_TAG: ${{ inputs.release_tag }}
+          QA_ZIP_SHA256: ${{ inputs.zip_sha256 }}
+          QA_SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: >-
+          python .\tools\public_second_host_gate.py
+          --tag "$env:QA_RELEASE_TAG"
+          --sha256 "$env:QA_ZIP_SHA256"
+          --source-commit "$env:QA_SOURCE_COMMIT"
