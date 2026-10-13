@@ -1,11 +1,11 @@
 # Fingerprint surface matrix and evidence plan
 
 Status: 2026-10-13. This is an engineering inventory, not an anonymity score.
-The public 0.8.4-preview (same core as 0.8.3) and unreleased V3 prototype must be kept separate.
+The public 0.8.5-preview (same core as 0.8.3) and unreleased V3 prototype must be kept separate.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
-| Surface | Public 0.8.4-preview | Unreleased V3 | Required observation before a privacy claim |
+| Surface | Public 0.8.5-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |
 | HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for UA Platform, full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
 | Language and `Accept-Language` | Profile/Chromium defaults | Same | Loopback audit compares the primary HTTP language with `navigator.language`; Chromium may add a fallback language to the header, so full-list equality is not asserted. Compare `Intl` formatting and locale of real HTTPS pages before a privacy claim. |
@@ -69,6 +69,14 @@ code for any failed check. The updated tool passed on the exact extracted
 background proxy attempts per profile were observed in the earlier audit, so
 this loopback fingerprint pass must not be read as a network-silence result.
 No browser binary or portable ZIP changed in this tooling-only step.
+
+The stock-control tool now runs the two-profile/two-launch audit on both the
+public 0.8.5-preview engine and a stock source build with the same recorded
+Chromium commit and version. On one Windows 11 host, both local gates passed;
+the public patch exposed no more CPU/RAM than stock, reduced both on this host,
+and left the other measured surfaces equal. This does not quantify cohort
+uniqueness, cross-machine behavior, external-network leaks or real-site
+compatibility. Raw reports stay outside Git; only boolean checks are printed.
 
 A separate probe of Chromium's built-in `--disable-reading-from-canvas`
 switch blocked the tested main and dedicated-worker Canvas2D readbacks, but

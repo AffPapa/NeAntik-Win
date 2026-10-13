@@ -1,7 +1,7 @@
 # Experimental native persona: evidence and release gates
 
 Status: **development checkout only**, 2026-10-13. These changes are not in
-the downloadable 0.8.3-preview core (the same baseline engine as 0.8.2). The unreleased manager source now has an
+the downloadable 0.8.5-preview core (the same baseline engine as 0.8.3). The unreleased manager source now has an
 opt-in preview profile mode gated on an exact staged-core receipt and compiled
 capability report; the downloadable manager does not offer it. Do not describe
 the current release as providing per-profile Canvas or timezone changes.
