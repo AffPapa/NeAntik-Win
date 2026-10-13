@@ -238,3 +238,26 @@ external proxy, other interfaces or another Windows host. WSL and Windows
 still share one physical computer; P2's independent public-network and packet
 capture gates remain open. The earlier host-local inconclusive result is not
 rewritten as a pass.
+
+### Working HTTPS CONNECT control — 13 October 2026
+
+The [external route probe](../tools/external_proxy_fail_closed_audit.py) now
+has an allowlisted working HTTP CONNECT fixture alongside its rejecting HTTP
+and SOCKS5 fixtures. It accepts tunnels only to the consented test origin on
+port 443; unrelated destinations receive 403 and are never forwarded. On the
+exact extracted public 0.8.4 Chromium (`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`),
+the browser rendered the project's no-store HTTPS JSON endpoint through this
+fixture. The fixture recorded a successful tunnel to the destination host;
+Chromium NetLog for the proxied case contained only loopback TCP endpoints and
+zero UDP sends. The direct positive control and both rejecting-proxy negative
+controls also passed. The private report is
+`C:\NeAntikBuild\qa\external-route-working-v084-20261013.json`; it keeps
+host counts and check results, not response bodies, cookies or full URLs.
+
+The fixture itself resolves the destination with the Windows host DNS and
+exits through the same computer. Therefore this is a **working proxy-path
+control**, not proof of DNS isolation, a distinct public egress IP, external
+IPv6, TURN/WebRTC behavior or leak freedom on another network. Those parts
+of Gate P2 remain open. The shipped browser binary and v0.8.4 ZIP are
+unchanged; this is an audit-tool improvement.

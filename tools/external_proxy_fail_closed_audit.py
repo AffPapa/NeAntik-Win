@@ -1,8 +1,9 @@
-"""Check a disposable browser's external HTTPS and rejecting-proxy paths.
+"""Check a disposable browser's external HTTPS and proxy paths.
 
 The endpoint must be a consented HTTPS JSON page that returns a `userAgent`
-field, such as NeAntik's no-store /api/headers. Both local proxy fixtures
-reject every request and never forward. This proves only the observed route on this host;
+field, such as NeAntik's no-store /api/headers. Rejecting fixtures never
+forward; the working CONNECT fixture allows only the named HTTPS origin.
+This proves only the observed route on this host;
 it is not a DNS, IPv6, WebRTC, packet-capture or anonymity certificate.
 """
 
@@ -11,11 +12,13 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import html
 import json
 import os
 from pathlib import Path
 import re
+import select
 import socket
 import socketserver
 import subprocess
@@ -27,6 +30,75 @@ from browser_integration import OwnedJob, spawn_owned_browser
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 from privacy_defaults import initialize_privacy_defaults
 from start_page_network_audit import RejectingProxy, summarize_netlog
+
+
+class WorkingConnectProxy(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, allowed_host: str) -> None:
+        super().__init__(("127.0.0.1", 0), WorkingConnectProxyHandler)
+        self.allowed_host = allowed_host.lower()
+        self.host_counts: Counter[str] = Counter()
+        self.connected_tunnels = 0
+        self.lock = threading.Lock()
+
+
+class WorkingConnectProxyHandler(BaseHTTPRequestHandler):
+    server: WorkingConnectProxy
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        pass
+
+    def do_CONNECT(self) -> None:
+        try:
+            target = urlsplit("//" + self.path)
+            host = target.hostname.lower() if target.hostname else ""
+            port = target.port
+            valid = (host == self.server.allowed_host and port == 443
+                     and target.username is None and target.password is None
+                     and not target.path and not target.query and not target.fragment)
+        except ValueError:
+            host, valid = "", False
+        if host:
+            with self.server.lock:
+                self.server.host_counts[host] += 1
+        if not valid:
+            self.send_error(403, "Only the named HTTPS test endpoint is allowed")
+            return
+        try:
+            upstream = socket.create_connection((host, 443), timeout=10)
+        except OSError:
+            self.send_error(502, "Test endpoint unavailable")
+            return
+        with upstream:
+            with self.server.lock:
+                self.server.connected_tunnels += 1
+            self.send_response(200, "Connection Established")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            self.close_connection = True
+            self.connection.settimeout(10)
+            upstream.settimeout(10)
+            sockets = (self.connection, upstream)
+            try:
+                while True:
+                    ready, _, _ = select.select(sockets, (), (), 10)
+                    if not ready:
+                        return
+                    for source in ready:
+                        chunk = source.recv(65536)
+                        if not chunk:
+                            return
+                        destination = upstream if source is self.connection else self.connection
+                        destination.sendall(chunk)
+            except OSError:
+                return
+
+    def do_GET(self) -> None:
+        self.send_error(403, "CONNECT to the named HTTPS endpoint only")
+
+    do_POST = do_GET
 
 
 class RejectingSocks5(socketserver.ThreadingTCPServer):
@@ -154,6 +226,19 @@ def evaluate_socks5_route(endpoint_host: str, direct: dict,
     return checks
 
 
+def evaluate_working_connect_route(endpoint_host: str, direct: dict,
+                                   proxied: dict) -> dict[str, bool]:
+    remote_hosts = proxied.get("tcp_remote_hosts", {})
+    return {
+        "direct_endpoint_rendered": direct.get("expected_json_rendered") is True,
+        "proxied_endpoint_rendered": proxied.get("expected_json_rendered") is True,
+        "proxy_received_endpoint": proxied.get("proxy_observed_hosts", {}).get(endpoint_host, 0) > 0,
+        "proxy_opened_tunnel": proxied.get("proxy_connected_tunnels", 0) > 0,
+        "proxied_tcp_only_loopback": bool(remote_hosts) and set(remote_hosts) == {"127.0.0.1"},
+        "proxied_netlog_has_no_udp_sends": proxied.get("udp_send_count") == 0,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -169,7 +254,7 @@ def main() -> int:
     if args.output.exists() or not args.output.parent.is_dir():
         parser.error("Output path must be new and its parent must exist")
     report = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
-              "scope": "one Windows host; consented HTTPS endpoint; rejecting loopback HTTP and SOCKS5 proxies; no external leak certificate",
+              "scope": "one Windows host; consented HTTPS endpoint; allowlisted working HTTP CONNECT plus rejecting HTTP/SOCKS5 loopback proxies; no external leak certificate",
               "endpoint_host": endpoint.hostname.lower(), "cases": {}, "status": "started"}
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-external-route-qa-") as temporary:
@@ -187,6 +272,19 @@ def main() -> int:
                 proxy.shutdown()
                 proxy.server_close()
                 thread.join(timeout=5)
+            working = WorkingConnectProxy(endpoint.hostname.lower())
+            working_thread = threading.Thread(target=working.serve_forever, daemon=True)
+            working_thread.start()
+            try:
+                report["cases"]["working_connect"] = run_case(
+                    chrome, root, "working-connect", args.endpoint, working.server_port)
+                report["cases"]["working_connect"]["proxy_observed_hosts"] = dict(
+                    sorted(working.host_counts.items()))
+                report["cases"]["working_connect"]["proxy_connected_tunnels"] = working.connected_tunnels
+            finally:
+                working.shutdown()
+                working.server_close()
+                working_thread.join(timeout=5)
             socks = RejectingSocks5()
             socks_thread = threading.Thread(target=socks.serve_forever, daemon=True)
             socks_thread.start()
@@ -206,14 +304,18 @@ def main() -> int:
             endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["proxy_bound"])
         report["socks5_checks"] = evaluate_socks5_route(
             endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["socks5_proxy_bound"])
+        report["working_connect_checks"] = evaluate_working_connect_route(
+            endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["working_connect"])
         report["status"] = "passed" if all([*report["checks"].values(),
-                                              *report["socks5_checks"].values()]) else "inconclusive"
+                                              *report["socks5_checks"].values(),
+                                              *report["working_connect_checks"].values()]) else "inconclusive"
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "checks": report.get("checks"),
                       "socks5_checks": report.get("socks5_checks"),
+                      "working_connect_checks": report.get("working_connect_checks"),
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
     return 0 if report["status"] == "passed" else 1
 
