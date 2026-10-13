@@ -31,6 +31,8 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   invariants. Two clean-core runs showed eight proxy-observed startup attempts,
   only loopback TCP endpoints and zero UDP sends when proxy-bound. This is
   local evidence only; external DNS/IPv6/WebRTC routes remain unverified.
+- Repeated the startup/proxy probe on the byte-verified public 0.8.1 core;
+  the same local proxy-route invariants passed. No released ZIP was changed.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

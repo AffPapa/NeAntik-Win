@@ -113,3 +113,10 @@ summary. This is a positive local route check, not packet-capture evidence
 that every transport on every network fails closed. A third-party extension,
 IPv6, external DNS resolver, real WebRTC/TURN server or other Windows process
 is outside this test.
+The same startup/proxy probe also passed against the extracted **public
+0.8.1-preview** engine: its local release ZIP matched the published SHA-256
+`2b43c3ffad3e16754d376ebb49d45530a670f7540d580fa2939ebf2c649fc70e`,
+and the extracted `chrome.exe` matched the release manifest. The proxy case
+again observed eight requests, eight loopback TCP endpoints and zero NetLog
+UDP sends. This extends local evidence to the downloadable binary, but does
+not close the external-network gate.
