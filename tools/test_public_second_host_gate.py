@@ -90,10 +90,11 @@ class SecondHostGateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 gate.bundled_chromium(portable)
 
-    def test_verifier_diagnostic_exposes_only_line_number(self) -> None:
-        completed = subprocess.CompletedProcess([], 1, stdout="line=88\n", stderr="secret")
+    def test_verifier_diagnostic_is_bounded_and_redacted(self) -> None:
+        completed = subprocess.CompletedProcess([], 1, stdout="class=RuntimeException\nreason=redacted\n", stderr="secret")
         with patch.object(gate.subprocess, "run", return_value=completed):
-            self.assertEqual(gate.verifier_failure_line(Path("verifier.ps1"), Path("archive.zip")), "88")
+            self.assertEqual(gate.verifier_failure_detail(Path("verifier.ps1"), Path("archive.zip")),
+                             "class=RuntimeException; reason=redacted")
 
 
 if __name__ == "__main__":

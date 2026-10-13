@@ -105,17 +105,21 @@ def bundled_chromium(portable_root: Path) -> tuple[Path, Path]:
     return engine, chrome
 
 
-def verifier_failure_line(verifier: Path, archive: Path) -> str:
-    """Report only the public verifier's failing line, never its raw output."""
+def verifier_failure_detail(verifier: Path, archive: Path) -> str:
+    """Report a bounded verifier error, never its raw stream or archive data."""
     script = ("Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop; "
               "try { & '" + str(verifier).replace("'", "''") + "' -ArchivePath '" +
               str(archive).replace("'", "''") + "' | Out-Null } "
-              "catch { Write-Output ('line=' + $_.InvocationInfo.ScriptLineNumber); exit 1 }")
+              "catch { Write-Output ('class=' + $_.Exception.GetType().Name); "
+              "Write-Output ('reason=' + $_.Exception.Message); exit 1 }")
     result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
                             timeout=180, check=False)
-    match = re.search(r"(?m)^line=([0-9]{1,4})$", result.stdout)
-    return match.group(1) if match else "unknown"
+    parts = [part for part in result.stdout.splitlines()
+             if part.startswith(("class=", "reason="))]
+    detail = "; ".join(parts)[:240]
+    detail = re.sub(r"(?:gh[pousr]_|sk-(?:proj-)?|xox[baprs]-)[A-Za-z0-9_-]{10,}", "[redacted]", detail)
+    return detail or "unknown"
 
 
 def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | int]:
@@ -140,7 +144,7 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
             executable, provenance = extract_verified(archive, extraction, archive_sha256, verifier)
         except ValueError as error:
             if str(error) == "Release archive verifier failed":
-                print(f"Archive verifier failure line: {verifier_failure_line(verifier, archive)}", flush=True)
+                print(f"Archive verifier failure: {verifier_failure_detail(verifier, archive)}", flush=True)
             raise
         if (provenance["version"] != tag.removeprefix("v") or
                 provenance["source_commit"] != source_commit):
