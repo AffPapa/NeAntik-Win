@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.11-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.11-preview), source/binary commit `72ae1d60e30df7b951b3ba449eb06c9b299a4499`, ZIP SHA-256 `97343ef069797b833138ae6ae1c754c3d830d2f340b632f42c26c0f7d368be7c`. GitHub asset повторно скачан и сверен; живой сайт показывает тот же ZIP. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.11-preview.md). Последующие коммиты `main` добавляют документацию, но не меняют этот выпущенный бинарник. Ниже есть исторические контрольные точки 0.8.10 и старше: они не являются статусом текущего ZIP.
+**Текущий публичный выпуск:** [0.8.12-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.12-preview), source/binary commit `e6020f6b5988cbfc62deb87670535d12fea1af70`, ZIP SHA-256 `053c66852bdac7cbaed1edede83f53940fe66746813d598a9db99113b3732dbd`. GitHub asset повторно скачан и сверен; живой сайт показывает тот же ZIP. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.12-preview.md). Последующие коммиты `main` добавляют документацию, но не меняют этот выпущенный бинарник. Ниже есть исторические контрольные точки 0.8.11 и старше: они не являются статусом текущего ZIP.
 
 ## 1. Что именно защищаем
 
