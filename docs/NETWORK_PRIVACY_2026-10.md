@@ -101,3 +101,15 @@ replace the new-tab page on first or second launch. Passing `about:blank` as
 an explicit launch URL did open a blank tab. Therefore the preference edit is
 not a verified product fix; forcing a URL on every launch would interfere
 with session restoration and needs its own UX design and regression tests.
+
+The same probe now has an optional **rejecting loopback HTTP proxy** case
+using the launcher's actual bundled-proxy flags. In two fresh runs of the
+clean development core, the proxy observed eight startup request attempts
+for four hostnames. Chromium NetLog recorded eight TCP connections, all to
+`127.0.0.1`, and zero UDP sends in the proxy-bound case. The same runs'
+direct controls recorded external TCP endpoints and UDP sends. The proxy
+never forwarded requests, and no raw URL paths or query strings enter the
+summary. This is a positive local route check, not packet-capture evidence
+that every transport on every network fails closed. A third-party extension,
+IPv6, external DNS resolver, real WebRTC/TURN server or other Windows process
+is outside this test.
