@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -88,6 +89,11 @@ class SecondHostGateTests(unittest.TestCase):
             chrome.unlink()
             with self.assertRaises(ValueError):
                 gate.bundled_chromium(portable)
+
+    def test_verifier_diagnostic_exposes_only_line_number(self) -> None:
+        completed = subprocess.CompletedProcess([], 1, stdout="line=88\n", stderr="secret")
+        with patch.object(gate.subprocess, "run", return_value=completed):
+            self.assertEqual(gate.verifier_failure_line(Path("verifier.ps1"), Path("archive.zip")), "88")
 
 
 if __name__ == "__main__":

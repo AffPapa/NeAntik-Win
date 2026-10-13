@@ -105,6 +105,19 @@ def bundled_chromium(portable_root: Path) -> tuple[Path, Path]:
     return engine, chrome
 
 
+def verifier_failure_line(verifier: Path, archive: Path) -> str:
+    """Report only the public verifier's failing line, never its raw output."""
+    script = ("Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop; "
+              "try { & '" + str(verifier).replace("'", "''") + "' -ArchivePath '" +
+              str(archive).replace("'", "''") + "' | Out-Null } "
+              "catch { Write-Output ('line=' + $_.InvocationInfo.ScriptLineNumber); exit 1 }")
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                            timeout=180, check=False)
+    match = re.search(r"(?m)^line=([0-9]{1,4})$", result.stdout)
+    return match.group(1) if match else "unknown"
+
+
 def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | int]:
     tag, archive_sha256, source_commit = validated_inputs(tag, archive_sha256, source_commit)
     if os.name != "nt":
@@ -123,7 +136,12 @@ def run(tag: str, archive_sha256: str, source_commit: str) -> dict[str, str | in
         extraction.mkdir()
         verifier = repository / "tools" / "verify-release-archive.ps1"
         print("Gate stage: archive verification and extraction", flush=True)
-        executable, provenance = extract_verified(archive, extraction, archive_sha256, verifier)
+        try:
+            executable, provenance = extract_verified(archive, extraction, archive_sha256, verifier)
+        except ValueError as error:
+            if str(error) == "Release archive verifier failed":
+                print(f"Archive verifier failure line: {verifier_failure_line(verifier, archive)}", flush=True)
+            raise
         if (provenance["version"] != tag.removeprefix("v") or
                 provenance["source_commit"] != source_commit):
             raise ValueError("Verified archive version or source commit differs")
