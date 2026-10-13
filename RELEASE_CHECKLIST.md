@@ -7,7 +7,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 - Set `release-version.json` once; it is the source for runtime, Windows metadata, artifact names and release manifests. Do not independently hardcode a new runtime version.
 - Update CHANGELOG with date, changes, limitations and migration notes; preserve historical entries.
 - Keep README, architecture, security scope and site claims consistent with implemented behavior.
-- Re-run the complete gate after every change; source-only success is not packaged or public-download QA.
+- After a source change, rerun affected source tests; after a runtime or packaging change, rebuild and rerun all gates tied to the new binary SHA-256. Documentation or test-harness changes require their own checks, not a duplicate expensive browser run with unchanged inputs. Before any repeated expensive gate, record the new hypothesis or changed input. Source-only success is not packaged or public-download QA.
 
 ## 2. Verify source and release tooling
 
@@ -88,6 +88,7 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Measure startup, idle CPU/memory, search and profile-list responsiveness with method, data size and environment. Do not claim a universal speed or RAM figure.
 - Test upgrade in a new folder with private pre-copy of Data and rollback using the preserved old snapshot.
 - Run `tools/upgrade_rollback_integration.py` with a freshly downloaded, SHA-256-verified public previous ZIP and the exact candidate ZIP. Require same-account synthetic profile/proxy/DPAPI preservation and an unchanged old snapshot after candidate writes; separately test packaged GUI and browser-session migration before claiming a complete update gate.
+- Run `tools/upgrade_browser_session_integration.py` with those same two exact ZIPs. Require a persistent synthetic cookie and localStorage written by the previous bundled Chromium to be read by the candidate bundled Chromium on the same loopback origin after copying `Data/`; require the old snapshot to remain unchanged. This is one-profile, same-account evidence only: test packaged GUI update and other storage surfaces separately.
 - Run available Windows security scanning, record results and limitations; unsigned/SmartScreen warnings remain possible.
 
 Use disposable test data outside the shipping folder. Re-check the final ZIP after testing; never publish a test-used Data directory.
