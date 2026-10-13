@@ -58,6 +58,40 @@ try {
     $numericVersion = [version]($version.version -replace '-.*$', '')
     $publicPreview = $version.version -notmatch '-dev$'
     if ($publicPreview -and $numericVersion -ge [version]'0.8.1' -and ($manifest.source_state -ne 'clean' -or $manifest.source_commit -notmatch '^[0-9a-f]{40}$')) { throw 'Public preview requires clean committed public source provenance.' }
+    $provenance = Read-ArchiveText $entries["$root/build-provenance.json"] | ConvertFrom-Json
+    $provenanceFields = @($provenance.PSObject.Properties | ForEach-Object { $_.Name })
+    $sourceFields = @('source_commit', 'source_state', 'source_tree_sha256')
+    $requiresSourceProvenance = $publicPreview -and $numericVersion -ge [version]'0.8.1'
+    foreach ($field in $sourceFields) {
+        $manifestHasField = $manifest.PSObject.Properties.Name -contains $field
+        $provenanceHasField = $provenanceFields -contains $field
+        if ($requiresSourceProvenance -and (-not $manifestHasField -or -not $provenanceHasField)) { throw "Incomplete public source provenance: $field" }
+        if ($manifestHasField -ne $provenanceHasField -or
+            ($manifestHasField -and $manifest.$field -cne $provenance.$field)) { throw "Release source provenance mismatch: $field" }
+    }
+    if ($requiresSourceProvenance) {
+        if ($provenance.source_state -cne 'clean' -or $provenance.source_commit -cnotmatch '^[0-9a-f]{40}$' -or
+            $provenance.source_tree_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            $provenanceFields -notcontains 'source_files' -or
+            $provenance.source_files -isnot [array] -or $provenance.source_files.Count -eq 0) {
+            throw 'Invalid public source provenance shape.'
+        }
+        $seenSourcePaths = @{}
+        foreach ($sourceFile in $provenance.source_files) {
+            Assert-RelativeReleasePath ([string]$sourceFile.path)
+            if ($seenSourcePaths.ContainsKey([string]$sourceFile.path) -or
+                $sourceFile.sha256 -cnotmatch '^[0-9a-f]{64}$' -or
+                $sourceFile.size_bytes -isnot [long] -and $sourceFile.size_bytes -isnot [int] -or
+                $sourceFile.size_bytes -lt 0) { throw 'Invalid public source file provenance.' }
+            $seenSourcePaths[[string]$sourceFile.path] = $true
+        }
+        $sourceTreeJson = $provenance.source_files | ConvertTo-Json -Depth 5 -Compress
+        $sourceTreeBytes = [System.Text.Encoding]::UTF8.GetBytes($sourceTreeJson)
+        $sourceTreeSha = [System.Security.Cryptography.SHA256]::Create()
+        try { $sourceTreeHash = [BitConverter]::ToString($sourceTreeSha.ComputeHash($sourceTreeBytes)).Replace('-', '').ToLowerInvariant() }
+        finally { $sourceTreeSha.Dispose() }
+        if ($sourceTreeHash -cne $provenance.source_tree_sha256) { throw 'Public source tree provenance hash mismatch.' }
+    }
     if ($publicPreview -and $numericVersion -ge [version]'0.5.0' -and (($manifest.PSObject.Properties.Name -notcontains 'native_core_bundled') -or -not $manifest.native_core_bundled)) { throw 'This preview must bundle Chromium.' }
     $productBase = [System.IO.Path]::GetFileNameWithoutExtension($exeName)
     if ($root -ne "$productBase-portable-v$($version.version)") { throw 'Archive root does not match release version.' }

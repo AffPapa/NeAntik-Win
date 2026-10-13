@@ -20,7 +20,7 @@ function Expect-Failure([string]$Name, [scriptblock]$Action, [string]$Pattern) {
 }
 
 function New-TestArchive([string]$Mode) {
-    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } elseif ($Mode -eq 'new-preview-051-without-core') { '0.5.1-preview' } elseif ($Mode -eq 'new-preview-060-without-core') { '0.6.0-preview' } elseif ($Mode -eq 'new-preview-070-without-core') { '0.7.0-preview' } elseif ($Mode -eq 'new-preview-071-without-core') { '0.7.1-preview' } elseif ($Mode -eq 'new-preview-090-without-core') { '0.9.0-preview' } else { '0.2.0-preview' }
+    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -like 'chromium-source-privacy-provenance*') { '0.8.5-preview' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } elseif ($Mode -eq 'new-preview-051-without-core') { '0.5.1-preview' } elseif ($Mode -eq 'new-preview-060-without-core') { '0.6.0-preview' } elseif ($Mode -eq 'new-preview-070-without-core') { '0.7.0-preview' } elseif ($Mode -eq 'new-preview-071-without-core') { '0.7.1-preview' } elseif ($Mode -eq 'new-preview-090-without-core') { '0.9.0-preview' } else { '0.2.0-preview' }
     $folder = "NeVisionWin-portable-v$testVersion"
     $version = "{`"version`":`"$testVersion`",`"file_version`":[0,2,0,0],`"channel`":`"preview`"}"
     $payload = [ordered]@{
@@ -93,11 +93,33 @@ function New-TestArchive([string]$Mode) {
             }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
+        if ($Mode -like 'chromium-source-privacy-provenance*') {
+            $engineReceipt.locales = @('en-US.pak', 'ru.pak', 'th.pak')
+            foreach ($locale in $engineReceipt.locales) { $payload["Engine/Chromium/locales/$locale"] = 'Synthetic locale fixture' }
+        }
         $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
+    }
+    $sourceProvenanceMode = $Mode -like 'chromium-source-privacy-provenance*' -or $Mode -eq 'new-preview-090-without-core'
+    if ($sourceProvenanceMode) {
+        $sourceFiles = @([ordered]@{ path = 'nevision_win.py'; size_bytes = 7; sha256 = Get-ReleaseTextHash 'fixture' })
+        $sourceTreeHash = Get-ReleaseTextHash ($sourceFiles | ConvertTo-Json -Depth 5 -Compress)
+        $provenanceState = if ($Mode -eq 'chromium-source-privacy-provenance-state-mismatch') { 'modified' } else { 'clean' }
+        $payload['build-provenance.json'] = ([ordered]@{ source_commit = 'a' * 40; source_state = $provenanceState;
+            source_tree_sha256 = $sourceTreeHash; source_files = $sourceFiles } | ConvertTo-Json -Depth 5 -Compress)
     }
     $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
     $manifest = [ordered]@{ format = 'nevision-release-v1'; version = $testVersion; files = $files }
-    if ($Mode -eq 'new-preview-090-without-core') { $manifest.source_state = 'clean'; $manifest.source_commit = 'a' * 40 }
+    if ($sourceProvenanceMode) {
+        $manifest.source_state = 'clean'; $manifest.source_commit = 'a' * 40; $manifest.source_tree_sha256 = $sourceTreeHash
+        if ($Mode -eq 'chromium-source-privacy-provenance-commit-mismatch') { $manifest.source_commit = 'b' * 40 }
+        if ($Mode -eq 'chromium-source-privacy-provenance-tree-mismatch') { $manifest.source_tree_sha256 = 'b' * 64 }
+        if ($Mode -eq 'chromium-source-privacy-provenance-tree-corrupt') {
+            $payload['build-provenance.json'] = $payload['build-provenance.json'].Replace($sourceTreeHash, ('c' * 64))
+            $files = @($payload.Keys | ForEach-Object { [ordered]@{ path = $_; size_bytes = [System.Text.Encoding]::UTF8.GetByteCount($payload[$_]); sha256 = Get-ReleaseTextHash $payload[$_] } })
+            $manifest.files = $files
+            $manifest.source_tree_sha256 = 'c' * 64
+        }
+    }
     if ($nativeMode) {
         $manifest.native_core_bundled = $true
         $manifest.engine = [ordered]@{ engine_id = 'neantik-chromium'; version = '155.0.8059.40';
@@ -132,7 +154,7 @@ function New-TestArchive([string]$Mode) {
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
     }
     if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
-    if ($Mode -in @('neantik', 'new-preview-without-core', 'new-preview-051-without-core', 'new-preview-060-without-core', 'new-preview-070-without-core', 'new-preview-071-without-core', 'new-preview-090-without-core')) {
+    if ($Mode -like 'chromium-source-privacy-provenance*' -or $Mode -in @('neantik', 'new-preview-without-core', 'new-preview-051-without-core', 'new-preview-060-without-core', 'new-preview-070-without-core', 'new-preview-071-without-core', 'new-preview-090-without-core')) {
         $folder = "NeAntikWin-portable-v$testVersion"
         $payload['NeAntikWin.exe'] = $payload['NeVisionWin.exe']
         $payload.Remove('NeVisionWin.exe')
@@ -190,6 +212,14 @@ $script:passed++
 $chromiumSourcePrivacy = New-TestArchive 'chromium-source-privacy'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourcePrivacy
 $script:passed++
+$sourceProvenanceValid = New-TestArchive 'chromium-source-privacy-provenance-valid'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $sourceProvenanceValid
+$script:passed++
+foreach ($case in @('chromium-source-privacy-provenance-commit-mismatch', 'chromium-source-privacy-provenance-state-mismatch',
+    'chromium-source-privacy-provenance-tree-mismatch', 'chromium-source-privacy-provenance-tree-corrupt')) {
+    $archive = New-TestArchive $case
+    Expect-Failure "archive $case rejected" { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $archive } 'source provenance|source tree provenance'
+}
 $chromiumNative = New-TestArchive 'chromium-source-privacy-native'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumNative
 $script:passed++

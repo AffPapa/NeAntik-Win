@@ -16,6 +16,7 @@ import subprocess
 import sys
 
 from launcher_integration import check_engine_tree
+from fingerprint_surface_audit import compare_fresh_profiles, compare_repeat_launches, evaluate
 
 
 def read_engine_identity(chrome: Path) -> dict[str, str | None]:
@@ -36,17 +37,27 @@ def _samples(report: dict) -> list[dict]:
 
 
 def _local_gate_passed(report: dict) -> bool:
-    groups = [report.get("context_consistency"), report.get("repeat_consistency"),
-              report.get("repeat_context_consistency")]
-    profile = {key: report.get(key) for key in (
-        "profile_surfaces_equal", "profile_http_equal", "profile_client_hints_equal",
-        "profile_high_entropy_equal", "profile_platform_equal")}
-    return all(value is True for value in profile.values()) and all(
-        isinstance(group, list) and len(group) == 2
-        and all(isinstance(item, dict) and item and all(value is True for value in item.values())
-                for item in group)
-        for group in groups
-    )
+    try:
+        primary = report["profiles"]
+        repeats = report["repeat_profiles"]
+        _samples(report)
+        expected_profile = compare_fresh_profiles(primary)
+        expected_context = evaluate(primary)
+        expected_repeat = [compare_repeat_launches([first, second])
+                           for first, second in zip(primary, repeats)]
+        expected_repeat_context = evaluate(repeats)
+        return (
+            all(value is True and report.get(key) is True
+                for key, value in expected_profile.items())
+            and report.get("context_consistency") == expected_context
+            and report.get("repeat_consistency") == expected_repeat
+            and report.get("repeat_context_consistency") == expected_repeat_context
+            and all(all(value is True for value in item.values())
+                    for group in (expected_context, expected_repeat, expected_repeat_context)
+                    for item in group)
+        )
+    except (KeyError, TypeError, ValueError, IndexError):
+        return False
 
 
 def _ordinary_surfaces(report: dict) -> dict:

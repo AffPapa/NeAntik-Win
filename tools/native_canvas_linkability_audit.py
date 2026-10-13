@@ -62,6 +62,13 @@ def release_gate(observations: dict) -> str:
     return "requires_manual_review"
 
 
+def report_exit_code(report: dict) -> int:
+    """Keep successful measurement distinct from permission to release."""
+    if report.get("status") != "measured":
+        return 1
+    return 0 if report.get("release_gate") == "approved" else 2
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-chrome", type=Path, required=True)
@@ -94,7 +101,7 @@ def main() -> int:
                       "observations": report.get("observations"),
                       "release_gate": report.get("release_gate"),
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
-    return 0 if report["status"] == "measured" else 1
+    return report_exit_code(report)
 
 
 if __name__ == "__main__":

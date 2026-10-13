@@ -1,6 +1,6 @@
 # Canvas protection candidate: blocked release gate
 
-Status: 2026-10-13, development research only. The downloadable 0.8.3-preview
+Status: 2026-10-13, development research only. The downloadable 0.8.5-preview
 does **not** include this switch or the V3 per-profile Canvas patch. Raw local
 audit reports stay outside Git.
 
@@ -10,6 +10,11 @@ Do not ship V3's stable per-profile Canvas seed as a privacy feature: on one
 Windows host, eight seeds made eight repeatable Canvas outputs. A different
 output per profile is not evidence of anonymity and can itself become a stable
 identifier. [V3 audit](NATIVE_PERSONA_PROTOTYPE_AUDIT.md).
+The Canvas linkability CLI now returns exit code 2 when measurement succeeds
+but its release decision is blocked or needs manual review; code 0 is reserved
+for an approved gate. A disposable four-sample stock/V3 run returned 2 with
+`blocked_by_stable_per_profile_canvas_identifier`. The measurement remains a
+single-host warning, not a general linkability estimate.
 
 Do not enable Chromium's existing `--disable-reading-from-canvas` switch yet.
 The [disposable control probe](../tools/canvas_readback_policy_audit.py) on the

@@ -72,6 +72,12 @@ class BaselineComparisonTests(unittest.TestCase):
                             self.stock, self.candidate, "f" * 64)
         self.assertFalse(checks["candidate_local_gate"])
 
+    def test_incomplete_true_only_check_group_is_rejected(self):
+        self.candidate["context_consistency"] = [{"invented": True}, {"invented": True}]
+        checks, _ = compare(self.stock_identity, self.candidate_identity,
+                            self.stock, self.candidate, "f" * 64)
+        self.assertFalse(checks["candidate_local_gate"])
+
     def test_candidate_patch_must_match_public_source(self):
         checks, _ = compare(self.stock_identity, self.candidate_identity,
                             self.stock, self.candidate, "a" * 64)
