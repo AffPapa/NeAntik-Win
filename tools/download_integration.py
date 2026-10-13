@@ -162,9 +162,9 @@ def main() -> int:
     report = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "new managed portable profiles; synthetic loopback downloads; one Windows host",
               "cases": [], "status": "started"}
+    root = Path(tempfile.mkdtemp(prefix="neantik-download-qa-"))
     try:
-        with tempfile.TemporaryDirectory(prefix="neantik-download-qa-") as temporary:
-            root = Path(temporary)
+        try:
             server = DownloadServer()
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
@@ -191,6 +191,23 @@ def main() -> int:
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=5)
+        finally:
+            # Chromium may release its Session files just after the owned job closes.
+            # Delete only this harness-created temp root, after validating its boundary.
+            temp_parent = Path(tempfile.gettempdir()).resolve()
+            if root.resolve().parent != temp_parent or not root.name.startswith("neantik-download-qa-") or root.is_symlink():
+                raise RuntimeError("Unsafe download QA cleanup target")
+            cleanup_error = None
+            for _ in range(20):
+                try:
+                    shutil.rmtree(root)
+                    cleanup_error = None
+                    break
+                except PermissionError as error:
+                    cleanup_error = error
+                    time.sleep(0.25)
+            if cleanup_error is not None:
+                raise RuntimeError(f"Temporary download QA files remain locked: {cleanup_error}")
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
