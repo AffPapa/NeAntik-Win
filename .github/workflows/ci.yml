@@ -37,6 +37,9 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -v
 
+      - name: Verify local route-harness unit tests
+        run: python -m unittest discover -s tools -p test_*integration.py -v
+
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v
 

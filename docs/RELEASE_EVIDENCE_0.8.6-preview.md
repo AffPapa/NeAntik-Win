@@ -20,11 +20,16 @@ Public download and site still serve 0.8.5-preview until independently verified.
 - V4 context gate: main document, same-site and third-party iframe, dedicated/shared/service workers; aggregate checks pass.
 - Storage isolation and backup/restore loopback integration: 21 assertions.
 - Loopback HTTP/SOCKS5/no-DIRECT proxy integration: 37 assertions.
+- Local HTTPS-proxy TLS/CONNECT route: 5/5 scenarios on the exact extracted core (direct controls, working HTTPS proxy, untrusted proxy certificate, unavailable proxy); [`https_proxy_integration.py`](../tools/https_proxy_integration.py). Disposable certificate pinned by SPKI for positive controls, no trust-store change or global TLS bypass.
+- Local WebSocket `ws`/`wss` routes: 10/10 scenarios on the exact extracted core across direct, HTTP/SOCKS5 proxy and unavailable-proxy controls; [`websocket_route_integration.py`](../tools/websocket_route_integration.py). WSS fixture uses a disposable SPKI pin, not a global TLS bypass.
 - Managed per-profile downloads and portable relocation: 3 cases.
 - HTTPS third-party-cookie positive/negative control: allow profile stores cookie; block profile does not.
 - Packaged launcher integration, including first-run AppContainer ACL and opt-in V4 core: 4 cases.
 - WSL STUN receiver in a separate local network namespace: direct positive control received, proxy case passed; 2 cases. This is not an external DNS/IPv6/TURN gate.
 - One consented external HTTPS origin (`/api/headers` on the project site): direct positive control, rejecting HTTP/SOCKS5 proxies with no rendered endpoint, and working allowlisted HTTP CONNECT all passed. The local proxy fixture and Chromium NetLog showed no UDP sends in those cases. This is one-host, one-origin route evidence, not independent DNS/IPv6/UDP packet observation.
+- Exact extracted core against stock Chromium from the same upstream commit: 9/9 baseline-comparison checks passed in ordinary mode, including measured HTTP/Client Hints and graphics/audio surfaces. This says nothing about unmeasured fingerprint entropy or opt-in real-site compatibility.
+- Fresh-profile permission defaults: geolocation, notifications, camera and microphone denied; Preferences survived Chromium startup. Separate HTTPS cookie controls above test network behavior.
+- Blank/new-tab startup: the new-tab document was blank and its preference persisted. The NetLog still recorded 4 HTTP requests and 24 UDP sends for direct blank startup; with the tested rejecting local HTTP proxy it recorded 4 HTTP requests, loopback-only TCP and zero UDP sends. A blank tab is not a no-telemetry or leak-free guarantee.
 - Windows Defender custom scan of the exact ZIP completed with no detection associated with this candidate; signatures were last updated on 2026-10-12. This is one scanner observation, not proof that the binary is safe.
 
 These tests use synthetic data and local endpoints. Raw device observations and any private network logs are kept outside Git.
@@ -38,7 +43,7 @@ packaged launcher independently passed its first-run ACL scenario; the raw
 
 - **INCONCLUSIVE:** manual profile creation by Windows UI automation. The creation dialog displayed correctly, but its text field did not accept the automation tool's input after one refreshed retry. This is not evidence of an application defect or a successful end-to-end GUI workflow.
 - **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, update/rollback, additional security scanners, and public downloaded-ZIP launch.
-- **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas checks do not establish general anonymity.
+- **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, WebSocket over HTTPS proxy, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas and route checks do not establish general anonymity.
 - **NOT PUBLISHED:** the 0.8.6 release ZIP/checksum and site update remain gated by final release review and public-download hash verification. Candidate source and this QA record are on GitHub `main`, without a 0.8.6 release tag.
 
 Before publication, rerun the release checklist against a final immutable ZIP, finish or explicitly scope the open GUI/security/compatibility gates, and verify the public artifact by downloading it again. Do not silently overwrite an existing versioned release.

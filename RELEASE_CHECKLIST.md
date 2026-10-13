@@ -15,6 +15,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 python -m unittest -v test_nevision_win.py
 python -m unittest -v test_profile_identity.py
 python -m unittest -v test_privacy_defaults.py
+python -m unittest discover -s tools -p 'test_*integration.py' -v
 python tools\gui_regression.py
 python nevision_win.py --self-test
 .\tools\test-release-tools.ps1
@@ -77,6 +78,7 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Run `tools/browser_integration.py` with the extracted core: require separate cookies, localStorage, IndexedDB, Cache Storage and service-worker registrations across two disposable profiles, persistence after restart, same-account backup/restore, and a clean settings-only clone.
 - Run `tools/download_integration.py` with the extracted core: require distinct synthetic files under each new profile's `Downloads`, no cross-profile copy, and a new download after portable relocation. At the packaged launcher boundary, verify Chromium receives a browser-visible absolute path without the internal `\\?\` prefix. Backup/restore must retain files and rebase only the managed path; user-selected custom locations stay untouched.
 - Run `tools/proxy_integration.py` and `tools/launcher_integration.py`; require loopback URL requests to traverse HTTP/SOCKS5 proxies, no DIRECT fallback for unavailable proxies, and exact strict flags at the real launcher boundary. These are not public-network leak tests.
+- Run `tools/https_proxy_integration.py` and `tools/websocket_route_integration.py` against the extracted candidate core. Require local positive controls, a working TLS HTTPS-proxy CONNECT route, WS/WSS over direct/HTTP/SOCKS5, and unavailable/untrusted-proxy negative controls. Record the core and ZIP SHA-256. These fixtures do not validate external DNS/UDP/IPv6 or WebSocket over HTTPS proxy.
 - Run `tools/webrtc_udp_integration.py` with a self-owned private IPv4 STUN host and a known-good Chrome control. Compare receiver counts with Chromium NetLog send counts. Do not mark a test passed if the direct control's STUN request is not delivered; such a result is inconclusive even when the proxy-bound case attempts zero UDP sends. NetLog captures stay private. This local probe does not cover public STUN/TURN, IPv6, DNS or all interfaces.
 - Where Ubuntu WSL QA is available, run `tools/wsl_stun_route_audit.py` against its private IPv4 address. Require a received direct STUN positive control and zero received/proxy NetLog UDP with sandbox enabled; record the separate-network-namespace result without calling it a public-network or P2 Gate pass.
 - Open the diagnostic page in the selected profile and verify it explains that its host sees the request IP; no STUN or automatic fingerprint upload. Record external IP as a one-site observation, not a leak-free claim.
