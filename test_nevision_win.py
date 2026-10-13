@@ -624,6 +624,31 @@ class PortableCoreRegressionTests(unittest.TestCase):
         archive = self._archive([("profile/Default/state", "safe")], duplicate_manifest=True)
         self._assert_rejected_without_publication(archive)
 
+    def test_restore_preflights_total_entry_count_before_zipfile_parses_directory(self):
+        archive = self._archive([("ignored/one", ""), ("ignored/two", "")])
+        with patch("nevision_win.MAX_BACKUP_FILES", 1), patch("nevision_win.MAX_BACKUP_ARCHIVE_ENTRIES", 2):
+            with patch("nevision_win.zipfile.ZipFile") as open_zip:
+                with self.assertRaisesRegex(NeVisionError, "слишком много записей"):
+                    self.storage.restore_profile(archive)
+                open_zip.assert_not_called()
+
+    def test_restore_rejects_unknown_top_level_member_without_publication(self):
+        archive = self._archive([("unexpected/file", "ignored synthetic data")])
+        self._assert_rejected_without_publication(archive)
+
+    def test_restore_preflights_central_directory_size_before_zipfile(self):
+        archive = self._archive([("profile/Default/state", "synthetic")])
+        with patch("nevision_win.MAX_BACKUP_CENTRAL_DIRECTORY_BYTES", 1):
+            with patch("nevision_win.zipfile.ZipFile") as open_zip:
+                with self.assertRaisesRegex(NeVisionError, "слишком большой каталог"):
+                    self.storage.restore_profile(archive)
+                open_zip.assert_not_called()
+
+    def test_restore_reports_non_zip_input_as_invalid_backup(self):
+        invalid = self.root / "not-a-zip.backup"
+        invalid.write_bytes(b"synthetic invalid backup")
+        self._assert_rejected_without_publication(invalid)
+
     def test_legacy_v1_backup_remains_readable_with_old_sensitivity_flag(self):
         manifest = {"format": "nevision-profile-backup-v1", "profile": {"name": "Legacy", "group_name": "QA"}, "secrets_included": False}
         archive = self._archive([("profile/Default/state", "legacy-content")], manifest=manifest)

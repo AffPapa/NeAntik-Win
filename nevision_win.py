@@ -73,6 +73,8 @@ VAULT_ENTROPY = b"NeVision-Win-v0.1-local-vault"
 # beyond the available disk space.  A larger profile can be restored after creating
 # a new backup with a future format/version that explicitly supports it.
 MAX_BACKUP_FILES = 20_000
+MAX_BACKUP_ARCHIVE_ENTRIES = MAX_BACKUP_FILES + 1  # Profile files plus one manifest.
+MAX_BACKUP_CENTRAL_DIRECTORY_BYTES = 32 * 1024 * 1024
 MAX_BACKUP_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 MAX_BACKUP_MANIFEST_BYTES = 1 * 1024 * 1024
 PROFILE_TEMPLATE_FORMAT = "neantik-profile-template-v1"
@@ -1379,18 +1381,45 @@ class Storage:
         return archive
 
     @staticmethod
-    def _validated_backup_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
-        """Return only safe profile files from a v1 archive.
+    def _preflight_backup_archive(archive_path: Path) -> None:
+        """Bound ZIP metadata before ZipFile reads the whole central directory."""
+        end_record = getattr(zipfile, "_EndRecData", None)
+        entries_index = getattr(zipfile, "_ECD_ENTRIES_TOTAL", None)
+        directory_size_index = getattr(zipfile, "_ECD_SIZE", None)
+        if end_record is None or entries_index is None or directory_size_index is None:
+            raise NeVisionError("Версия Python не поддерживает безопасную проверку backup.")
+        try:
+            with archive_path.open("rb") as source:
+                metadata = end_record(source)
+        except Exception as exc:
+            raise NeVisionError("Не удалось безопасно прочитать метаданные backup.") from exc
+        if metadata is None:
+            raise NeVisionError("Файл backup повреждён или не является ZIP-архивом.")
+        if metadata[entries_index] > MAX_BACKUP_ARCHIVE_ENTRIES:
+            raise NeVisionError(f"Backup содержит слишком много записей (лимит: {MAX_BACKUP_ARCHIVE_ENTRIES}).")
+        if metadata[directory_size_index] > MAX_BACKUP_CENTRAL_DIRECTORY_BYTES:
+            raise NeVisionError("Backup содержит слишком большой каталог ZIP-записей.")
+
+    @staticmethod
+    def _validated_backup_members(archive_members: list[zipfile.ZipInfo]) -> list[zipfile.ZipInfo]:
+        """Return only safe profile files from a supported backup archive.
 
         ZIP file names are always POSIX-style.  We validate them before creating a
         restored profile so a malformed archive cannot write outside its new data
         directory or unexpectedly consume an unbounded amount of disk space.
         """
-        members = [
-            member
-            for member in archive.infolist()
-            if member.filename.startswith("profile/") and not member.is_dir()
-        ]
+        if len(archive_members) > MAX_BACKUP_ARCHIVE_ENTRIES:
+            raise NeVisionError(f"Backup содержит слишком много записей (лимит: {MAX_BACKUP_ARCHIVE_ENTRIES}).")
+        manifest_members = [member for member in archive_members if member.filename == "nevision-manifest.json"]
+        if len(manifest_members) != 1 or manifest_members[0].is_dir():
+            raise NeVisionError("Backup должен содержать ровно один manifest NeAntik Win / NeVision Win.")
+        members = []
+        for member in archive_members:
+            if member is manifest_members[0]:
+                continue
+            if not member.filename.startswith("profile/") or member.is_dir():
+                raise NeVisionError("Backup содержит неподдерживаемую запись.")
+            members.append(member)
         if len(members) > MAX_BACKUP_FILES:
             raise NeVisionError(f"Backup содержит слишком много файлов (лимит: {MAX_BACKUP_FILES}).")
 
@@ -1437,8 +1466,12 @@ class Storage:
         staging: Path | None = None
         journal: Path | None = None
         try:
+            self._preflight_backup_archive(archive_path)
             with zipfile.ZipFile(archive_path, "r") as archive:
-                if sum(item.filename == "nevision-manifest.json" for item in archive.infolist()) != 1:
+                archive_members = archive.infolist()
+                if len(archive_members) > MAX_BACKUP_ARCHIVE_ENTRIES:
+                    raise NeVisionError(f"Backup содержит слишком много записей (лимит: {MAX_BACKUP_ARCHIVE_ENTRIES}).")
+                if sum(item.filename == "nevision-manifest.json" for item in archive_members) != 1:
                     raise NeVisionError("Backup должен содержать ровно один manifest NeAntik Win / NeVision Win.")
                 try:
                     manifest_info = archive.getinfo("nevision-manifest.json")
@@ -1464,7 +1497,7 @@ class Storage:
                 if ((manifest["format"] == NATIVE_BACKUP_FORMAT) != (fingerprint["mode"] == NATIVE_PREVIEW) or
                         manifest["format"] == "neantik-profile-backup-v2"):
                     raise NeVisionError("Формат backup не соответствует fingerprint-профилю.")
-                members = self._validated_backup_members(archive)
+                members = self._validated_backup_members(archive_members)
                 profile_name = name_override.strip() or str(original.get("name", "Восстановленный профиль"))
                 data = {
                     "name": profile_name,
