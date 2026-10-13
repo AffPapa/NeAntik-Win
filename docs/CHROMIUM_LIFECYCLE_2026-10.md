@@ -6,14 +6,19 @@ before each new release and after a security advisory.
 
 ## Exact shipped core
 
-- Public portable release: `v0.8.6-preview`; downloaded ZIP SHA-256
-  `a370e9dfae4ccab89beb036a9a075b5372944aab19bdf151484ed4ace17da1c1`.
+- Public portable release: `v0.8.7-preview`; downloaded ZIP SHA-256
+  `9bf12392f8c8057763024cb88666679e8d9938e73cc050f976e7057b5c5234d1`.
 - Extracted `chrome.exe` Windows ProductVersion: `155.0.8059.40`; SHA-256
   `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
 - Bundled `ENGINE_PROVENANCE.json` names upstream Chromium commit
   `cfaadc5a132d78e1828635aa8405a499f3e14864` and version
   `155.0.8059.40`. This records source provenance; it does not prove a
   byte-for-byte reproducible build.
+- The public v0.8.7 release tag resolves to application source commit
+  `d2e6eac9a50f5edfa474ec72aff9ace64c2e8801`; later documentation-only commits
+  do not change the binary provenance. The public ZIP checksum was independently
+  matched against the downloaded release archive and Site metadata during this
+  checkpoint.
 - The live [Site release metadata](https://nevision-win.mail782861.chatgpt.site/release.json)
   reported the same version, engine version and public ZIP SHA-256 during this
   checkpoint.
