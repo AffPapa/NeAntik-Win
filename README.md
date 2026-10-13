@@ -2,14 +2,15 @@
 
 Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. In the current V5 core, ordinary profiles report stock CPU, memory and timezone values; only the separate opt-in experimental mode caps exposed CPU at 4, device memory at 8 GiB and selects UTC. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint changes do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
 
-**0.8.11-preview** refuses a profile backup containing file symlinks or
-Windows reparse files instead of silently producing an incomplete ZIP. The
-previous [0.8.10 release evidence](docs/RELEASE_PUBLICATION_0.8.10-preview.md)
-records the exact public ZIP, hash, tests and open gates. Browser-saved
-passwords, cookies and sessions may require new sign-in under another Windows
-account or on another PC; proxy-vault passwords are not included in backups.
-The bundled Chromium engine and profile format are unchanged. Ordinary mode
-does not apply the experimental CPU/RAM/UTC controls.
+**0.8.12-preview** adds a separate profile-settings template for moving a
+name, group, tags and browser mode to another portable copy. Import creates a
+new empty profile; it does not transfer cookies, history, sessions, notes,
+proxy settings or passwords. The JSON template is unencrypted and its text
+fields may contain personal information. Full profile backup remains a
+separate sensitive operation and browser-saved passwords, cookies and sessions
+may require new sign-in under another Windows account or PC. The bundled
+Chromium engine is unchanged. Ordinary mode does not apply the experimental
+CPU/RAM/UTC controls.
 
 Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
 source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed

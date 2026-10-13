@@ -75,6 +75,8 @@ VAULT_ENTROPY = b"NeVision-Win-v0.1-local-vault"
 MAX_BACKUP_FILES = 20_000
 MAX_BACKUP_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 MAX_BACKUP_MANIFEST_BYTES = 1 * 1024 * 1024
+PROFILE_TEMPLATE_FORMAT = "neantik-profile-template-v1"
+MAX_PROFILE_TEMPLATE_BYTES = 64 * 1024
 CHROMIUM_LOCK_MARKERS = ("SingletonLock", "SingletonCookie", "SingletonSocket")
 WINDOWS_CHROMIUM_LOCKFILE = "lockfile"
 JOURNAL_FORMAT = "nevision-operation-v1"
@@ -1245,6 +1247,99 @@ class Storage:
                 files_to_archive.append((file_path, file_path.relative_to(source)))
         return files_to_archive
 
+    def export_profile_template(self, profile_id: str) -> Path:
+        """Export only a new-profile template, never Chromium data or vault entries."""
+        profile = self.get_profile(profile_id)
+        if not profile:
+            raise NeVisionError("Профиль не найден.")
+        mode = profile["fingerprint"]["mode"]
+        if mode not in {"ordinary", NATIVE_PREVIEW}:
+            raise NeVisionError("Настройки этого старого экспериментального профиля нельзя экспортировать.")
+        template = {
+            "format": PROFILE_TEMPLATE_FORMAT,
+            "profile": {
+                "name": profile["name"],
+                "group_name": profile["group_name"],
+                "tags": profile["tags"],
+                "mode": mode,
+            },
+        }
+        encoded = (json.dumps(template, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+        if len(encoded) > MAX_PROFILE_TEMPLATE_BYTES:
+            raise NeVisionError("Настройки профиля слишком велики для переноса (лимит: 64 KB).")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        target = self.paths.backups / f"{safe_label(profile['name'])}-{stamp}-{uuid.uuid4().hex[:8]}.neantik-profile.json"
+        created = False
+        try:
+            # Exclusive creation is important: an export must never replace an
+            # earlier user-owned template, even if a generated name collides.
+            with open(filesystem_path(target), "xb") as destination:
+                created = True
+                destination.write(encoded)
+                destination.flush()
+                os.fsync(destination.fileno())
+        except FileExistsError as exc:
+            raise NeVisionError("Файл настроек с таким именем уже существует. Повторите экспорт.") from exc
+        except OSError as exc:
+            if created:
+                with contextlib.suppress(FileNotFoundError):
+                    filesystem_path(target).unlink()
+            raise NeVisionError(f"Не удалось экспортировать настройки профиля: {exc}") from exc
+        self.log("profile.template_exported", profile_id, target.name)
+        return target
+
+    @staticmethod
+    def _read_profile_template(source_path: Path) -> dict[str, str]:
+        try:
+            with open(filesystem_path(source_path), "rb") as source:
+                encoded = source.read(MAX_PROFILE_TEMPLATE_BYTES + 1)
+        except OSError as exc:
+            raise NeVisionError(f"Не удалось прочитать настройки профиля: {exc}") from exc
+        if len(encoded) > MAX_PROFILE_TEMPLATE_BYTES:
+            raise NeVisionError("Файл настроек профиля слишком велик (лимит: 64 KB).")
+
+        def unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise NeVisionError("Файл настроек профиля содержит повторяющиеся поля.")
+                result[key] = value
+            return result
+
+        try:
+            template = json.loads(encoded.decode("utf-8"), object_pairs_hook=unique_keys)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise NeVisionError("Файл настроек профиля повреждён или имеет неверную кодировку.") from exc
+        if not isinstance(template, dict) or set(template) != {"format", "profile"} or template["format"] != PROFILE_TEMPLATE_FORMAT:
+            raise NeVisionError("Неподдерживаемый формат настроек профиля.")
+        profile = template["profile"]
+        if not isinstance(profile, dict) or set(profile) != {"name", "group_name", "tags", "mode"}:
+            raise NeVisionError("Файл настроек профиля содержит неизвестные или отсутствующие поля.")
+        if any(not isinstance(profile[key], str) for key in profile):
+            raise NeVisionError("Поля настроек профиля должны быть текстом.")
+        if not profile["name"].strip():
+            raise NeVisionError("В файле настроек отсутствует имя профиля.")
+        if profile["mode"] not in {"ordinary", NATIVE_PREVIEW}:
+            raise NeVisionError("Неподдерживаемый режим браузера в файле настроек.")
+        return profile
+
+    def import_profile_template(self, source_path: Path, *, native_core_available: bool = True) -> str:
+        """Create an empty independent profile, without proxy or browser sessions."""
+        template = self._read_profile_template(source_path)
+        if template["mode"] == NATIVE_PREVIEW and not native_core_available:
+            raise NeVisionError("Для этого экспериментального профиля требуется проверенное встроенное native-ядро. Импорт не выполнен.")
+        identity = native_preview_identity() if template["mode"] == NATIVE_PREVIEW else ordinary_identity()
+        profile_id = self.save_profile({
+            "name": template["name"],
+            "group_name": template["group_name"],
+            "tags": template["tags"],
+            "notes": "",
+            "proxy_id": None,
+            "fingerprint": identity,
+        })
+        self.log("profile.template_imported", profile_id)
+        return profile_id
+
     def backup_profile(self, profile_id: str) -> Path:
         with self.profile_operation_lock(profile_id):
             return self._backup_profile_locked(profile_id)
@@ -2121,6 +2216,8 @@ class ProfileDialog(BaseDialog):
         scrollbar.pack(side="right", fill="y")
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.pack(side="left", fill="both", expand=True)
+        self.form_canvas = canvas
+        self.bind("<MouseWheel>", self._scroll_form, add="+")
         body = ttk.Frame(canvas, style="Panel.TFrame", padding=24)
         window = canvas.create_window((0, 0), window=body, anchor="nw")
         body.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
@@ -2175,6 +2272,15 @@ class ProfileDialog(BaseDialog):
         self.notes.pack(fill="both", expand=True)
         self.footer(self, self.save, "Сохранить")
         self.name.focus_set()
+
+    def _scroll_form(self, event: tk.Event[Any]) -> str | None:
+        # The Toplevel bindtag also receives wheel events from its form fields.
+        # Leave controls with their own scrolling/selection behavior alone.
+        if isinstance(event.widget, (tk.Text, ttk.Combobox)) or not event.delta:
+            return None
+        steps = max(1, abs(event.delta) // 120)
+        self.form_canvas.yview_scroll(-steps if event.delta > 0 else steps, "units")
+        return "break"
 
     def save(self) -> None:
         try:
@@ -2622,6 +2728,7 @@ class NeVisionApp:
         menu = tk.Menu(self.root, **menu_options)
         file_menu = tk.Menu(menu, **menu_options)
         file_menu.add_command(label="Новый профиль", command=lambda: ProfileDialog(self))
+        file_menu.add_command(label="Импортировать настройки профиля…", command=self.import_profile_template)
         file_menu.add_command(label="Импортировать backup…", command=self.restore_backup)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self._request_close)
@@ -2629,6 +2736,7 @@ class NeVisionApp:
         profile_menu = tk.Menu(menu, **menu_options)
         profile_menu.add_command(label="Запустить", command=self.launch_selected)
         profile_menu.add_command(label="Создать чистую копию", command=self.clone_selected)
+        profile_menu.add_command(label="Экспортировать настройки профиля…", command=self.export_selected_template)
         profile_menu.add_command(label="Создать backup", command=self.backup_selected)
         profile_menu.add_command(label="Проверить профиль", command=self.health_selected)
         profile_menu.add_command(label="Папка профиля", command=self.open_profile_folder)
@@ -3097,6 +3205,51 @@ class NeVisionApp:
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
             return
         self.set_status("Создана чистая копия: без cookies, истории и сессий")
+        self.refresh_profiles(select_id=new_id)
+
+    def export_selected_template(self) -> None:
+        profile = self.selected_profile()
+        if not profile:
+            return
+        if not messagebox.askyesno(
+            APP_NAME,
+            "Экспорт настроек создаёт небольшой незашифрованный JSON: название, группа, теги и режим браузера. "
+            "В них может быть личная информация, введённая вами. Cookies, история, сессии, заметки и proxy не переносятся. "
+            "На другом ПК настройте proxy заново.\n\nЭкспортировать?",
+            parent=self.root,
+        ):
+            return
+        try:
+            target = self.storage.export_profile_template(str(profile["id"]))
+        except NeVisionError as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self.root)
+            return
+        self.set_status(f"Настройки экспортированы: {target.name}")
+        messagebox.showinfo(APP_NAME, f"Файл настроек создан:\n{target}\n\nНа другом ПК используйте «Файл → Импортировать настройки профиля». Данные сайтов и proxy не включены.", parent=self.root)
+
+    def import_profile_template(self) -> None:
+        source = filedialog.askopenfilename(
+            parent=self.root,
+            title="Выберите настройки профиля NeAntik",
+            filetypes=[("Настройки профиля NeAntik", "*.neantik-profile.json"), ("JSON", "*.json")],
+        )
+        if not source:
+            return
+        if not messagebox.askyesno(
+            APP_NAME,
+            "Будет создан новый пустой профиль. Данные сайтов, cookies, история, сессии и proxy не переносятся; "
+            "proxy и вход на сайты настройте заново. Исходный профиль и файл не изменятся.\n\nИмпортировать настройки?",
+            parent=self.root,
+        ):
+            return
+        try:
+            new_id = self.storage.import_profile_template(
+                Path(source), native_core_available=self.launcher.native_persona_capabilities() is not None
+            )
+        except NeVisionError as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self.root)
+            return
+        self.set_status("Создан новый профиль без данных сайтов и proxy")
         self.refresh_profiles(select_id=new_id)
 
     def backup_selected(self) -> None:

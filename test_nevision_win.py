@@ -11,6 +11,7 @@ import unittest
 import uuid
 import warnings
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -43,6 +44,7 @@ from nevision_win import (
     resolve_theme,
 )
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
+from profile_identity import NATIVE_PREVIEW, native_preview_identity
 
 
 class StorageTests(unittest.TestCase):
@@ -70,6 +72,112 @@ class StorageTests(unittest.TestCase):
         self.assertIn("прямой внешний IP", profile_network_note(None))
         self.assertIn("общий внешний IP", profile_network_note("proxy-id", 2))
         self.assertIn("не подтверждены", profile_network_note("proxy-id", 1))
+
+    def test_profile_template_moves_only_safe_fields_into_a_new_empty_profile(self):
+        proxy_password = "synthetic-proxy-password-not-for-template"
+        proxy_user = "synthetic-proxy-user-not-for-template"
+        note = "synthetic-private-note-not-for-template"
+        cookie = b"synthetic-cookie-not-for-template"
+        proxy_id = self.storage.save_proxy({
+            "name": "Private proxy", "scheme": "http", "host": "127.0.0.1",
+            "port": 8080, "username": proxy_user, "password": proxy_password,
+        })
+        original_identity = native_preview_identity()
+        original_id = self.storage.save_profile({
+            "name": "QA profile", "group_name": "Research", "tags": "test",
+            "notes": note, "proxy_id": proxy_id, "fingerprint": original_identity,
+        })
+        browser_data = self.storage.profile_path(original_id) / "Default"
+        browser_data.mkdir()
+        (browser_data / "Cookies").write_bytes(cookie)
+
+        template_path = self.storage.export_profile_template(original_id)
+        encoded = template_path.read_bytes()
+        self.assertLessEqual(len(encoded), 64 * 1024)
+        template = json.loads(encoded.decode("utf-8"))
+        self.assertEqual(template, {
+            "format": "neantik-profile-template-v1",
+            "profile": {"name": "QA profile", "group_name": "Research", "tags": "test", "mode": NATIVE_PREVIEW},
+        })
+        for forbidden in (proxy_password.encode(), proxy_user.encode(), note.encode(), cookie,
+                          original_id.encode(), original_identity["seed"].encode(), proxy_id.encode()):
+            self.assertNotIn(forbidden, encoded)
+
+        destination = Storage(AppPaths(self.root / "other-portable"))
+        first_id = destination.import_profile_template(template_path, native_core_available=True)
+        second_id = destination.import_profile_template(template_path, native_core_available=True)
+        self.assertNotEqual(first_id, second_id)
+        for new_id in (first_id, second_id):
+            imported = destination.get_profile(new_id)
+            self.assertEqual((imported["name"], imported["group_name"], imported["tags"]),
+                             ("QA profile", "Research", "test"))
+            self.assertEqual(imported["notes"], "")
+            self.assertIsNone(imported["proxy_id"])
+            self.assertEqual(imported["fingerprint"]["mode"], NATIVE_PREVIEW)
+            self.assertNotEqual(imported["fingerprint"]["seed"], original_identity["seed"])
+            self.assertEqual(list(destination.profile_path(new_id).iterdir()), [])
+        self.assertNotEqual(destination.get_profile(first_id)["fingerprint"]["seed"],
+                            destination.get_profile(second_id)["fingerprint"]["seed"])
+        self.assertEqual((browser_data / "Cookies").read_bytes(), cookie)
+
+    def test_profile_template_rejects_untrusted_fields_without_partial_profile(self):
+        destination = Storage(AppPaths(self.root / "other-portable"))
+        base = {"format": "neantik-profile-template-v1", "profile": {
+            "name": "Synthetic", "group_name": "", "tags": "", "mode": "ordinary",
+        }}
+        invalid = [
+            {**base, "format": "unknown-template-v9"},
+            {**base, "proxy_password": "synthetic-secret"},
+            {**base, "profile": {**base["profile"], "notes": "synthetic-secret"}},
+            {**base, "profile": {**base["profile"], "seed": "123"}},
+            {**base, "profile": {**base["profile"], "mode": "legacy-native-unavailable"}},
+            {**base, "profile": {**base["profile"], "name": " "}},
+            {**base, "profile": {**base["profile"], "tags": 3}},
+        ]
+        template_path = self.root / "input.neantik-profile.json"
+        for candidate in invalid:
+            with self.subTest(candidate=candidate):
+                template_path.write_text(json.dumps(candidate), encoding="utf-8")
+                with self.assertRaises(NeVisionError):
+                    destination.import_profile_template(template_path)
+                self.assertEqual(destination.list_profiles(), [])
+                self.assertEqual(list(destination.paths.profiles.iterdir()), [])
+        for malformed in (b"{", b'{"format":"neantik-profile-template-v1","format":"neantik-profile-template-v1"}', b"x" * (64 * 1024 + 1)):
+            with self.subTest(malformed_length=len(malformed)):
+                template_path.write_bytes(malformed)
+                with self.assertRaises(NeVisionError):
+                    destination.import_profile_template(template_path)
+                self.assertEqual(destination.list_profiles(), [])
+                self.assertEqual(list(destination.paths.profiles.iterdir()), [])
+
+    def test_profile_template_does_not_downgrade_native_mode_without_core(self):
+        original_id = self.storage.save_profile({"name": "Native", "fingerprint": native_preview_identity()})
+        template_path = self.storage.export_profile_template(original_id)
+        destination = Storage(AppPaths(self.root / "other-portable"))
+        with self.assertRaisesRegex(NeVisionError, "native-ядро"):
+            destination.import_profile_template(template_path, native_core_available=False)
+        self.assertEqual(destination.list_profiles(), [])
+        self.assertEqual(list(destination.paths.profiles.iterdir()), [])
+
+    def test_ordinary_profile_template_import_does_not_require_native_core(self):
+        original_id = self.storage.save_profile({"name": "Ordinary"})
+        template_path = self.storage.export_profile_template(original_id)
+        destination = Storage(AppPaths(self.root / "other-portable"))
+        imported_id = destination.import_profile_template(template_path, native_core_available=False)
+        self.assertEqual(destination.get_profile(imported_id)["fingerprint"]["mode"], "ordinary")
+        self.assertEqual(list(destination.profile_path(imported_id).iterdir()), [])
+
+    def test_profile_template_export_never_overwrites_an_existing_file(self):
+        original_id = self.storage.save_profile({"name": "Collision"})
+        with patch("nevision_win.datetime") as fixed_clock, patch("nevision_win.uuid.uuid4") as fixed_uuid:
+            fixed_clock.now.return_value = datetime(2026, 10, 14, 12, 0, 0)
+            fixed_uuid.return_value.hex = "a" * 32
+            template_path = self.storage.export_profile_template(original_id)
+            original = template_path.read_bytes()
+            with self.assertRaisesRegex(NeVisionError, "уже существует"):
+                self.storage.export_profile_template(original_id)
+        self.assertEqual(template_path.read_bytes(), original)
+        self.assertEqual(len(list(self.storage.paths.backups.glob("*.neantik-profile.json"))), 1)
 
     def test_proxy_profile_backup_restore(self):
         clear = "local-password"
@@ -1023,6 +1131,45 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_profile_template_export_warns_about_plaintext_metadata(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.storage = MagicMock()
+        app.selected_profile = MagicMock(return_value={"id": "synthetic-id"})
+        app.set_status = MagicMock()
+        app.storage.export_profile_template.return_value = Path("C:/synthetic/template.neantik-profile.json")
+        with patch("nevision_win.messagebox.askyesno", return_value=False) as confirm:
+            app.export_selected_template()
+        self.assertIn("незашифрованный JSON", confirm.call_args.args[1])
+        self.assertIn("личная информация", confirm.call_args.args[1])
+        app.storage.export_profile_template.assert_not_called()
+        with patch("nevision_win.messagebox.askyesno", return_value=True), patch("nevision_win.messagebox.showinfo"):
+            app.export_selected_template()
+        app.storage.export_profile_template.assert_called_once_with("synthetic-id")
+
+    def test_profile_template_ui_distinguishes_import_from_sensitive_backup(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.storage = MagicMock()
+        app.launcher = MagicMock()
+        app.launcher.native_persona_capabilities.return_value = None
+        app.set_status = MagicMock()
+        app.refresh_profiles = MagicMock()
+        app.storage.import_profile_template.return_value = "new-synthetic-id"
+        source = "C:/synthetic/settings.neantik-profile.json"
+        with patch("nevision_win.filedialog.askopenfilename", return_value=source), patch(
+            "nevision_win.messagebox.askyesno", return_value=False
+        ) as confirm:
+            app.import_profile_template()
+        self.assertIn("сессии", confirm.call_args.args[1])
+        app.storage.import_profile_template.assert_not_called()
+        with patch("nevision_win.filedialog.askopenfilename", return_value=source), patch(
+            "nevision_win.messagebox.askyesno", return_value=True
+        ):
+            app.import_profile_template()
+        app.storage.import_profile_template.assert_called_once_with(Path(source), native_core_available=False)
+        app.refresh_profiles.assert_called_once_with(select_id="new-synthetic-id")
+
     def test_portability_warning_explains_browser_data_and_proxy_limits(self):
         self.assertIn("пароли, cookies и сессии", PORTABILITY_WARNING)
         self.assertIn("DPAPI", PORTABILITY_WARNING)

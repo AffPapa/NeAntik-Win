@@ -145,6 +145,22 @@ class GuiTests(unittest.TestCase):
         # not the desktop foreground app and therefore cannot own active focus.
         self.assertIs(dialog.focus_lastfor(), dialog.name)
 
+    def test_profile_form_wheel_scrolls_without_hijacking_notes(self):
+        dialog = nv.ProfileDialog(self.app)
+        dialog.geometry("560x300")
+        self.app.root.update()
+        canvas = dialog.form_canvas
+        self.assertLess(canvas.yview()[1], 1.0)
+        dialog.name.event_generate("<MouseWheel>", delta=-120)
+        self.app.root.update()
+        self.assertGreater(canvas.yview()[0], 0.0)
+        canvas.yview_moveto(0)
+        self.app.root.update()
+        dialog.notes.event_generate("<MouseWheel>", delta=-120)
+        self.app.root.update()
+        self.assertEqual(canvas.yview()[0], 0.0)
+        dialog.destroy()
+
     def test_proxy_hostname_disclosure_after_save(self):
         dialog = nv.ProxyDialog(self.app)
         self.app.root.update()
