@@ -5,6 +5,11 @@ but **not publicly released**. The current GitHub Release endpoint returns
 HTTP 404 for `v0.8.15-preview`; the public Site still serves 0.8.14-preview.
 Do not describe this candidate as available for download.
 
+**This exact ZIP is now superseded:** after it was built, `main` gained a
+profile-root junction/reparse guard before Chromium launch. That fix is covered
+by source tests but is not in this ZIP. Do not publish this hash; rebuild a new
+clean 0.8.15 candidate before creating the immutable release.
+
 ## Source and artifact
 
 - Binary/source commit: `ec0de9cad0f26cb9aec90ef6cbbb59df7174ff23` on `main`.
@@ -25,6 +30,16 @@ Do not describe this candidate as available for download.
 - Public repository guard: 207 files — **PASS**.
 - Portable archive verifier: 1,066 files — **PASS**.
 - Packaged executable `--self-test` — **PASS**.
+- Exact candidate Chromium engine loopback proxy-loss/recovery gate — **PASS**,
+  10/10 checks. `chrome.exe` SHA-256
+  `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`;
+  `chrome.dll` SHA-256
+  `9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`.
+  Before proxy loss, the loopback target was reached through the proxy; during
+  loss, no target request escaped and Chromium stayed alive; after recovery,
+  the same process routed through the proxy again. NetLog showed TCP only to
+  `127.0.0.1` and zero UDP. The harness did not launch the NeAntik GUI and this
+  does not prove external DNS, IPv6, TURN or public-network routing.
 - Manual GUI, Windows 10, second consumer PC/account, external DNS/IPv6/UDP/TURN,
   and broad site compatibility — **NOT RUN** for this candidate.
 

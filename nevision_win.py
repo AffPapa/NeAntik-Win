@@ -1648,6 +1648,44 @@ class BrowserLauncher:
         self.storage = storage
         self._sandbox_acl_prepared = False
 
+    def ensure_profile_path_is_isolated(self, profile_id: str) -> None:
+        """Reject profile roots that redirect Chromium data through a reparse point."""
+        try:
+            root = self.storage.paths.root.resolve(strict=True)
+        except OSError as exc:
+            raise NeVisionError("Не удалось проверить portable-папку профиля.") from exc
+        profile = self.storage.profile_path(profile_id)
+        profiles = self.storage.paths.profiles
+        for path in (self.storage.paths.data, profiles, profile):
+            try:
+                details = path.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise NeVisionError("Не удалось проверить безопасность папки данных профиля.") from exc
+            attributes = getattr(details, "st_file_attributes", 0)
+            reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+            if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+                raise NeVisionError(
+                    "Папка данных профиля является ссылкой/junction. "
+                    "Восстановите обычную папку профиля перед запуском."
+                )
+        try:
+            resolved_profiles = profiles.resolve(strict=True)
+            resolved_profile = profile.resolve(strict=False)
+            resolved_data = self.storage.paths.data.resolve(strict=True)
+            if (
+                resolved_data.parent != root
+                or resolved_profiles.parent != resolved_data
+                or resolved_profile.parent != resolved_profiles
+            ):
+                raise ValueError("profile path escaped its dedicated directory")
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise NeVisionError(
+                "Путь данных профиля выходит за пределы его отдельной папки. "
+                "Профиль не запущен; проверьте portable-каталог."
+            ) from exc
+
     def ensure_bundled_sandbox_access(self, engine_dir: Path) -> None:
         """Grant Windows sandbox children read-only access to public engine files.
 
@@ -1781,6 +1819,7 @@ class BrowserLauncher:
         current_profile = self.storage.get_profile(profile_id)
         if current_profile is None:
             raise NeVisionError("Профиль больше не существует. Обновите список перед запуском.")
+        self.ensure_profile_path_is_isolated(profile_id)
         if profile.get("proxy_id") != current_profile.get("proxy_id"):
             raise NeVisionError("Назначенный proxy отсутствует или изменён. Обновите список и проверьте настройки перед запуском.")
         profile = current_profile

@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import stat
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -950,6 +951,42 @@ class PortableCoreRegressionTests(unittest.TestCase):
             with self.assertRaisesRegex(NeVisionError, "ссылка/junction"):
                 launcher.ensure_bundled_sandbox_access(engine)
             run.assert_not_called()
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_launch_rejects_profile_junction_before_process_or_profile_mutation(self):
+        source_id = self.storage.save_profile({"name": "Junction source"})
+        linked_id = self.storage.save_profile({"name": "Junction alias"})
+        source = self.storage.profile_path(source_id)
+        linked = self.storage.profile_path(linked_id)
+        linked.rmdir()
+        result = subprocess.run(
+            ["cmd.exe", "/c", "mklink", "/J", str(linked), str(source)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        if result.returncode or not hasattr(linked, "is_junction") or not linked.is_junction():
+            if linked.exists():
+                linked.rmdir()
+            self.skipTest("Windows junction creation is unavailable in this environment")
+        try:
+            launcher = BrowserLauncher(self.storage)
+            profile = self.storage.get_profile(linked_id)
+            with patch.object(launcher, "resolve_browser") as resolve_browser, \
+                    patch.object(self.storage, "ensure_profile_closed") as ensure_closed, \
+                    patch.object(self.storage, "pin_browser_family") as pin_family, \
+                    patch("nevision_win.subprocess.Popen") as spawn:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    launcher.launch(profile)
+            resolve_browser.assert_not_called()
+            ensure_closed.assert_not_called()
+            pin_family.assert_not_called()
+            spawn.assert_not_called()
+            self.assertEqual(self.storage.get_profile(linked_id)["browser_family"], "")
+            self.assertFalse((source / "Default" / "Preferences").exists())
+        finally:
+            linked.rmdir()
 
     def test_unpinned_legacy_data_is_not_opened_with_new_bundled_chromium(self):
         engine = self.root / "Engine" / "Chromium"
