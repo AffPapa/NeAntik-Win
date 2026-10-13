@@ -261,3 +261,28 @@ control**, not proof of DNS isolation, a distinct public egress IP, external
 IPv6, TURN/WebRTC behavior or leak freedom on another network. Those parts
 of Gate P2 remain open. The shipped browser binary and v0.8.4 ZIP are
 unchanged; this is an audit-tool improvement.
+
+### Public STUN positive control — 13 October 2026
+
+The [public STUN audit](../tools/public_stun_policy_audit.py) used the exact
+Chromium extracted from the downloaded public 0.8.6-preview ZIP (`chrome.exe`
+SHA-256 `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`,
+`chrome.dll` SHA-256 `6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`).
+Two disposable profiles used a loopback-only WebRTC test page and
+[Cloudflare's documented public STUN service](https://developers.cloudflare.com/realtime/turn/)
+at `stun.cloudflare.com:3478`. That service could observe the QA host's
+network address; no account, real profile, cookies or credentials were used.
+
+The direct positive control yielded `host` and `srflx` ICE candidate *types*
+and 17 Chromium NetLog UDP sends. The profile with an intentionally rejecting
+HTTP proxy and `disable_non_proxied_udp` yielded no ICE candidates and zero
+Chromium NetLog UDP sends. The private report retains only candidate types,
+counts, status and binary hashes, never candidate addresses or raw NetLog.
+This narrow comparison **PASSed** on one Windows host. Four synthetic unit
+tests cover success, negative and missing-measurement classification.
+
+An external `srflx` response confirms the direct positive control reached a
+public STUN service. It does **not** supply Cloudflare-side logs for the proxy
+case, independent packet capture, system DNS evidence, IPv6, TURN, a working
+external proxy or a second host. Those parts of P2 remain open; this is not
+an anonymity or general WebRTC leak-free certificate.
