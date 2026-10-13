@@ -1,6 +1,9 @@
 """Ordinary-browser-only profile contract tests."""
-import unittest
 import json
+import os
+import subprocess
+import sys
+import unittest
 from pathlib import Path
 import tempfile
 import zipfile
@@ -104,6 +107,47 @@ class OrdinaryIdentityTests(unittest.TestCase):
             self.assertEqual(args[0], str(stock_browser))
             self.assertEqual(identity.identity_arguments(storage.get_profile(profile_id)["fingerprint"]), [])
             self.assertFalse(any("fingerprint" in arg.lower() or "user-agent" in arg.lower() for arg in args))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows junction launch gate")
+    def test_launcher_rejects_network_junction_before_browser_selection_or_spawn(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-profile-junction-") as temporary:
+            root = Path(temporary)
+            storage = Storage(AppPaths(root))
+            profile_a = storage.save_profile({"name": "Synthetic profile A"})
+            profile_b = storage.save_profile({"name": "Synthetic profile B"})
+            path_a = storage.profile_path(profile_a) / "Default" / "Network"
+            path_b = storage.profile_path(profile_b) / "Default" / "Network"
+            path_a.mkdir(parents=True)
+            path_b.mkdir(parents=True)
+            junction = path_a
+            os.rmdir(junction)
+            result = subprocess.run(
+                f'mklink /J "{junction}" "{path_b}"',
+                shell=True, capture_output=True, text=True, timeout=10, check=False,
+            )
+            try:
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+                self.assertTrue(junction.is_junction())
+                launcher = BrowserLauncher(storage)
+                before_family = storage.get_profile(profile_a).get("browser_family")
+                with patch.object(launcher, "resolve_browser") as resolve, \
+                     patch.object(storage, "ensure_profile_closed") as ensure_closed, \
+                     patch.object(storage, "pin_browser_family") as pin, \
+                     patch("nevision_win.initialize_privacy_defaults") as initialize_defaults, \
+                     patch("nevision_win.subprocess.Popen") as spawn:
+                    with self.assertRaisesRegex(NeVisionError, "ключевом хранилище Chromium"):
+                        launcher.launch(storage.get_profile(profile_a))
+                resolve.assert_not_called()
+                ensure_closed.assert_not_called()
+                pin.assert_not_called()
+                initialize_defaults.assert_not_called()
+                spawn.assert_not_called()
+                self.assertEqual(storage.get_profile(profile_a).get("browser_family"), before_family)
+                self.assertTrue(path_b.is_dir())
+            finally:
+                # Remove only the junction itself; never recurse into its target.
+                if junction.is_junction():
+                    os.rmdir(junction)
 
     def test_native_preview_rejects_old_core_before_spawn(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-guard-") as temporary:

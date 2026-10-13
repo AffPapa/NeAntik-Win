@@ -1636,6 +1636,17 @@ class BrowserLauncher:
     """Launches a bundled Chromium or installed browser with isolated user data."""
 
     BUNDLED_RELATIVE = Path("Engine") / "Chromium" / "chrome.exe"
+    PROFILE_REPARSE_CHECKS = (
+        Path("Local State"), Path("Default"),
+        Path("Default/Network"), Path("Default/Network/Cookies"),
+        Path("Default/Cookies"), Path("Default/Local Storage"),
+        Path("Default/Local Storage/leveldb"), Path("Default/IndexedDB"),
+        Path("Default/Service Worker"), Path("Default/Service Worker/Database"),
+        Path("Default/Service Worker/CacheStorage"), Path("Default/Session Storage"),
+        Path("Default/Extensions"), Path("Default/Storage"),
+        Path("Default/Preferences"), Path("Default/Secure Preferences"),
+        Path("Default/Login Data"), Path("Default/Web Data"),
+    )
 
     KNOWN_BROWSERS = (
         ("Google Chrome", Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")),
@@ -1669,6 +1680,25 @@ class BrowserLauncher:
                 raise NeVisionError(
                     "Папка данных профиля является ссылкой/junction. "
                     "Восстановите обычную папку профиля перед запуском."
+                )
+        # Check a fixed set of Chromium storage roots without walking caches or
+        # the full profile tree on every launch. This detects pre-existing
+        # redirects in common cookie, site-storage, extension, and preference
+        # locations; it is not a defense against same-user tampering or TOCTOU.
+        for relative in self.PROFILE_REPARSE_CHECKS:
+            path = profile / relative
+            try:
+                details = path.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise NeVisionError("Не удалось проверить хранилища Chromium перед запуском.") from exc
+            attributes = getattr(details, "st_file_attributes", 0)
+            reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+            if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+                raise NeVisionError(
+                    "В ключевом хранилище Chromium обнаружена ссылка/junction. "
+                    "Профиль не запущен; восстановите обычную структуру данных."
                 )
         try:
             resolved_profiles = profiles.resolve(strict=True)
