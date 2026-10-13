@@ -1,7 +1,7 @@
 # Experimental native persona: evidence and release gates
 
 Status: **development checkout only**, 2026-10-13. These changes are not in
-the downloadable 0.8.2-preview core (the same baseline engine as 0.8.1). The unreleased manager source now has an
+the downloadable 0.8.3-preview core (the same baseline engine as 0.8.2). The unreleased manager source now has an
 opt-in preview profile mode gated on an exact staged-core receipt and compiled
 capability report; the downloadable manager does not offer it. Do not describe
 the current release as providing per-profile Canvas or timezone changes.
@@ -153,6 +153,15 @@ Canvas mode as a privacy feature. It remains an opt-in development test case.
 The next design candidate is a common, coherent cohort value or a usable
 permission-based restriction, evaluated against stock Chromium and a
 consented multi-device cohort before any default or public release.
+
+The 2026-10-13 expanded frame audit adds a SHA-256 of one Canvas2D scene and
+WebGL vendor/renderer observations to the main, same-origin and cross-origin
+frames. On the exact 0.8.3 public core, two disposable profiles agreed in all
+three contexts. On the clean V3 core, repeating a seed repeated the measured
+surface, while changing the seed changed the Canvas hash; the non-Canvas
+surfaces stayed equal. The V3 audit now reports these as separate checks, so
+the linkability warning cannot be hidden inside a generic mismatch. This
+remains a single-host, headless loopback observation, not a population study.
 
 ## Gates before any public release
 

@@ -13,9 +13,12 @@ def report():
     common = {"userAgent": "Chromium test", "platform": "Win32", "language": "en-US",
               "languages": ["en-US"], "hardwareConcurrency": 4, "deviceMemory": 8,
               "timezone": "Etc/UTC", "timezoneOffsetMinutes": 0}
-    window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1}
-    return {"surfaces": {"main": window.copy(), "iframe": window.copy(),
-                         "crossOriginFrame": window.copy(), "worker": common.copy(),
+    window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1,
+              "canvas2dSha256": "a" * 64,
+              "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
+                        "unmaskedRenderer": None}}
+    return {"surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
+                         "crossOriginFrame": deepcopy(window), "worker": common.copy(),
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
             "http": {"userAgent": "Chromium test"},
             "client_hints": {"deviceMemory": "8", "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
@@ -38,6 +41,22 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = deepcopy(report())
         value["surfaces"]["crossOriginFrame"]["deviceMemory"] = 16
         self.assertFalse(evaluate([value])[0]["main_cross_origin_frame"])
+
+    def test_canvas_and_webgl_context_mismatch_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["iframe"]["canvas2dSha256"] = "b" * 64
+        value["surfaces"]["crossOriginFrame"]["webgl"]["renderer"] = "different"
+        checks = evaluate([value])[0]
+        self.assertFalse(checks["canvas2d_iframe_parity"])
+        self.assertFalse(checks["webgl_cross_origin_parity"])
+
+    def test_missing_rendering_observation_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["main"]["canvas2dSha256"] = None
+        value["surfaces"]["main"]["webgl"] = None
+        checks = evaluate([value])[0]
+        self.assertFalse(checks["canvas2d_observed"])
+        self.assertFalse(checks["webgl_observed"])
 
     def test_mismatched_shared_worker_is_rejected(self):
         value = deepcopy(report())

@@ -36,13 +36,22 @@ def check_reports(core_info: dict, baseline: dict, runs: list[dict]) -> dict[str
     expected_cpu = min(4, baseline_main["hardwareConcurrency"])
     expected_memory = min(8, baseline_main["deviceMemory"])
     contexts = evaluate([baseline, *runs])
+    def without_canvas(report: dict) -> dict:
+        return {
+            name: {key: value for key, value in surface.items() if key != "canvas2dSha256"}
+            for name, surface in report["surfaces"].items()
+        }
     return {
         "compiled_core_schema_2": core_info.get("engine_id") == "neantik-chromium"
         and core_info.get("schema") == 2
         and all(capabilities.get(name) is True for name in REQUIRED_CAPABILITIES),
         "all_contexts_and_http_hints_agree": all(all(items.values()) for items in contexts),
         "same_seed_repeats": same_a["surfaces"] == same_b["surfaces"],
-        "different_seed_keeps_common_surfaces": same_a["surfaces"] == other["surfaces"],
+        "different_seed_keeps_common_surfaces": without_canvas(same_a) == without_canvas(other),
+        "different_seed_canvas_identical": (
+            same_a["surfaces"]["main"].get("canvas2dSha256")
+            == other["surfaces"]["main"].get("canvas2dSha256")
+        ),
         "cpu_bounded_by_stock": all(
             run["surfaces"]["main"]["hardwareConcurrency"] == expected_cpu for run in runs
         ),

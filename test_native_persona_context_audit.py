@@ -17,6 +17,9 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
         "deviceMemory": memory, "timezone": timezone,
         "timezoneOffsetMinutes": 0 if timezone == "UTC" else -420,
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
+        "canvas2dSha256": "a" * 64,
+        "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
+                  "unmaskedRenderer": None},
     }
     worker = {key: main[key] for key in (
         "userAgent", "platform", "language", "languages",
@@ -66,6 +69,14 @@ class NativePersonaContextAuditTests(unittest.TestCase):
         checks = check_reports(self.core, self.baseline, self.runs)
         self.assertFalse(checks["date_timezone_offset_is_zero_in_all_contexts"])
         self.assertFalse(checks["all_contexts_and_http_hints_agree"])
+
+    def test_canvas_linkability_is_separate_from_common_surfaces(self) -> None:
+        for surface in self.runs[2]["surfaces"].values():
+            if "canvas2dSha256" in surface:
+                surface["canvas2dSha256"] = "b" * 64
+        checks = check_reports(self.core, self.baseline, self.runs)
+        self.assertTrue(checks["different_seed_keeps_common_surfaces"])
+        self.assertFalse(checks["different_seed_canvas_identical"])
 
 
 if __name__ == "__main__":

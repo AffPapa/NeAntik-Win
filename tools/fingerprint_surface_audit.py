@@ -32,7 +32,27 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
 <script>
 (async () => {
   const token = '__TOKEN__';
-  const surface = (view) => ({
+  const rendering = async (view) => {
+    const canvas = view.document.createElement('canvas');
+    canvas.width = 320; canvas.height = 80;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas2D unavailable');
+    context.fillStyle = '#25335a'; context.fillRect(0, 0, 320, 80);
+    context.fillStyle = '#e9f1ff'; context.font = '19px Arial';
+    context.fillText('NeAntik audit 0123456789', 9, 36);
+    const encoded = new view.TextEncoder().encode(canvas.toDataURL());
+    const digest = await view.crypto.subtle.digest('SHA-256', encoded);
+    const canvas2dSha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const gl = view.document.createElement('canvas').getContext('webgl');
+    const info = gl?.getExtension('WEBGL_debug_renderer_info');
+    const webgl = gl ? {
+      vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER),
+      unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
+      unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
+    } : null;
+    return {canvas2dSha256, webgl};
+  };
+  const surface = async (view) => ({
     userAgent: view.navigator.userAgent,
     platform: view.navigator.platform,
     language: view.navigator.language,
@@ -43,8 +63,9 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     timezoneOffsetMinutes: new view.Date().getTimezoneOffset(),
     screen: [view.screen.width, view.screen.height, view.screen.colorDepth],
     devicePixelRatio: view.devicePixelRatio,
+    ...(await rendering(view)),
   });
-  const main = surface(window);
+  const main = await surface(window);
   const frame = document.createElement('iframe');
   frame.src = '/frame?token=' + token;
   const frameReady = new Promise((resolve, reject) => {
@@ -53,7 +74,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
   });
   document.body.append(frame);
   await frameReady;
-  const iframe = surface(frame.contentWindow);
+  const iframe = await surface(frame.contentWindow);
   const crossOrigin = '__CROSS_ORIGIN__';
   const crossOriginFrame = await new Promise((resolve, reject) => {
     const target = document.createElement('iframe');
@@ -62,7 +83,9 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     function receive(event) {
       if (event.origin !== crossOrigin || event.source !== target.contentWindow ||
           event.data?.token !== token) return;
-      cleanup(); resolve(event.data.surface);
+      cleanup();
+      if (event.data.error) reject(new Error('cross-origin rendering: ' + event.data.error));
+      else resolve(event.data.surface);
     }
     window.addEventListener('message', receive);
     target.src = crossOrigin + '/cross-frame?token=' + token + '&parent=' + encodeURIComponent(location.origin);
@@ -148,6 +171,24 @@ CROSS_ORIGIN_FRAME = r'''<!doctype html><html><head><meta charset="utf-8"></head
 <script>
 const params = new URLSearchParams(location.search);
 const parentOrigin = params.get('parent');
+async function measure() {
+const canvas = document.createElement('canvas');
+canvas.width = 320; canvas.height = 80;
+const context = canvas.getContext('2d');
+if (!context) throw new Error('Canvas2D unavailable');
+context.fillStyle = '#25335a'; context.fillRect(0, 0, 320, 80);
+context.fillStyle = '#e9f1ff'; context.font = '19px Arial';
+context.fillText('NeAntik audit 0123456789', 9, 36);
+const encoded = new TextEncoder().encode(canvas.toDataURL());
+const digest = await crypto.subtle.digest('SHA-256', encoded);
+const canvas2dSha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+const gl = document.createElement('canvas').getContext('webgl');
+const info = gl?.getExtension('WEBGL_debug_renderer_info');
+const webgl = gl ? {
+  vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER),
+  unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
+  unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
+} : null;
 const surface = {
   userAgent: navigator.userAgent,
   platform: navigator.platform,
@@ -159,8 +200,11 @@ const surface = {
   timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   screen: [screen.width, screen.height, screen.colorDepth],
   devicePixelRatio,
+  canvas2dSha256, webgl,
 };
 parent.postMessage({token: params.get('token'), surface}, parentOrigin);
+}
+measure().catch(error => parent.postMessage({token: params.get('token'), error: String(error)}, parentOrigin));
 </script></body></html>'''
 
 
@@ -357,6 +401,13 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
         consistency.append({
             "main_iframe": surfaces["main"] == surfaces["iframe"],
             "main_cross_origin_frame": surfaces["main"] == surfaces["crossOriginFrame"],
+            "canvas2d_observed": isinstance(surfaces["main"].get("canvas2dSha256"), str)
+            and bool(re.fullmatch(r"[a-f0-9]{64}", surfaces["main"]["canvas2dSha256"])),
+            "canvas2d_iframe_parity": surfaces["main"].get("canvas2dSha256") == surfaces["iframe"].get("canvas2dSha256"),
+            "canvas2d_cross_origin_parity": surfaces["main"].get("canvas2dSha256") == surfaces["crossOriginFrame"].get("canvas2dSha256"),
+            "webgl_observed": isinstance(surfaces["main"].get("webgl"), dict),
+            "webgl_iframe_parity": surfaces["main"].get("webgl") == surfaces["iframe"].get("webgl"),
+            "webgl_cross_origin_parity": surfaces["main"].get("webgl") == surfaces["crossOriginFrame"].get("webgl"),
             "main_worker_common": all(surfaces["main"].get(key) == surfaces["worker"].get(key) for key in keys),
             "main_shared_worker_common": all(surfaces["main"].get(key) == surfaces["sharedWorker"].get(key) for key in keys),
             "main_service_worker_common": all(surfaces["main"].get(key) == surfaces["serviceWorker"].get(key) for key in keys),
