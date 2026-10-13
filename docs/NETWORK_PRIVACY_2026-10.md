@@ -62,13 +62,14 @@ proxy-server logs, or traffic outside the tested Chromium URL paths.
 
 ## Still unverified
 
-No external packet capture or public STUN server was used. We have not
-certified arbitrary DNS/IPv6/UDP paths, HTTPS CONNECT authentication, WebRTC
-calls, extension traffic, rotating proxies, browser updates, or cross-machine
-portability. The in-app TCP check is only reachability, and the website's IP
-display is a one-site observation. Do not use this release as a substitute for
-Tor Browser or a system-level network isolation solution when anonymity is a
-hard requirement.
+No independent external packet capture or public-STUN-provider server logs
+were available. A bounded public STUN control on the exact public 0.8.6 and
+0.8.7 cores is recorded below; it does not certify arbitrary DNS/IPv6/UDP
+paths, HTTPS CONNECT authentication, WebRTC calls, extension traffic, rotating
+proxies, browser updates, or cross-machine portability. The in-app TCP check
+is only reachability, and the website's IP display is a one-site observation.
+Do not use this release as a substitute for Tor Browser or a system-level
+network isolation solution when anonymity is a hard requirement.
 
 ## Startup-network observation — 13 October 2026
 
@@ -290,6 +291,27 @@ candidates, zero NetLog UDP sends and one observed route-control request.
 The report `public-stun-route-control-v2.json` remains outside Git. This
 checks proxy assignment only for the synthetic request, not the routing of
 arbitrary external traffic.
+
+### Public STUN repeat on the public 0.8.7-preview binary — 13 October 2026
+
+The same bounded test was repeated against the Chromium extracted from the
+repeat-downloaded public 0.8.7-preview ZIP. `chrome.exe` SHA-256 is
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb` and
+`chrome.dll` SHA-256 is
+`6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
+The direct control observed `host` and `srflx` candidate types and 17 UDP
+sends in Chromium NetLog. With a rejecting HTTP proxy, the test observed no ICE
+candidates, zero NetLog UDP sends, and one expected synthetic route-control
+request. The test returned **PASS** on this host. Cloudflare could observe the
+test network's public IP during the direct control; no raw candidate address
+or NetLog was put in the repository. The private summary is
+`C:\NeAntikBuild\qa\public-stun-followup-0.8.7-20261013.json`.
+
+This repeat strengthens the same-host comparison for the exact public 0.8.7
+engine. There are still no Cloudflare-side proxy-case logs, independent packet
+capture, system DNS observation, IPv6 or TURN test, second network/host, or
+working public proxy egress. It is not a general WebRTC leak-free or anonymity
+certificate; Gate P2 remains open.
 
 An external `srflx` response confirms the direct positive control reached a
 public STUN service. It does **not** supply Cloudflare-side logs for the proxy

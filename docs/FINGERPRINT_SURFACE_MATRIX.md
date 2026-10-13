@@ -14,7 +14,7 @@ privacy. Raw reports can reveal device traits and stay outside the repository.
 | Canvas2D and OffscreenCanvas | Opt-in opaque sRGB uint8 readbacks use a fresh in-memory session key and top-level-site scope, not V3's persistent per-profile Canvas seed. Main document, embedded same-/cross-site frames and dedicated/shared/service workers were measured. | 12/12 two-site/restart cases and 6/6 context cases (11/11 checks) passed on one Windows 11 host. An additional public-binary cross-surface audit checked two synthetic profiles × two sessions: selected Canvas pixel/PNG digests changed in all four sessions while the measured non-Canvas fields and context invariants stayed consistent. No cohort or real-site compatibility proof. |
 | CPU, RAM, UTC | Limited native controls retained and audited across measured contexts. | Not a coherent full-browser fingerprint or proxy-derived timezone. |
 | WebGL/WebGPU, translucent, float16, display-p3 | Stock or unverified. | No claim of graphics-surface parity or anti-linkability. |
-| IP, DNS, UDP, IPv6, WebRTC/TURN | Proxy settings and old local tests still apply. | Independent external DNS/UDP/IPv6/TURN observation **NOT RUN**. |
+| IP, DNS, UDP, IPv6, WebRTC/TURN | Bounded public STUN control on exact 0.8.7 observed direct `srflx`; proxy-bound rejector observed route-control while browser reported no ICE candidates / NetLog UDP. | No independent packet capture, provider-side proxy logs, general DNS/IPv6/TURN observation, or second network/host. |
 | Hardware/OS diversity | 6 + 21 + 3 native tests passed; two staged runs gave 39 byte-identical files. The public ZIP was downloaded back and verified by hash and packaged self-test. | Second machine and Windows 10 **NOT RUN**; only the public-download gate is closed. |
 
 This candidate is tied to Chromium source commit
@@ -59,9 +59,9 @@ The release is built from source commit
 Raw reports with machine observations remain local under
 `C:\\NeAntikBuild\\qa` and are excluded from the repository. These results
 advance the single-host P0/P1 measurements only; cross-machine/GPU, Windows 10,
-real-site compatibility, external DNS/IPv6/UDP/TURN and population-level
-linkability remain **NOT RUN**. The manager and website binaries were not
-changed by these audits.
+real-site compatibility, external DNS/IPv6/TURN, packet capture and
+population-level linkability remain **NOT RUN**. The manager and website
+binaries were not changed by these audits.
 
 | Surface | Public 0.8.5-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |

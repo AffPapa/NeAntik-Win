@@ -71,7 +71,14 @@
   SHA-256 и доступные ссылки; `/`, `/CHANGELOG.md`, `/release.json` отвечают
   HTTP 200. Кириллица отображается корректно, desktop/mobile блок загрузки
   визуально проверен. Подробности: `RELEASE_PUBLICATION_0.8.7-preview.md`.
-- Внешние DNS/IPv6/UDP/TURN, второй Windows-компьютер, Windows 10/ARM64,
-  полная согласованность fingerprint и статистическая анонимность: **NOT RUN**.
+- Дополнительный публичный Cloudflare STUN-контроль точного 0.8.7 Chromium:
+  **PASS в узкой топологии**. Direct-контроль наблюдал `srflx` и 17 NetLog UDP
+  sends; с rejecting HTTP proxy — нет ICE-кандидатов, 0 NetLog UDP sends и
+  один синтетический route-control запрос. Cloudflare видел публичный IP
+  direct-теста; серверные proxy-логи и packet capture отсутствуют. Подробности
+  и границы: `NETWORK_PRIVACY_2026-10.md`.
+- Независимые DNS/IPv6/TURN и packet capture, второй Windows-компьютер,
+  Windows 10/ARM64, согласованность fingerprint вне выбранных API и
+  статистическая анонимность: **NOT RUN**.
 
 Сырые отчёты с локальными сетевыми и аппаратными деталями не публикуются.
