@@ -59,3 +59,9 @@ measured non-Canvas surfaces stayed equal. V3 therefore still fails the
 release gate. Raw reports remain private; these observations cover one
 Windows 11 host, one scene and headless loopback contexts, not a population
 anonymity estimate.
+
+A separate probe of Chromium's built-in `--disable-reading-from-canvas`
+switch blocked the tested main and dedicated-worker Canvas2D readbacks, but
+the switched headless page stalled at a WebGL `readPixels` call. This is a
+release-blocking compatibility result for that candidate, not a successful
+WebGL privacy test. See the [Canvas decision](CANVAS_PROTECTION_DECISION_2026-10.md).
