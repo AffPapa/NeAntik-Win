@@ -47,15 +47,23 @@ class WebSocketRouteFixtureTests(unittest.TestCase):
 
     def test_browser_flags_pin_only_wss_fixture_and_keep_sandbox(self) -> None:
         for protocol in ("ws", "wss"):
-            for route in ("direct", "http", "socks5", "http_unavailable", "socks5_unavailable"):
+            for route in ("direct", "http", "socks5", "https", "http_unavailable",
+                          "socks5_unavailable", "https_unavailable", "https_untrusted"):
                 with self.subTest(protocol=protocol, route=route):
+                    fixture_pin = "synthetic-target-pin" if protocol == "wss" else ""
+                    if route.startswith("https") and route != "https_untrusted":
+                        fixture_pin += ("," if fixture_pin else "") + "synthetic-proxy-pin"
                     flags = fixture.browser_arguments(Path("chrome.exe"), Path("synthetic-profile"),
-                                                      protocol, route, 1234, 5678, "a" * 32, "synthetic-pin")
+                                                      protocol, route, 1234, 5678, "a" * 32, fixture_pin)
                     self.assertNotIn("--ignore-certificate-errors", flags)
                     self.assertNotIn("--no-sandbox", flags)
                     pins = [flag for flag in flags if flag.startswith("--ignore-certificate-errors-spki-list=")]
-                    self.assertEqual(pins, ["--ignore-certificate-errors-spki-list=synthetic-pin"]
-                                     if protocol == "wss" else [])
+                    self.assertEqual(pins, ["--ignore-certificate-errors-spki-list=" + fixture_pin]
+                                     if fixture_pin else [])
+                    if route.startswith("https"):
+                        self.assertIn("--proxy-server=https://127.0.0.1:5678", flags)
+                        self.assertFalse(any(flag.startswith("--proxy-bypass-list=") and "nevision-qa.invalid" in flag
+                                             for flag in flags))
 
 
 if __name__ == "__main__":

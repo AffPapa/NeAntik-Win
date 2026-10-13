@@ -19,9 +19,10 @@ Public download and site still serve 0.8.5-preview until independently verified.
 - V4 Canvas saved-profile/two-site/three-session gate: 12/12 cases.
 - V4 context gate: main document, same-site and third-party iframe, dedicated/shared/service workers; aggregate checks pass.
 - Storage isolation and backup/restore loopback integration: 21 assertions.
+- Synthetic same-account storage update/rollback from a freshly downloaded public 0.8.5 ZIP (SHA-256 `cc5d14702aa0facffbd88839e5b45645e871f3aab962c454bccf5895ab946dc4`) to this candidate: old-source seed, candidate-source read/write of copied `Data/`, synthetic DPAPI decrypt and untouched old snapshot reopen all passed; [`upgrade_rollback_integration.py`](../tools/upgrade_rollback_integration.py). This uses each ZIP's exact embedded source commit and extracted folders, not packaged GUI interaction or real Chromium session migration.
 - Loopback HTTP/SOCKS5/no-DIRECT proxy integration: 37 assertions.
 - Local HTTPS-proxy TLS/CONNECT route: 5/5 scenarios on the exact extracted core (direct controls, working HTTPS proxy, untrusted proxy certificate, unavailable proxy); [`https_proxy_integration.py`](../tools/https_proxy_integration.py). Disposable certificate pinned by SPKI for positive controls, no trust-store change or global TLS bypass.
-- Local WebSocket `ws`/`wss` routes: 10/10 scenarios on the exact extracted core across direct, HTTP/SOCKS5 proxy and unavailable-proxy controls; [`websocket_route_integration.py`](../tools/websocket_route_integration.py). WSS fixture uses a disposable SPKI pin, not a global TLS bypass.
+- Local WebSocket `ws`/`wss` routes: 16/16 scenarios on the exact extracted core across direct, HTTP/HTTPS/SOCKS5 proxy, unavailable-proxy and untrusted-HTTPS-proxy controls; [`websocket_route_integration.py`](../tools/websocket_route_integration.py). WSS target and HTTPS proxy use separate disposable SPKI pins, not a global TLS bypass.
 - Managed per-profile downloads and portable relocation: 3 cases.
 - HTTPS third-party-cookie positive/negative control: allow profile stores cookie; block profile does not.
 - Packaged launcher integration, including first-run AppContainer ACL and opt-in V4 core: 4 cases.
@@ -42,8 +43,8 @@ packaged launcher independently passed its first-run ACL scenario; the raw
 ## INCONCLUSIVE / NOT RUN
 
 - **INCONCLUSIVE:** packaged GUI profile creation by Windows UI automation. On 2026-10-13 the exact candidate EXE (SHA-256 `7866bcb02e2c4de83931774427e8f33b844ed378224ed4f5bc9462e032d05645`) opened the main window and creation dialog; the name field visibly had a caret after a screenshot-targeted click, but `type_text` entered no characters. The tool reported focus on a generic panel and did not list the modal as a separate top-level window. One refreshed, changed-target attempt was made, then the test stopped. Cancel and app close worked. This does not prove an application defect or a successful end-to-end workflow.
-- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, update/rollback, additional security scanners, and public downloaded-ZIP launch.
-- **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, WebSocket over HTTPS proxy, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas and route checks do not establish general anonymity.
+- **NOT RUN on this ZIP:** full keyboard/navigation, light/dark, profile editing and close/reopen, packaged GUI update/rollback and browser-session migration, additional security scanners, and public downloaded-0.8.6-ZIP launch.
+- **NOT RUN:** independent public DNS/IPv6/STUN/TURN egress observer, external WebSocket route, second Windows machine/GPU, WebGL/WebGPU fingerprint protection, real-site compatibility and statistical unlinkability. Local Canvas and route checks do not establish general anonymity.
 - **NOT PUBLISHED:** the 0.8.6 release ZIP/checksum and site update remain gated by final release review and public-download hash verification. Candidate source and this QA record are on GitHub `main`, without a 0.8.6 release tag.
 
 Before publication, rerun the release checklist against a final immutable ZIP, finish or explicitly scope the open GUI/security/compatibility gates, and verify the public artifact by downloading it again. Do not silently overwrite an existing versioned release.

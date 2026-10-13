@@ -169,9 +169,16 @@ class HTTPProxy(BaseHTTPRequestHandler):
             if host != HOST or port != server.target_port:
                 raise ValueError("Target outside fixture")
             upstream = socket.create_connection(("127.0.0.1", port), timeout=5)
-            peer_port = server.evidence.register(upstream, "http")
+            peer_port = server.evidence.register(upstream, server.route)
         except (ValueError, OSError):
-            self.send_error(403)
+            # Chromium may abandon a rejected CONNECT before reading its body.
+            # A header-only denial keeps the loopback fixture quiet and strict.
+            try:
+                self.send_response(403)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            except OSError:
+                pass
             return
         try:
             self.send_response(200, "Connection Established")
@@ -359,12 +366,12 @@ def browser_arguments(chrome: Path, profile: Path, protocol: str, route: str,
                  f"--user-data-dir={profile}", "--no-first-run", "--no-default-browser-check",
                  "--disable-background-networking", "--disable-component-update",
                  "--disable-sync", "--disable-quic", "--metrics-recording-only"]
-    if protocol == "wss":
+    if spki_pin:
         arguments.append(f"--ignore-certificate-errors-spki-list={spki_pin}")
     if route == "direct":
         arguments += ["--no-proxy-server", f"--host-resolver-rules=MAP {HOST} 127.0.0.1, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"]
     else:
-        scheme = "http" if route.startswith("http") else "socks5"
+        scheme = "https" if route.startswith("https") else "http" if route.startswith("http") else "socks5"
         arguments += [f"--proxy-server={scheme}://127.0.0.1:{proxy_port}"]
         arguments += bundled_proxy_privacy_arguments({"scheme": scheme, "host": "127.0.0.1", "port": proxy_port})
     # Direct is a loopback transport control. Proxy legs deliberately use a
@@ -402,6 +409,7 @@ def run_browser(chrome: Path, root: Path, protocol: str, route: str, port: int,
 
 
 def run_case(chrome: Path, root: Path, cert: Path, key: Path, spki_pin: str,
+             proxy_cert: Path, proxy_key: Path, proxy_pin: str,
              protocol: str, route: str) -> dict[str, object]:
     evidence = Evidence()
     token = uuid.uuid4().hex
@@ -413,10 +421,16 @@ def run_case(chrome: Path, root: Path, cert: Path, key: Path, spki_pin: str,
         context.load_cert_chain(cert, key)
         target.socket = context.wrap_socket(target.socket, server_side=True)
     proxy = HTTPProxyServer(("127.0.0.1", 0), HTTPProxy)
-    proxy.target_port, proxy.evidence = target.server_port, evidence
+    proxy.target_port, proxy.evidence, proxy.route = target.server_port, evidence, "http"
+    tls_proxy = HTTPProxyServer(("127.0.0.1", 0), HTTPProxy)
+    tls_proxy.target_port, tls_proxy.evidence, tls_proxy.route = target.server_port, evidence, "https"
+    proxy_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    proxy_context.minimum_version = ssl.TLSVersion.TLSv1_2
+    proxy_context.load_cert_chain(proxy_cert, proxy_key)
+    tls_proxy.socket = proxy_context.wrap_socket(tls_proxy.socket, server_side=True)
     socks = SocksServer(("127.0.0.1", 0), SocksProxy)
     socks.target_port, socks.evidence = target.server_port, evidence
-    servers = (target, proxy, socks)
+    servers = (target, proxy, tls_proxy, socks)
     threads = [threading.Thread(target=item.serve_forever, daemon=True) for item in servers]
     for thread in threads:
         thread.start()
@@ -425,13 +439,20 @@ def run_case(chrome: Path, root: Path, cert: Path, key: Path, spki_pin: str,
     unavailable.bind(("127.0.0.1", 0))
     try:
         proxy_port = (unavailable.getsockname()[1] if route.endswith("unavailable") else
-                      proxy.server_port if route == "http" else socks.server_address[1] if route == "socks5" else None)
+                      proxy.server_port if route == "http" else
+                      tls_proxy.server_port if route.startswith("https") else
+                      socks.server_address[1] if route == "socks5" else None)
+        # The target and proxy use different disposable keys. A WSS target can
+        # remain pinned while the untrusted HTTPS-proxy certificate is rejected.
+        pins = [spki_pin] if protocol == "wss" else []
+        if route.startswith("https") and route != "https_untrusted":
+            pins.append(proxy_pin)
         state, browser_alive = run_browser(chrome, root, protocol, route, target.server_port,
-                                           proxy_port, token, spki_pin)
+                                           proxy_port, token, ",".join(pins))
         with evidence.lock:
             observations = list(evidence.observations)
             connections = list(evidence.proxy_connections)
-        if route.endswith("unavailable"):
+        if route.endswith(("unavailable", "untrusted")):
             passed = browser_alive and state == "failed" and not observations and not connections
         else:
             passed = (browser_alive and state == "ack" and len(observations) == 1 and
@@ -481,9 +502,17 @@ def main() -> int:
                             "-addext", f"subjectAltName=DNS:{HOST}"],
                            check=True, capture_output=True, timeout=20)
             spki_pin = certificate_spki_pin(openssl, cert)
+            proxy_cert, proxy_key = root / "proxy.crt", root / "proxy.key"
+            subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                            "-keyout", str(proxy_key), "-out", str(proxy_cert),
+                            "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1"],
+                           check=True, capture_output=True, timeout=20)
+            proxy_pin = certificate_spki_pin(openssl, proxy_cert)
             for protocol in ("ws", "wss"):
-                for route in ("direct", "http", "socks5", "http_unavailable", "socks5_unavailable"):
-                    report["cases"].append(run_case(chrome, root, cert, key, spki_pin, protocol, route))
+                for route in ("direct", "http", "socks5", "https", "http_unavailable",
+                              "socks5_unavailable", "https_unavailable", "https_untrusted"):
+                    report["cases"].append(run_case(chrome, root, cert, key, spki_pin,
+                                                    proxy_cert, proxy_key, proxy_pin, protocol, route))
         report["status"] = "PASS" if all(item["status"] == "PASS" for item in report["cases"]) else "FAIL"
     except Exception as exc:
         report["status"] = "INCONCLUSIVE"
