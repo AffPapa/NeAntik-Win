@@ -19,6 +19,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 - Added JavaScript/HTTP parity checks for high-entropy UA full-version-list
   and platform-version Client Hints; missing or mismatched values fail the
   audit. These local checks passed on the clean development core.
+- Manually opened the extracted internal portable candidate, created an
+  ordinary profile, launched its bundled Chromium, and closed both windows.
+  The default Chromium new-tab page displayed Google; it remains an explicit
+  browser-network privacy item rather than a claim of zero third-party calls.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-

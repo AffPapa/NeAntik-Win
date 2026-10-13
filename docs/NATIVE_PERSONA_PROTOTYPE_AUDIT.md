@@ -79,6 +79,13 @@ assertions, 14 browser-storage isolation assertions and the third-party-cookie
 positive/negative controls also passed. The application Python suite passed
 115 tests with three skipped, and the release-tool suite passed 50 checks.
 These tests do not observe a public network path.
+In a manual GUI smoke on the disposable extracted ZIP, the manager window
+opened, an ordinary profile was created from the form, its Launch button
+started the bundled `Engine/Chromium/chrome.exe`, and both windows closed
+normally with no QA processes left running. This checked the ordinary GUI
+path only, not a V3 persona, backup UI or anonymous networking. The default
+Chromium new-tab page displayed Google content; the current package must not
+be described as preventing all browser-initiated third-party requests.
 The next audit revision also compared `Date.getTimezoneOffset()` with `Intl`
 timezone in all six browser contexts. Its eighth check passed on the clean
 staged core, and the ordinary two-profile context audit stayed consistent.
