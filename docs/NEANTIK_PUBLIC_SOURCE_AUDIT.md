@@ -1,5 +1,11 @@
 # NeAntik Win: source publication audit
 
+> Historical pre-publication snapshot from 2026-10-11. Its findings about a
+> missing remote, license and commits described the old working tree, not the
+> current public repository. Before any new publication, inspect the exact
+> staged diff and run the current source/release gates; do not reuse this
+> report as a security clearance.
+
 Audit date: 2026-10-11. Read-only inspection of the existing NeVision Win source tree before the requested rename and first GitHub publication. Only this report was added by this audit; no staging, commits, remote changes or application changes were performed.
 
 ## Result and required preparation
