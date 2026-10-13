@@ -3361,6 +3361,15 @@ def self_test() -> int:
         restored_id = storage.restore_profile(archive, "Restored test")
         assert (storage.profile_path(restored_id) / "Default" / "test.txt").read_text(encoding="utf-8") == "hello"
         assert filesystem_path(storage.profile_path(restored_id) / long_relative).read_bytes() == b"synthetic long-path self-test"
+        outside = temp_root / "outside-synthetic.txt"
+        outside.write_text("outside profile", encoding="utf-8")
+        os.link(outside, profile_dir / "hardlink-synthetic.txt")
+        try:
+            storage.backup_profile(profile_id)
+        except NeVisionError as exc:
+            assert "hardlink" in str(exc)
+        else:
+            raise AssertionError("Backup accepted a hardlink outside the profile")
         assert len(storage.list_profiles()) == 2
         assert len(storage.list_events()) >= 4
         ordinary = ordinary_identity()
