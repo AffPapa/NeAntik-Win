@@ -15,6 +15,7 @@ def report():
               "timezone": "Etc/UTC", "timezoneOffsetMinutes": 0}
     window = {**common, "screen": [1000, 800, 24], "devicePixelRatio": 1,
               "canvas2dSha256": "a" * 64, "canvasPixelSha256": "c" * 64,
+              "audioSha256": "e" * 64,
               "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                         "unmaskedRenderer": None}}
     worker = {**common, "canvasPixelSha256": "c" * 64}
@@ -55,6 +56,16 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = deepcopy(report())
         value["surfaces"]["worker"]["canvasPixelSha256"] = "d" * 64
         self.assertFalse(evaluate([value])[0]["canvas_pixels_dedicated_worker_parity"])
+
+    def test_audio_context_mismatch_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["crossOriginFrame"]["audioSha256"] = "f" * 64
+        self.assertFalse(evaluate([value])[0]["audio_cross_origin_parity"])
+
+    def test_missing_audio_observation_is_rejected(self):
+        value = deepcopy(report())
+        value["surfaces"]["main"]["audioSha256"] = None
+        self.assertFalse(evaluate([value])[0]["audio_observed"])
 
     def test_missing_rendering_observation_is_rejected(self):
         value = deepcopy(report())

@@ -19,6 +19,7 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
         "screen": [1280, 800, 24], "devicePixelRatio": 1,
         "canvas2dSha256": "a" * 64,
         "canvasPixelSha256": "c" * 64,
+        "audioSha256": "e" * 64,
         "webgl": {"vendor": "test", "renderer": "test", "unmaskedVendor": None,
                   "unmaskedRenderer": None},
     }

@@ -54,6 +54,18 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     } : null;
     return {canvas2dSha256, canvasPixelSha256, webgl};
   };
+  const audio = async (view) => {
+    const context = new view.OfflineAudioContext(1, 4096, 44100);
+    const oscillator = context.createOscillator();
+    oscillator.type = 'triangle'; oscillator.frequency.value = 997;
+    const gain = context.createGain(); gain.gain.value = 0.35;
+    oscillator.connect(gain); gain.connect(context.destination);
+    oscillator.start(0);
+    const rendered = await context.startRendering();
+    const samples = rendered.getChannelData(0).slice(256, 2304);
+    const digest = await view.crypto.subtle.digest('SHA-256', samples);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  };
   const surface = async (view) => ({
     userAgent: view.navigator.userAgent,
     platform: view.navigator.platform,
@@ -66,6 +78,7 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
     screen: [view.screen.width, view.screen.height, view.screen.colorDepth],
     devicePixelRatio: view.devicePixelRatio,
     ...(await rendering(view)),
+    audioSha256: await audio(view),
   });
   const main = await surface(window);
   const frame = document.createElement('iframe');
@@ -204,6 +217,16 @@ const webgl = gl ? {
   unmaskedVendor: info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : null,
   unmaskedRenderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null,
 } : null;
+const audio = new OfflineAudioContext(1, 4096, 44100);
+const oscillator = audio.createOscillator();
+oscillator.type = 'triangle'; oscillator.frequency.value = 997;
+const gain = audio.createGain(); gain.gain.value = 0.35;
+oscillator.connect(gain); gain.connect(audio.destination);
+oscillator.start(0);
+const rendered = await audio.startRendering();
+const samples = rendered.getChannelData(0).slice(256, 2304);
+const audioDigest = await crypto.subtle.digest('SHA-256', samples);
+const audioSha256 = Array.from(new Uint8Array(audioDigest), byte => byte.toString(16).padStart(2, '0')).join('');
 const surface = {
   userAgent: navigator.userAgent,
   platform: navigator.platform,
@@ -215,7 +238,7 @@ const surface = {
   timezoneOffsetMinutes: new Date().getTimezoneOffset(),
   screen: [screen.width, screen.height, screen.colorDepth],
   devicePixelRatio,
-  canvas2dSha256, canvasPixelSha256, webgl,
+  canvas2dSha256, canvasPixelSha256, webgl, audioSha256,
 };
 parent.postMessage({token: params.get('token'), surface}, parentOrigin);
 }
@@ -429,6 +452,10 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "webgl_observed": isinstance(surfaces["main"].get("webgl"), dict),
             "webgl_iframe_parity": surfaces["main"].get("webgl") == surfaces["iframe"].get("webgl"),
             "webgl_cross_origin_parity": surfaces["main"].get("webgl") == surfaces["crossOriginFrame"].get("webgl"),
+            "audio_observed": isinstance(surfaces["main"].get("audioSha256"), str)
+            and bool(re.fullmatch(r"[a-f0-9]{64}", surfaces["main"]["audioSha256"])),
+            "audio_iframe_parity": surfaces["main"].get("audioSha256") == surfaces["iframe"].get("audioSha256"),
+            "audio_cross_origin_parity": surfaces["main"].get("audioSha256") == surfaces["crossOriginFrame"].get("audioSha256"),
             "main_worker_common": all(surfaces["main"].get(key) == surfaces["worker"].get(key) for key in keys),
             "main_shared_worker_common": all(surfaces["main"].get(key) == surfaces["sharedWorker"].get(key) for key in keys),
             "main_service_worker_common": all(surfaces["main"].get(key) == surfaces["serviceWorker"].get(key) for key in keys),
