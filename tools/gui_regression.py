@@ -136,6 +136,15 @@ class GuiTests(unittest.TestCase):
         dialog.save()
         self.assertEqual(self.storage.get_profile(self.profile)["proxy_id"], first)
 
+    def test_profile_creation_dialog_requests_initial_name_focus(self):
+        dialog = nv.ProfileDialog(self.app)
+        self.pump(.05)
+        self.assertTrue(dialog.winfo_viewable())
+        self.assertIs(dialog.grab_current(), dialog)
+        # focus_set() records the initial target even when this test process is
+        # not the desktop foreground app and therefore cannot own active focus.
+        self.assertIs(dialog.focus_lastfor(), dialog.name)
+
     def test_proxy_hostname_disclosure_after_save(self):
         dialog = nv.ProxyDialog(self.app)
         self.app.root.update()
