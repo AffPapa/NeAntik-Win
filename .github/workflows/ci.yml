@@ -50,6 +50,6 @@ jobs:
         shell: pwsh
         run: .\tools\test-release-tools.ps1
 
-      # The public 0.5.0-preview artifact requires source-built Chromium and
-      # cannot be represented by a misleading launcher-only CI archive.
+      # Published artifacts require source-built Chromium and cannot be
+      # represented by a misleading launcher-only CI archive.
       # Packaged QA is performed on the actual manually built release ZIP.
