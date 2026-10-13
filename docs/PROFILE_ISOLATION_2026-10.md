@@ -53,3 +53,33 @@ and the product's backup/clone behavior, but not the UI workflow for granting
 permission. It does not cover downloads, extension storage, other browser
 permissions, another Windows account or cross-machine encrypted cookies.
 Those remain open P3 gates.
+
+## Synthetic extension storage — 13 October 2026
+
+The separate [extension isolation audit](../tools/extension_isolation_audit.py)
+used the exact extracted v0.8.4-preview Chromium from release source commit
+`7730d6300cf17ceca06dd8219cdf6d7bf1b48be3` (portable ZIP SHA-256
+`eff5ba66f6a564eb0260bf2fa0635d69c5c79590d8a27f7b7230deb22659b597`;
+`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`).
+It built a synthetic unpacked Manifest V3 extension in a disposable temporary
+directory. Only owned headless Chromium processes loaded it; no user's browser
+or extension was opened. A loopback page and rejecting loopback proxy kept the
+test's background requests from being forwarded.
+
+The same extension ID wrote different `chrome.storage.local` values in fresh
+profiles A and B. B could not read A's value, both retained their own values
+after restart, a same-machine backup/restore retained A's value, and the
+product's actual configuration-only clone handler created a profile without
+it. Eight checks passed. The private report is
+`C:\NeAntikBuild\qa\extension-isolation-v084-20261013-c.json`; it records
+boolean checks, not the synthetic values or browser data. An initial failed
+harness run incorrectly treated an existing Preferences file as initialization
+failure; the harness was corrected and rerun. That run is not evidence of a
+product defect.
+
+This covers only one unpacked extension and its local-storage API on one
+Windows 11 host. It does **not** test Chrome Web Store installation, extension
+network privileges, a malicious extension, extension updates, another Windows
+account or portable restoration on another machine. Extension data in backups
+may be sensitive and backups remain unencrypted. P3 is still open.
