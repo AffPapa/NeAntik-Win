@@ -95,3 +95,9 @@ network-performance **test** switch and affects services including upgrade
 detection and Safe Browsing configuration. It is not a safe blanket fix for a
 distributed browser. Any startup change needs repeat measurements, an update
 strategy and a way to respect the user's session-restore choice.
+In a separate disposable GUI check, writing `session.restore_on_startup=4`
+and `session.startup_urls=["about:blank"]` into initial Preferences did **not**
+replace the new-tab page on first or second launch. Passing `about:blank` as
+an explicit launch URL did open a blank tab. Therefore the preference edit is
+not a verified product fix; forcing a URL on every launch would interfere
+with session restoration and needs its own UX design and regression tests.
