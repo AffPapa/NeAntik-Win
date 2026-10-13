@@ -12,7 +12,7 @@ privacy. Raw reports can reveal device traits and stay outside the repository.
 | `hardwareConcurrency` | Narrow native reduction | Host-bounded profile value | Check Window, same/cross-origin frames and Dedicated/Shared/Service Workers against the same build's stock host result. |
 | `deviceMemory` and Device-Memory Client Hint | Narrow native reduction | Host-bounded profile value | Check every JavaScript context plus `Sec-CH-Device-Memory`; reject missing hints and claims above stock. |
 | Timezone, `Date`, `Intl` | System timezone | Profile UTC in V3 | Check all contexts, daylight-saving transitions, time arithmetic, rendered dates and real-site compatibility; proxy geography is not a reliable timezone source. |
-| Canvas2D and OffscreenCanvas | Stock readback | Seeded opaque sRGB uint8 readback only | Repeat reads, subregions, PNG/blob decode, workers, alpha, color spaces, text, performance and linkability cohort. Other paths must be reported as unmodified. |
+| Canvas2D and OffscreenCanvas | Stock readback | Seeded opaque sRGB uint8 readback only; **held from release** after local linkability control | Repeat reads, subregions, PNG/blob decode, workers, alpha, color spaces, text, performance and consented linkability cohort. Other paths must be reported as unmodified. |
 | WebGL and WebGPU | Stock | Stock | Record vendor/renderer, extensions, precision, pixels, GPU class and graphics compatibility on at least two GPU classes. Do not invent values before coherent native implementation and testing. |
 | AudioContext and media devices | Stock | Stock | Measure offline-audio output, device enumeration/permissions and timing; evaluate compatibility and whether permission limits reduce exposure. |
 | Fonts, text metrics and screen geometry | Stock | Stock | Measure font availability, layout/text metrics, scaling, window/fullscreen dimensions and accessibility at 100–200% DPI. |
@@ -46,3 +46,6 @@ privacy. Raw reports can reveal device traits and stay outside the repository.
 Current automated evidence is linked from
 [the V3 audit](NATIVE_PERSONA_PROTOTYPE_AUDIT.md). The implementation order and
 release gates are in the [master plan](MASTER_IMPLEMENTATION_PLAN.md).
+The eight-profile single-host Canvas control found one baseline output but
+eight stable V3 outputs. This is a release warning for V3, not proof that the
+baseline is anonymous or that every site can observe the difference.

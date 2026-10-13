@@ -132,15 +132,38 @@ broader cross-API and real-site compatibility tests, empirical cohort and
 linkability evaluation, and validation on a second hardware class before any
 release.
 
+### Local linkability control: V3 Canvas is held from release
+
+On 2026-10-13, the [disposable comparison tool](../tools/native_canvas_linkability_audit.py)
+opened the same loopback Canvas probe in eight fresh baseline profiles and
+eight fresh V3 profiles on this Windows 11 host. It used eight fixed test seeds
+and repeated the first seed in another fresh profile. The byte-verified public
+0.8.1 core produced **one** pixel hash and **one** PNG hash across the eight
+seeds. The clean-build V3 core produced **eight** distinct pixel hashes and
+**eight** distinct PNG hashes; the first seed's two hashes repeated in its
+fresh profile. The local report is outside Git and contains only aggregate
+counts and binary hashes, not raw Canvas values.
+
+This is evidence that the V3 seed creates a repeatable, profile-specific
+Canvas signal in the tested path. It is an **inference of linkability risk**,
+not a real-site tracking demonstration or population entropy measurement.
+The audit's release gate is
+`blocked_by_stable_per_profile_canvas_identifier`: do not publish this V3
+Canvas mode as a privacy feature. It remains an opt-in development test case.
+The next design candidate is a common, coherent cohort value or a usable
+permission-based restriction, evaluated against stock Chromium and a
+consented multi-device cohort before any default or public release.
+
 ## Gates before any public release
 
 1. Patch export, byte-for-byte source reconstruction, clean-core build,
    development staging, compiled capability handshake, license notices and
    source/build hashes in the engine and ZIP receipts are done locally.
    Repeat these checks after any source or build change before a release.
-2. Choose the privacy model using empirical cohort and linkability testing.
-   Do not enable stable per-profile variation merely because different hashes
-   look like successful spoofing. Prefer coordinated, understandable defaults.
+2. Resolve the measured V3 Canvas linkability warning above. Choose the
+   privacy model using empirical cohort and linkability testing. Do not enable
+   stable per-profile variation merely because different hashes look like
+   successful spoofing. Prefer coordinated, understandable defaults.
 3. Persist a profile identity without leaking it through logs, diagnostics or
    backups unintentionally; define copy/restore/migration semantics and ensure
    the launcher rejects unsupported cores instead of silently running stock

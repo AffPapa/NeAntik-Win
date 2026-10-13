@@ -4,6 +4,13 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
 
 ## Unreleased — expanded local QA (2026-10-13)
 
+- Added a reproducible single-host Canvas linkability control for the public
+  core versus the clean experimental V3 build. Across eight fresh profiles,
+  public 0.8.1 produced one pixel/PNG hash pair; V3 produced eight distinct
+  pairs, and the first seed repeated after profile recreation. This holds the
+  stable per-profile V3 Canvas mode from release as a privacy feature; it is
+  not a population or real-site anonymity measurement. The public ZIP and
+  site download are unchanged.
 - Completed a clean-from-scratch development build of the experimental V3
   Chromium core and an internal-only portable QA archive. Exact patch/build
   provenance, Canvas and cross-context loopback probes, the archive checker,
