@@ -2433,9 +2433,20 @@ class ProxyVaultDialog(BaseDialog):
 
 class SettingsDialog(BaseDialog):
     def __init__(self, app: "NeVisionApp"):
-        super().__init__(app, "Настройки", "650x560")
-        body = ttk.Frame(self, style="Panel.TFrame", padding=24)
-        body.pack(fill="both", expand=True)
+        super().__init__(app, "Настройки", "650x680")
+        viewport = ttk.Frame(self, style="Panel.TFrame")
+        viewport.pack(fill="both", expand=True)
+        canvas = tk.Canvas(viewport, bg=app.colors["panel"], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(viewport, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        self.settings_canvas = canvas
+        self.bind("<MouseWheel>", self._scroll_settings, add="+")
+        body = ttk.Frame(canvas, style="Panel.TFrame", padding=24)
+        window = canvas.create_window((0, 0), window=body, anchor="nw")
+        body.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(window, width=event.width))
         ttk.Label(body, text="Настройки", style="DialogTitle.TLabel").pack(anchor="w", pady=(0, 15))
         ttk.Label(body, text="Оформление", style="Label.TLabel").pack(anchor="w", pady=(0, 5))
         self.theme = ttk.Combobox(body, values=list(THEME_OPTIONS), style="Input.TCombobox", state="readonly")
@@ -2469,10 +2480,38 @@ class SettingsDialog(BaseDialog):
             self.toggle_compatibility()
         ttk.Separator(body).pack(fill="x", pady=8)
         ttk.Label(body, text="Где мои данные?", style="Label.TLabel").pack(anchor="w", pady=(8, 5))
-        ttk.Label(body, text="Профили, история и backup — в Data рядом с EXE. Новые профили встроенного Chromium сохраняют загрузки в папке Downloads своего профиля; backup включает эти файлы и может стать большим. Для переноса копируйте всю папку.",
-                  style="Hint.TLabel", wraplength=520).pack(anchor="w")
-        ttk.Label(body, text=PORTABILITY_WARNING, style="Hint.TLabel", wraplength=520).pack(anchor="w", pady=(5, 0))
-        self.footer(body, self.save, "Сохранить")
+        ttk.Label(body, text="Тот же ПК и Windows-аккаунт: закройте браузер и скопируйте всю portable-папку. Профили, история и backup лежат в Data рядом с EXE; backup также содержит загрузки и данные сайтов, поэтому храните его как пароль.",
+                  style="Hint.TLabel", wraplength=540).pack(anchor="w")
+        ttk.Label(body, text="Другой ПК или Windows-аккаунт", style="Label.TLabel").pack(anchor="w", pady=(10, 5))
+        ttk.Label(body, text="Перенесите только настройки выбранного профиля: имя, группу, теги и режим браузера. Импорт создаст новый пустой профиль. Вход на сайты и proxy настройте заново.",
+                  style="Hint.TLabel", wraplength=540).pack(anchor="w")
+        transfer_actions = ttk.Frame(body, style="Panel.TFrame")
+        transfer_actions.pack(anchor="w", pady=(8, 0))
+        ttk.Button(transfer_actions, text="Экспорт настроек…", style="Ghost.TButton",
+                   command=lambda: self._run_transfer_action(app.export_selected_template)).pack(side="left")
+        ttk.Button(transfer_actions, text="Импорт настроек…", style="Ghost.TButton",
+                   command=lambda: self._run_transfer_action(app.import_profile_template)).pack(side="left", padx=(8, 0))
+        ttk.Label(body, text=PORTABILITY_WARNING, style="Hint.TLabel", wraplength=540).pack(anchor="w", pady=(8, 0))
+        self.footer(self, self.save, "Сохранить")
+
+    def _scroll_settings(self, event: tk.Event[Any]) -> str | None:
+        if isinstance(event.widget, ttk.Combobox) or not event.delta:
+            return None
+        steps = max(1, abs(event.delta) // 120)
+        self.settings_canvas.yview_scroll(-steps if event.delta > 0 else steps, "units")
+        return "break"
+
+    def _run_transfer_action(self, action: Any) -> None:
+        # The existing import/export dialogs are parented to the main window.
+        # Temporarily hide this modal so their confirmations stay in front.
+        self.grab_release()
+        self.withdraw()
+        try:
+            action()
+        finally:
+            if self.winfo_exists():
+                self.deiconify()
+                self.grab_set()
 
     def toggle_compatibility(self) -> None:
         if self.compatibility.winfo_manager():
@@ -3210,6 +3249,7 @@ class NeVisionApp:
     def export_selected_template(self) -> None:
         profile = self.selected_profile()
         if not profile:
+            messagebox.showinfo(APP_NAME, "Сначала выберите профиль для экспорта настроек.", parent=self.root)
             return
         if not messagebox.askyesno(
             APP_NAME,

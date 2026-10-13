@@ -1131,6 +1131,19 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_profile_template_export_requires_selected_profile(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.storage = MagicMock()
+        app.selected_profile = MagicMock(return_value=None)
+        with patch("nevision_win.messagebox.showinfo") as info, patch(
+            "nevision_win.messagebox.askyesno"
+        ) as confirm:
+            app.export_selected_template()
+        self.assertIn("Сначала выберите профиль", info.call_args.args[1])
+        confirm.assert_not_called()
+        app.storage.export_profile_template.assert_not_called()
+
     def test_profile_template_export_warns_about_plaintext_metadata(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()

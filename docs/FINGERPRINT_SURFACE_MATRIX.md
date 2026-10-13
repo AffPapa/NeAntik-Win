@@ -9,6 +9,15 @@ that session-key transport, not full fingerprint coverage.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
+The 2026-10-14 V5 Canvas compatibility/performance gate compared the exact
+0.8.12 public core with a source-matched stock Chromium build on one Windows
+11 host. It passed 33/33 bounded checks across stock, ordinary and opt-in
+modes: repeated/subregion opaque readbacks, PNG export paths and decoding.
+For 32 batches of 16 readbacks, measured p95 per operation was 0.019 ms
+(stock), 0.025 ms (ordinary) and 0.037 ms (opt-in). These tiny-scene local
+timings are not a general browsing benchmark, real-site compatibility proof
+or anonymity estimate. See [`v5_canvas_compat_perf_gate.py`](../tools/v5_canvas_compat_perf_gate.py).
+
 ## Published V4b delta and bounded evidence
 
 | Surface | Public 0.8.6-preview V4b | Boundary |

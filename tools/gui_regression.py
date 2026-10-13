@@ -226,6 +226,8 @@ class GuiTests(unittest.TestCase):
     def test_settings_portability_warning_and_footer_are_visible(self):
         dialog = nv.SettingsDialog(self.app)
         self.app.root.update()
+        dialog.settings_canvas.yview_moveto(1)
+        self.app.root.update()
         def walk(widget):
             yield widget
             for child in widget.winfo_children():
@@ -235,8 +237,27 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(len(labels), 1)
         warning = labels[0]
         self.assertTrue(warning.winfo_ismapped())
+        self.assertGreaterEqual(warning.winfo_rooty(), dialog.settings_canvas.winfo_rooty())
         self.assertLessEqual(warning.winfo_rooty() + warning.winfo_height(),
-                             dialog.winfo_rooty() + dialog.winfo_height())
+                             dialog.settings_canvas.winfo_rooty() + dialog.settings_canvas.winfo_height())
+        route_labels = [str(widget.cget("text")) for widget in walk(dialog)
+                        if isinstance(widget, nv.ttk.Label)]
+        self.assertTrue(any("Тот же ПК и Windows-аккаунт" in value and "всю portable-папку" in value
+                            for value in route_labels))
+        self.assertIn("Другой ПК или Windows-аккаунт", route_labels)
+        self.assertTrue(any("новый пустой профиль" in value and "proxy" in value
+                            for value in route_labels))
+        transfer_buttons = {str(widget.cget("text")): widget for widget in walk(dialog)
+                            if isinstance(widget, nv.ttk.Button)}
+        for label, method in (("Экспорт настроек…", "export_selected_template"),
+                              ("Импорт настроек…", "import_profile_template")):
+            button = transfer_buttons[label]
+            self.assertTrue(button.winfo_ismapped())
+            with patch.object(self.app, method) as action:
+                button.invoke()
+                self.app.root.update()
+                action.assert_called_once_with()
+                self.assertTrue(dialog.winfo_ismapped())
         save = [widget for widget in walk(dialog) if isinstance(widget, nv.ttk.Button)
                 and str(widget.cget("text")) == "Сохранить"]
         self.assertEqual(len(save), 1)

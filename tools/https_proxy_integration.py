@@ -94,9 +94,22 @@ class ProxyHandler(BaseHTTPRequestHandler):
         pass
 
     def do_CONNECT(self) -> None:
-        expected = f"{TARGET_NAME}:{self.server.target_port}"
+        # The auth case uses an IP-literal URL: if Chromium silently falls
+        # back to DIRECT, this same local target is reachable and records it.
+        expected_host = "127.0.0.1" if getattr(self.server, "require_auth", False) else TARGET_NAME
+        expected = f"{expected_host}:{self.server.target_port}"
         if self.path != expected:
             self.send_error(403, "Local fixture allows only its own target")
+            return
+        if getattr(self.server, "require_auth", False):
+            with self.server.observation_lock:
+                self.server.auth_challenge_count += 1
+            self.send_response(407, "Proxy Authentication Required")
+            self.send_header("Proxy-Authenticate", 'Basic realm="NeAntik synthetic QA"')
+            self.send_header("Content-Length", "0")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
             return
         with self.server.observation_lock:
             self.server.connect_count += 1
@@ -200,13 +213,14 @@ def run_browser_case(chrome: Path, root: Path, label: str, url: str,
 
 
 def evaluate_case(label: str, result: dict, hits: int, connects: int,
-                  other_connects: int = 0) -> dict:
+                  other_connects: int = 0, auth_challenges: int = 0) -> dict:
     known_cases = {"direct_before", "tls_proxy_connect", "cert_untrusted",
                    "dead_proxy_port", "tls_proxy_connect_v6", "cert_untrusted_v6",
-                   "dead_proxy_port_v6", "direct_after"}
+                   "dead_proxy_port_v6", "auth_direct_control", "auth_required", "direct_after"}
     if label not in known_cases:
         raise ValueError(f"Unknown HTTPS proxy case: {label}")
-    positive = label in {"direct_before", "tls_proxy_connect", "tls_proxy_connect_v6", "direct_after"}
+    positive = label in {"direct_before", "tls_proxy_connect", "tls_proxy_connect_v6",
+                         "auth_direct_control", "direct_after"}
     expected_connect = label in {"tls_proxy_connect", "tls_proxy_connect_v6"}
     checks = {
         "browser_exited": result["exit_code"] == 0,
@@ -215,7 +229,12 @@ def evaluate_case(label: str, result: dict, hits: int, connects: int,
         "target_requests": hits >= 1 if positive else hits == 0,
         "proxy_connect": connects >= 1 if expected_connect else connects == 0,
         "other_proxy_not_used": other_connects == 0,
+        "auth_challenge": auth_challenges >= 1 if label == "auth_required" else auth_challenges == 0,
     }
+    if label == "auth_required":
+        checks["proxy_auth_error"] = any(
+            error in result["net_errors"] for error in
+            ("ERR_PROXY_AUTH_REQUESTED", "ERR_INVALID_AUTH_CREDENTIALS"))
     if label in {"cert_untrusted", "cert_untrusted_v6"}:
         checks["proxy_certificate_error"] = any(error in result["net_errors"] for error in
                                                 ("ERR_PROXY_CERTIFICATE_INVALID", "ERR_CERT_AUTHORITY_INVALID"))
@@ -224,6 +243,7 @@ def evaluate_case(label: str, result: dict, hits: int, connects: int,
     return {"case": label, "status": "PASS" if all(checks.values()) else "FAIL",
             "checks": checks, "target_request_count": hits, "proxy_connect_count": connects,
             "other_proxy_connect_count": other_connects,
+            "auth_challenge_count": auth_challenges,
             "browser_exit_code": result["exit_code"], "net_errors": result["net_errors"]}
 
 
@@ -238,12 +258,19 @@ def run(chrome: Path, openssl: str, root: Path) -> dict:
     proxy.target_port = target.server_port
     proxy.observation_lock = threading.Lock()
     proxy.connect_count = 0
+    auth_proxy = TLSServer(ProxyHandler, cert, key)
+    auth_proxy.target_port = target.server_port
+    auth_proxy.observation_lock = threading.Lock()
+    auth_proxy.connect_count = 0
+    auth_proxy.auth_challenge_count = 0
+    auth_proxy.require_auth = True
     ipv6_proxy = IPv6TLSServer(ProxyHandler, cert, key, "::1")
     ipv6_proxy.target_port = target.server_port
     ipv6_proxy.observation_lock = threading.Lock()
     ipv6_proxy.connect_count = 0
     target_thread = start_server(target)
     proxy_thread = start_server(proxy)
+    auth_proxy_thread = start_server(auth_proxy)
     ipv6_proxy_thread = start_server(ipv6_proxy)
     unavailable = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     unavailable.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
@@ -254,6 +281,7 @@ def run(chrome: Path, openssl: str, root: Path) -> dict:
     unavailable_v6.bind(("::1", 0))  # Reserve an IPv6 proxy endpoint without listening.
     dead_v6_port = unavailable_v6.getsockname()[1]
     url = f"https://{TARGET_NAME}:{target.server_port}/probe/{token}"
+    direct_trap_url = f"https://127.0.0.1:{target.server_port}/probe/{token}"
     cases: list[dict] = []
     try:
         for label, scheme, host, port, pin in (
@@ -264,6 +292,8 @@ def run(chrome: Path, openssl: str, root: Path) -> dict:
             ("tls_proxy_connect_v6", "https", "::1", ipv6_proxy.server_port, spki_pin),
             ("cert_untrusted_v6", "https", "::1", ipv6_proxy.server_port, None),
             ("dead_proxy_port_v6", "https", "::1", dead_v6_port, spki_pin),
+            ("auth_direct_control", None, "127.0.0.1", None, spki_pin),
+            ("auth_required", "https", "127.0.0.1", auth_proxy.server_port, spki_pin),
             ("direct_after", None, "127.0.0.1", None, spki_pin),
         ):
             with target.observation_lock:
@@ -272,19 +302,32 @@ def run(chrome: Path, openssl: str, root: Path) -> dict:
                 previous_v4_connects = proxy.connect_count
             with ipv6_proxy.observation_lock:
                 previous_v6_connects = ipv6_proxy.connect_count
-            result = run_browser_case(chrome, root, label, url, scheme, port, pin, host)
+            with auth_proxy.observation_lock:
+                previous_auth_connects = auth_proxy.connect_count
+                previous_auth_challenges = auth_proxy.auth_challenge_count
+            case_url = direct_trap_url if label in {"auth_direct_control", "auth_required"} else url
+            result = run_browser_case(chrome, root, label, case_url, scheme, port, pin, host)
             with target.observation_lock:
                 hits = target.token_hits - previous_hits
             with proxy.observation_lock:
                 v4_connects = proxy.connect_count - previous_v4_connects
             with ipv6_proxy.observation_lock:
                 v6_connects = ipv6_proxy.connect_count - previous_v6_connects
-            selected_connects, other_connects = ((v6_connects, v4_connects) if host == "::1"
-                                                 else (v4_connects, v6_connects))
-            cases.append(evaluate_case(label, result, hits, selected_connects, other_connects))
+            with auth_proxy.observation_lock:
+                auth_connects = auth_proxy.connect_count - previous_auth_connects
+                auth_challenges = auth_proxy.auth_challenge_count - previous_auth_challenges
+            if label == "auth_required":
+                selected_connects, other_connects = auth_connects, v4_connects + v6_connects
+            elif host == "::1":
+                selected_connects, other_connects = v6_connects, v4_connects + auth_connects
+            else:
+                selected_connects, other_connects = v4_connects, v6_connects + auth_connects
+            cases.append(evaluate_case(label, result, hits, selected_connects,
+                                       other_connects, auth_challenges))
     finally:
         unavailable.close()
         unavailable_v6.close()
+        stop_server(auth_proxy, auth_proxy_thread)
         stop_server(ipv6_proxy, ipv6_proxy_thread)
         stop_server(proxy, proxy_thread)
         stop_server(target, target_thread)
