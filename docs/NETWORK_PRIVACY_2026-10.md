@@ -67,3 +67,31 @@ portability. The in-app TCP check is only reachability, and the website's IP
 display is a one-site observation. Do not use this release as a substitute for
 Tor Browser or a system-level network isolation solution when anonymity is a
 hard requirement.
+
+## Startup-network observation — 13 October 2026
+
+The [disposable startup probe](../tools/start_page_network_audit.py) compared
+two **headless** launches of the clean Chromium 155 V3 development core on one
+Windows 11 machine. It used new profiles, a direct connection and the same
+`--no-first-run` / `--no-default-browser-check` flags as the manager. The
+private Chromium NetLogs were reduced to host counts before reporting; no URL
+paths, query strings, cookies or personal profiles were retained.
+
+| Startup URL | HTTP(S) request jobs seen | Distinct hosts seen |
+| --- | ---: | ---: |
+| `about:blank` | 5 | 4 |
+| `chrome://newtab` | 12 | 7 |
+
+The blank page removed new-tab-specific requests in this sample but did
+**not** stop all Google-related background requests: the blank-page NetLog
+still named `accounts.google.com`, `clients2.google.com`,
+`update.googleapis.com` and `www.google.com`. A visual GUI smoke also
+showed the standard Google new-tab page. These observations motivate a
+privacy-conscious startup design; they do not prove that all requests reached
+their destinations, that GUI and headless modes are identical, or that a
+proxy-bound profile has no direct route. Chromium's
+`--disable-background-networking` is documented in the pinned source as a
+network-performance **test** switch and affects services including upgrade
+detection and Safe Browsing configuration. It is not a safe blanket fix for a
+distributed browser. Any startup change needs repeat measurements, an update
+strategy and a way to respect the user's session-restore choice.

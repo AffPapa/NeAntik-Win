@@ -23,6 +23,10 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   ordinary profile, launched its bundled Chromium, and closed both windows.
   The default Chromium new-tab page displayed Google; it remains an explicit
   browser-network privacy item rather than a claim of zero third-party calls.
+- Added a disposable startup-network probe that publishes hostname counts,
+  never full request URLs. On one clean-core headless run `about:blank` showed
+  5 HTTP(S) request jobs versus 12 for `chrome://newtab`; blank still showed
+  background Google-related hosts, so no zero-telemetry claim is made.
 - Expanded the loopback fingerprint audit to another origin, Shared Worker and
   Service Worker. A missing Device-Memory Client Hint now fails the audit.
 - Expanded real-browser profile isolation QA to Cache Storage and service-
