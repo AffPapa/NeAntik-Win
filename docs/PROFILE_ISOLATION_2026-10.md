@@ -116,3 +116,39 @@ Private summaries are
 report nor any profile values are committed. These remain one-host tests; they
 do not cover every permission, downloads, extension behavior, another Windows
 account or cross-machine encrypted session portability. P3 remains open.
+
+## Concurrent A/B launcher gate — 14 October 2026
+
+The separate `tools/concurrent_profile_integration.py` harness ran against
+the extracted public 0.8.9-preview portable engine (`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`).
+It copied the engine into an owned temporary root and opened two synthetic
+profiles at once through the real `BrowserLauncher.launch` path. A loopback
+page held both headless Chromium processes open while the test checked
+distinct profile paths and active locks; each profile wrote its own cookie,
+localStorage, IndexedDB, Cache Storage and service-worker state.
+
+**17/17 bounded checks passed.** A duplicate launch and backup/delete of busy
+A were rejected while B remained active; both browser jobs and profile locks
+closed afterward. The private report is
+`C:\NeAntikBuild\qa\concurrent-profiles-v0.8.9-preview-20261014.json` and
+contains verdicts, not browser storage values. This covers one manager process
+on one Windows 11 host. Two independent manager processes, another Windows
+session/account, power-cut recovery, GUI actions and public-network routes
+remain **NOT RUN**; Gate P3 stays open.
+
+## Two independent managers and process-crash recovery — 14 October 2026
+
+`tools/two_manager_process_gate.py` used three independent Python processes
+against one newly created, marked disposable `Storage` root. The first held
+the product's `__data_recovery__` Windows mutex after a durable delete journal
+and profile-directory move. The second manager received `busy` without
+changing the profile row, moved synthetic data or journal. After the first
+process deliberately exited while holding the mutex, the third manager
+recovered the original profile data and cleared the journal.
+
+**8/8 bounded assertions passed** on this host. This is the source `Storage`
+path, not the packaged GUI executable or a browser test. It checks one delete
+interruption point and process-crash recovery; restore interruption, a real
+power cut, another Windows session/account and hostile same-user processes
+remain **NOT RUN**. Gate P3 stays open.

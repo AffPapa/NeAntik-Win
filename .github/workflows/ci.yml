@@ -40,6 +40,9 @@ jobs:
       - name: Verify local route-harness unit tests
         run: python -m unittest discover -s tools -p test_*integration.py -v
 
+      - name: Verify two-manager process locking and recovery
+        run: python -m unittest discover -s tools -p test_two_manager_process_gate.py -v
+
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v
 
