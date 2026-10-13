@@ -2,6 +2,17 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.7-preview — backup hardlink boundary (release candidate)
+
+- Profile backup now stops with an explicit error if a hardlinked file is found
+  inside the profile. Previously its contents could be copied into the
+  unencrypted ZIP even when another link to that file lived outside the
+  profile. No existing files or backups are deleted by the new check.
+- The bundled Chromium core and experimental fingerprint behavior are unchanged
+  from 0.8.6-preview. This candidate does not expand the anonymity claim.
+- This entry describes source prepared for a candidate; publication and binary
+  validation are recorded separately after they pass.
+
 ## 0.8.6-preview — opt-in V4b Canvas mode (2026-10-13)
 
 - Replaced the held V3 stable per-profile Canvas seed with an opt-in V4b

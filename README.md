@@ -2,7 +2,10 @@
 
 Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. The native baseline caps exposed logical CPU count at 4 and approximated device memory at 8 GiB. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint reduction do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
 
-Version **0.8.6-preview** adds an opt-in V4b native mode that requires the exact
+The **0.8.7-preview candidate** rejects hardlinks found during profile backup,
+preventing that path from copying a file outside the profile into an unencrypted
+backup ZIP. Check the official download page for the current published version.
+Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
 source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed
 per browser session and top-level site; CPU, RAM and UTC controls are partial.
 Its single-host local gates passed, but other graphics paths, external network
