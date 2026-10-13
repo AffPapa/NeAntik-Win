@@ -149,6 +149,8 @@ class GuiTests(unittest.TestCase):
         with patch.object(self.app.launcher, "native_persona_capabilities", return_value={"stable_seed": True}):
             ordinary_dialog = nv.ProfileDialog(self.app)
             self.app.root.update()
+            self.assertTrue(ordinary_dialog.winfo_viewable())
+            self.assertIs(ordinary_dialog.grab_current(), ordinary_dialog)
             self.assertIsNotNone(ordinary_dialog.mode_choice)
             ordinary_dialog.name.insert(0, "Ordinary")
             ordinary_dialog.save()
