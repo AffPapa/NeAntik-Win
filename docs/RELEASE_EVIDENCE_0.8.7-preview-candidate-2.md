@@ -77,6 +77,14 @@
   один синтетический route-control запрос. Cloudflare видел публичный IP
   direct-теста; серверные proxy-логи и packet capture отсутствуют. Подробности
   и границы: `NETWORK_PRIVACY_2026-10.md`.
+- Внешний HTTPS route audit точного 0.8.7 Chromium на consented endpoint:
+  **PASS** direct, rejecting HTTP/SOCKS5 proxy, working HTTP CONNECT и working
+  SOCKS5. Все проверки маршрута, отрисовки endpoint, loopback-only TCP NetLog
+  и отсутствия NetLog UDP прошли; SOCKS5 передал доменное имя. Первая попытка
+  сырого EXE до assertions остановилась без AppContainer ACL; повтор после
+  применения ACL только на одноразовый `Engine/Chromium` прошёл. Прокси
+  использовали egress тестового хоста; это не независимый DNS/packet capture.
+  Детали: `NETWORK_PRIVACY_2026-10.md`.
 - Независимые DNS/IPv6/TURN и packet capture, второй Windows-компьютер,
   Windows 10/ARM64, согласованность fingerprint вне выбранных API и
   статистическая анонимность: **NOT RUN**.

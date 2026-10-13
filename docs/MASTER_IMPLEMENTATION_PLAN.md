@@ -263,6 +263,13 @@ main frame и двух iframe. Это только базовая линия о�
   packet capture отсутствуют. Протокол и границы указаны в
   [сетевом отчёте](NETWORK_PRIVACY_2026-10.md); независимая сеть, DNS/IPv6,
   TURN и второй хост остаются открыты.
+  На точном 0.8.7 также повторён HTTPS route audit: direct endpoint,
+  rejecting HTTP/SOCKS5 и allowlisted working CONNECT/SOCKS5 прошли; SOCKS5
+  видел destination как доменное имя. Оба работающих локальных proxy
+  выходили в интернет с той же машины, поэтому это не независимый DNS/egress
+  тест. Первая сырая попытка до assertions не имела AppContainer ACL; после
+  product-equivalent ACL в одноразовой распаковке тест прошёл. См. подробный
+  [сетевой протокол](NETWORK_PRIVACY_2026-10.md).
 - **P2.3 Fail-closed:** назначенный маршрут не может тихо стать direct
   после ошибки DNS, IPv6, QUIC, локального адреса или сбоя аутентификации.
   Пользователь получает одну короткую понятную ошибку и технические детали.

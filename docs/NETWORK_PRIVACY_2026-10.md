@@ -335,3 +335,29 @@ This proves one working SOCKS5 path on one Windows host, not browser-wide DNS
 isolation: the proxy resolved and exited from the same machine. No external
 IPv6, separate egress observer, packet capture or proxy-loss recovery was
 tested. P2 remains open.
+
+### External HTTPS routes on the public 0.8.7-preview binary — 13 October 2026
+
+The same [external route audit](../tools/external_proxy_fail_closed_audit.py)
+was run against the Chromium extracted from the repeat-downloaded 0.8.7 ZIP
+and the site's no-store `/api/headers` endpoint. Direct navigation passed. Both
+rejecting HTTP and SOCKS5 controls observed the endpoint request at the local
+proxy, did not render the endpoint response, and showed only loopback TCP plus
+zero UDP sends in Chromium NetLog. Both allowlisted working CONNECT and
+SOCKS5 fixtures opened a tunnel, rendered the endpoint response, and showed
+only loopback TCP plus zero NetLog UDP sends. The SOCKS5 fixture observed a
+domain-form destination. All reported assertions passed.
+
+The first raw-engine attempt exited before assertions because the isolated
+public-download extraction lacked Chromium's AppContainer read/execute ACL.
+After granting that product-equivalent ACL only to the disposable
+`Engine/Chromium` test directory, the full audit passed. The downloaded ZIP
+bytes were not altered; the ACL applies only to that local extraction. The
+private summary is
+`C:\NeAntikBuild\qa\external-proxy-followup-0.8.7-after-acl-20261013.json`.
+
+This checks selected HTTP(S) routes and proxy fixtures on one Windows host.
+The fixtures themselves resolved and connected to the endpoint using the
+same host's DNS and egress; the public endpoint saw the test requests. This is
+not independent DNS observation, packet capture, separate proxy egress,
+IPv6/TURN evidence, or proxy-loss/recovery coverage. P2 remains open.
