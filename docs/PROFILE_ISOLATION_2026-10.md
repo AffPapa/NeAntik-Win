@@ -167,6 +167,8 @@ temporary profiles; it did not touch user Data or launch the GUI. The first
 attempt was invalid because the harness directly launched Chromium without
 the AppContainer read/execute ACL normally prepared by `BrowserLauncher`.
 After applying that same ACL only to the extracted engine directory, one
-retry passed; the ZIP bytes were unchanged. This verifies the storage flow
-against the candidate Chromium and source launcher, not packaged-GUI wiring,
-downloads, external networking, another account or PC, or full P3.
+retry passed; the ZIP bytes were unchanged. This verifies product `Storage`,
+privacy-default and backup/clone behavior with the candidate Chromium. The
+harness starts `chrome.exe` directly, so it does not verify the product's
+`BrowserLauncher` or packaged-GUI wiring. Downloads, external networking,
+another account or PC, and full P3 remain untested.
