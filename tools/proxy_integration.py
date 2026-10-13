@@ -119,7 +119,9 @@ class HTTPProxy(QuietHTTP):
         token = parse_qs(parsed.query).get("token", [""])[0]
         evidence: Evidence = self.server.evidence
         try:
-            valid = parsed.scheme == "http" and parsed.hostname in (TEST_HOST, "127.0.0.1") and parsed.port == self.server.target_port
+            ipv6_target = parsed.hostname == "::1" and parsed.port == self.server.ipv6_target_port
+            ipv4_target = parsed.hostname in (TEST_HOST, "127.0.0.1") and parsed.port == self.server.target_port
+            valid = parsed.scheme == "http" and (ipv4_target or ipv6_target)
         except ValueError:
             valid = False
         if not valid or parsed.path != "/probe" or not evidence.token_valid(token):
@@ -130,13 +132,15 @@ class HTTPProxy(QuietHTTP):
         try:
             # The URL never selects the connection destination. No external DNS,
             # arbitrary forwarding, redirect handling, or CONNECT tunnelling.
-            upstream = socket.create_connection(("127.0.0.1", self.server.target_port), timeout=5)
+            upstream_host = "::1" if ipv6_target else "127.0.0.1"
+            target_port = self.server.ipv6_target_port if ipv6_target else self.server.target_port
+            upstream = socket.create_connection((upstream_host, target_port), timeout=5)
             peer_port = evidence.register(upstream, "http")
             with evidence.lock:
-                evidence.forwards.append({"scheme": "http", "token": token, "target_host": parsed.hostname, "target_port": self.server.target_port})
-            connection = http.client.HTTPConnection("127.0.0.1", self.server.target_port, timeout=5)
+                evidence.forwards.append({"scheme": "http", "token": token, "target_host": parsed.hostname, "target_port": target_port})
+            connection = http.client.HTTPConnection(upstream_host, target_port, timeout=5)
             connection.sock = upstream
-            connection.request("GET", f"/probe?token={token}", headers={"Host": f"{parsed.hostname}:{self.server.target_port}", "User-Agent": self.headers.get("User-Agent", "")})
+            connection.request("GET", f"/probe?token={token}", headers={"Host": parsed.netloc, "User-Agent": self.headers.get("User-Agent", "")})
             response = connection.getresponse()
             body = response.read(32768)
             self.reply(response.status, body, response.getheader("Content-Type", "text/plain"))
@@ -188,12 +192,15 @@ class SocksProxy(socketserver.BaseRequestHandler):
             else:
                 raise ValueError("Unsupported SOCKS address type")
             port = int.from_bytes(receive_exact(client, 2), "big")
-            if (version, command, reserved) != (5, 1, 0) or host not in (TEST_HOST, "127.0.0.1") or port != self.server.target_port:
+            ipv6_target = host == "::1" and port == self.server.ipv6_target_port
+            ipv4_target = host in (TEST_HOST, "127.0.0.1") and port == self.server.target_port
+            if (version, command, reserved) != (5, 1, 0) or not (ipv4_target or ipv6_target):
                 with evidence.lock:
                     evidence.rejected["socks5"] += 1
                 client.sendall(b"\x05\x02\x00\x01" + b"\x00" * 6)
                 return
-            upstream = socket.create_connection(("127.0.0.1", self.server.target_port), timeout=5)
+            upstream_host = "::1" if ipv6_target else "127.0.0.1"
+            upstream = socket.create_connection((upstream_host, port), timeout=5)
             peer_port = evidence.register(upstream, "socks5")
             with evidence.lock:
                 evidence.forwards.append({"scheme": "socks5", "target_host": host, "target_port": port, "address_type": address_type})
@@ -290,6 +297,7 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
     for server in (target, ipv6_target, proxy, socks):
         server.evidence = evidence
         server.target_port = target.server_port
+        server.ipv6_target_port = ipv6_target.server_port
     servers = (target, ipv6_target, proxy, socks)
     threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in servers]
     for thread in threads:
@@ -306,6 +314,8 @@ def run(report: dict[str, Any], args: argparse.Namespace) -> None:
                 ("socks5_loopback", "socks5", socks.server_address[1]),
                 ("socks5_unavailable", "socks5", dead_port),
                 ("direct_v6", None, None),
+                ("http_v6", "http", proxy.server_port),
+                ("socks5_v6", "socks5", socks.server_address[1]),
                 ("http_v6_unavailable", "http", dead_port),
                 ("socks5_v6_unavailable", "socks5", dead_port),
                 ("direct_after", None, None)]
@@ -392,14 +402,14 @@ def main() -> int:
         "application_version": APP_VERSION, "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "python_version": platform.python_version(), "os": platform.platform(),
         "source_sha256": hashlib.sha256((REPOSITORY / "nevision_win.py").read_bytes()).hexdigest(),
-        "method": "Installed Chrome headless --dump-dom; real Storage/proxy_endpoint; new profiles; gated Windows Jobs; loopback-only target and proxy fixtures",
+            "method": "Specified Chrome headless --dump-dom; real Storage/proxy_endpoint; new profiles; gated Windows Jobs; loopback-only target and proxy fixtures",
         "assertions": [], "launches": [],
         "limitations": [
             "Source integration, not packaged EXE or GUI/BrowserLauncher.launch wiring.",
             "Only unauthenticated HTTP and SOCKS5 to an HTTP loopback test target; HTTPS proxy/TLS CONNECT, proxy auth prompts and commercial proxies are not tested.",
             "No fingerprint, WebRTC/UDP leak, packet-capture or all-traffic anonymity claim.",
             "The source-built strict proxy flags are exercised with synthetic hostname and 127.0.0.1 URL cases; successful loopback cases must be observed via the controlled proxy.",
-            "IPv6 coverage uses only a ::1 direct positive control and unavailable IPv4 loopback proxies; it does not observe external IPv6 egress or DNS.",
+            "IPv6 coverage uses ::1 direct and working HTTP/SOCKS5 proxy positive controls plus unavailable IPv4 loopback proxies; it does not observe external IPv6 egress or DNS.",
             "Direct positive controls before and after negative cases verify the local target and hostname mapping work.",
             "Browser exit code zero alone is not a success signal: positive cases require target/proxy evidence; unavailable cases require the specific proxy error and zero target requests.",
             "All fixture forwarding is hardcoded to our own loopback target; external destinations/HTTP CONNECT are rejected.",
