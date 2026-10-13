@@ -225,7 +225,10 @@ try {
 }
 finally { $archive.Dispose() }
 
-$hash = (Get-FileHash -LiteralPath $resolvedArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+$archiveStream = [System.IO.File]::OpenRead($resolvedArchive)
+$archiveSha = [System.Security.Cryptography.SHA256]::Create()
+try { $hash = ([BitConverter]::ToString($archiveSha.ComputeHash($archiveStream))).Replace('-', '').ToLowerInvariant() }
+finally { $archiveSha.Dispose(); $archiveStream.Dispose() }
 if (Test-Path -LiteralPath "$resolvedArchive.sha256") {
     $checksum = (Get-Content -LiteralPath "$resolvedArchive.sha256" -Raw).Trim()
     if ($checksum -notmatch '^([0-9a-fA-F]{64})\s+' -or $Matches[1] -ne $hash) { throw 'Archive checksum sidecar mismatch.' }
