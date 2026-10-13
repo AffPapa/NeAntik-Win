@@ -29,6 +29,40 @@ hashes but no raw device traits. See
 and the [publication evidence](RELEASE_PUBLICATION_0.8.6-preview.md).
 These narrow local passes do not establish anonymity.
 
+## Public 0.8.7-preview follow-up, 2026-10-13
+
+Three fresh loopback-only audits were run against the Chromium binary extracted
+from the repeat-downloaded public 0.8.7-preview ZIP. Identity was rechecked
+before the run: ZIP SHA-256
+`9bf12392f8c8057763024cb88666679e8d9938e73cc050f976e7057b5c5234d1`, manager
+EXE SHA-256
+`e3c97c1623dee5fa2f59d08744b8006d8ca82e2ef3fecf189785688e34bf07eb`, and
+Chromium `155.0.8059.40` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
+The release is built from source commit
+`d2e6eac9a50f5edfa474ec72aff9ace64c2e8801`.
+
+- **Fingerprint/context consistency: PASS** (tool exit 0): two disposable
+  profiles across two launches; tested main/same-origin/cross-origin frames,
+  dedicated/shared/service workers, selected Canvas2D/WebGL/audio observations,
+  HTTP/JavaScript UA and language parity, and requested UA/device-memory hints
+  were observed and consistent. This is one Windows 11 host and the tool's
+  selected surfaces, not a full fingerprint inventory or cohort test.
+- **V4b surface checks: PASS**: selected Canvas PNG/pixel readbacks changed
+  across four disposable sessions, while measured non-Canvas surfaces and
+  tested context invariants remained stable. This does not prove reduced
+  population uniqueness, unlinkability, compatibility or anonymity.
+- **Two-site language/hint checks: PASS**: the tested language/Intl values,
+  requested Client Hints and selected HTTP/JavaScript values agreed between
+  loopback names `127.0.0.1` and `localhost`. No public website was contacted.
+
+Raw reports with machine observations remain local under
+`C:\\NeAntikBuild\\qa` and are excluded from the repository. These results
+advance the single-host P0/P1 measurements only; cross-machine/GPU, Windows 10,
+real-site compatibility, external DNS/IPv6/UDP/TURN and population-level
+linkability remain **NOT RUN**. The manager and website binaries were not
+changed by these audits.
+
 | Surface | Public 0.8.5-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |
 | HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for UA Platform, full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
