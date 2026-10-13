@@ -28,7 +28,7 @@ Settings and the quick guide, and confirms them before backup restoration.
   typecheck/build passed. The Sites archive helper failed on Windows path
   translation, so the platform remotely built the pushed source commit.
 
-Source tests at the exact binary commit: 244 passed (3 skipped), specialized
+Source tests at the exact binary commit: 244 run (3 skipped), specialized
 integration tests 51 passed, two-manager harness tests 3 passed, GUI
 regression 17 passed, source self-test and 55 release-tool checks passed.
 [GitHub CI](https://github.com/AffPapa/NeAntik-Win/actions/runs/38444869655):
