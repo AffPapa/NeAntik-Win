@@ -152,3 +152,21 @@ path, not the packaged GUI executable or a browser test. It checks one delete
 interruption point and process-crash recovery; restore interruption, a real
 power cut, another Windows session/account and hostile same-user processes
 remain **NOT RUN**. Gate P3 stays open.
+
+## 0.8.15-preview candidate storage regression — 14 October 2026
+
+The exact rebuilt candidate ZIP from binary source commit
+`5434718dd14a5ea0edc20c440c801a873c9fbcf4` (ZIP SHA-256
+`fd9eedf2b9f6b9f3b42b51eb5ce29608e41b165c7ec2d282e17926c4f2b44ead`)
+passed the loopback `browser_integration.py` storage/permission/backup/clone
+scenario: **21/21 assertions across seven real Chromium visits**. Chromium
+`chrome.exe` SHA-256 was
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
+The test used the extracted candidate's `Engine/Chromium` directory and owned
+temporary profiles; it did not touch user Data or launch the GUI. The first
+attempt was invalid because the harness directly launched Chromium without
+the AppContainer read/execute ACL normally prepared by `BrowserLauncher`.
+After applying that same ACL only to the extracted engine directory, one
+retry passed; the ZIP bytes were unchanged. This verifies the storage flow
+against the candidate Chromium and source launcher, not packaged-GUI wiring,
+downloads, external networking, another account or PC, or full P3.

@@ -43,6 +43,13 @@ consider for release.
   the same process routed through the proxy again. NetLog showed TCP only to
   `127.0.0.1` and zero UDP. The harness did not launch the NeAntik GUI and this
   does not prove external DNS, IPv6, TURN or public-network routing.
+- The exact extracted candidate Chromium also passed the synthetic profile
+  storage/permissions/backup/clone gate: 21/21 assertions over seven real
+  visits. A first attempt omitted the AppContainer read/execute ACL because
+  this harness launches Chromium directly rather than through the product's
+  normal launcher; after matching the launcher's ACL setup on `Engine/Chromium`
+  only, the single retry passed. The ZIP bytes were unchanged. Detailed scope:
+  [P3.1 profile isolation evidence](PROFILE_ISOLATION_2026-10.md).
 - The rebuilt source rejects a linked/reparse-point `Data`, `Profiles` or
   profile root before browser selection/pinning/process creation. A real
   Windows junction regression test passed; it confirms this one launch path,
