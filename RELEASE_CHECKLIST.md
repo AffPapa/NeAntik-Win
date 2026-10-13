@@ -89,6 +89,11 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - Test upgrade in a new folder with private pre-copy of Data and rollback using the preserved old snapshot.
 - Run `tools/upgrade_rollback_integration.py` with a freshly downloaded, SHA-256-verified public previous ZIP and the exact candidate ZIP. Require same-account synthetic profile/proxy/DPAPI preservation and an unchanged old snapshot after candidate writes; separately test packaged GUI and browser-session migration before claiming a complete update gate.
 - Run `tools/upgrade_browser_session_integration.py` with those same two exact ZIPs. Require a persistent synthetic cookie and localStorage written by the previous bundled Chromium to be read by the candidate bundled Chromium on the same loopback origin after copying `Data/`; require the old snapshot to remain unchanged. This is one-profile, same-account evidence only: test packaged GUI update and other storage surfaces separately.
+- Both upgrade scripts require explicit `--old-zip`, `--old-version`, `--old-sha256`,
+  `--candidate-zip`, `--candidate-version` and `--candidate-sha256`; the storage
+  script also requires `--report`, while the browser-session script accepts it.
+  Use hashes measured from the exact public download and candidate, not values
+  copied from an older release report.
 - Run available Windows security scanning, record results and limitations; unsigned/SmartScreen warnings remain possible.
 
 Use disposable test data outside the shipping folder. Re-check the final ZIP after testing; never publish a test-used Data directory.

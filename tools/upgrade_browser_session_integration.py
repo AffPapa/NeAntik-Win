@@ -1,7 +1,7 @@
 """Disposable same-account Chromium session migration gate for two exact portable ZIPs.
 
 Tests one synthetic loopback origin's cookie and localStorage across the bundled
-0.8.5 -> 0.8.6 engines. It never opens real profiles, copies secrets, or claims
+an explicitly versioned public-old -> candidate engine pair. It never opens real profiles, copies secrets, or claims
 cross-machine portability, extension state, service workers, or full GUI update.
 """
 
@@ -27,8 +27,7 @@ import zipfile
 
 from browser_integration import OwnedJob, spawn_owned_browser
 from upgrade_rollback_integration import (
-    NEW_VERSION, OLD_PUBLIC_SHA256, OLD_VERSION, data_digest, git_source,
-    inspect_archive, run_worker,
+    data_digest, git_source, inspect_archive, run_worker, validate_release_pair,
 )
 
 
@@ -213,17 +212,20 @@ def visit(chrome: Path, profile: Path, server: FixtureServer, phase: str) -> dic
                 process.kill()
 
 
-def run(old_zip: Path, candidate_zip: Path, candidate_sha256: str) -> dict:
+def run(old_zip: Path, old_version: str, old_sha256: str,
+        candidate_zip: Path, candidate_version: str, candidate_sha256: str) -> dict:
     if os.name != "nt":
         raise RuntimeError("This browser-session gate requires Windows")
-    old_root, old_commit = inspect_archive(old_zip, OLD_PUBLIC_SHA256, OLD_VERSION)
-    new_root, new_commit = inspect_archive(candidate_zip, candidate_sha256, NEW_VERSION)
+    validate_release_pair(old_version, old_sha256, candidate_version, candidate_sha256)
+    old_root, old_commit = inspect_archive(old_zip, old_sha256, old_version)
+    new_root, new_commit = inspect_archive(candidate_zip, candidate_sha256, candidate_version)
     repo = Path(__file__).resolve().parents[1]
-    tag = subprocess.check_output(["git", "rev-parse", "v0.8.5-preview^{commit}"], cwd=repo, text=True).strip()
+    tag = subprocess.check_output(["git", "rev-parse", f"v{old_version}^{{commit}}"], cwd=repo, text=True).strip()
     subprocess.run(["git", "merge-base", "--is-ancestor", old_commit, tag], cwd=repo, check=True)
     report = {"format": "neantik-upgrade-browser-session-v1", "status": "started",
               "checked_at_utc": datetime.now(timezone.utc).isoformat(),
-              "old_zip_sha256": OLD_PUBLIC_SHA256, "candidate_zip_sha256": candidate_sha256.lower(),
+              "old_version": old_version, "candidate_version": candidate_version,
+              "old_zip_sha256": old_sha256.lower(), "candidate_zip_sha256": candidate_sha256.lower(),
               "old_source_commit": old_commit, "candidate_source_commit": new_commit,
               "coverage": "same Windows account; one synthetic loopback origin; cookie and localStorage in one ordinary Chromium profile",
               "limitations": ["Not a packaged GUI or in-place update test", "No cross-account or cross-machine DPAPI guarantee",
@@ -245,7 +247,7 @@ def run(old_zip: Path, candidate_zip: Path, candidate_sha256: str) -> dict:
             if not (engine / "chrome.exe").is_file():
                 raise RuntimeError("Archive missing bundled Chromium")
             grant_disposable_engine_read_access(engine, portable / "Engine")
-        run_worker(old_source, "seed", old_portable, OLD_VERSION)
+        run_worker(old_source, "seed", old_portable, old_version)
         old_id, old_profile = profile_path(old_source, old_portable)
         token = uuid.uuid4().hex
         server = FixtureServer(token)
@@ -258,7 +260,7 @@ def run(old_zip: Path, candidate_zip: Path, candidate_sha256: str) -> dict:
             shutil.copytree(old_portable / "Data", new_portable / "Data", dirs_exist_ok=False)
             if data_digest(new_portable) != old_digest:
                 raise RuntimeError("Copied Data differs from preserved old snapshot")
-            run_worker(new_source, "upgrade", new_portable, NEW_VERSION)
+            run_worker(new_source, "upgrade", new_portable, candidate_version)
             new_id, new_profile = profile_path(new_source, new_portable)
             if new_id != old_id:
                 raise RuntimeError("Upgrade changed synthetic profile identity")
@@ -279,12 +281,16 @@ def run(old_zip: Path, candidate_zip: Path, candidate_sha256: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--old-zip", type=Path, required=True)
+    parser.add_argument("--old-version", required=True)
+    parser.add_argument("--old-sha256", required=True)
     parser.add_argument("--candidate-zip", type=Path, required=True)
+    parser.add_argument("--candidate-version", required=True)
     parser.add_argument("--candidate-sha256", required=True)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     try:
-        report = run(args.old_zip.resolve(strict=True), args.candidate_zip.resolve(strict=True), args.candidate_sha256)
+        report = run(args.old_zip.resolve(strict=True), args.old_version, args.old_sha256,
+                     args.candidate_zip.resolve(strict=True), args.candidate_version, args.candidate_sha256)
     except Exception as error:
         report = {"format": "neantik-upgrade-browser-session-v1", "status": "failed",
                   "error": f"{type(error).__name__}: {error}"}

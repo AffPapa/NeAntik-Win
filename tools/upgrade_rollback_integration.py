@@ -1,8 +1,10 @@
 """Bounded synthetic storage upgrade/rollback gate for two exact portable ZIPs.
 
 Example:
-  python tools/upgrade_rollback_integration.py --old-zip PUBLIC_0.8.5.zip \
-    --candidate-zip CANDIDATE_0.8.6.zip --candidate-sha256 EXPECTED_SHA256 \
+  python tools/upgrade_rollback_integration.py --old-zip PUBLIC_OLD.zip \
+    --old-version OLD_VERSION --old-sha256 PUBLIC_SHA256 \
+    --candidate-zip CANDIDATE.zip --candidate-version CANDIDATE_VERSION \
+    --candidate-sha256 CANDIDATE_SHA256 \
     --report PRIVATE_REPORT.json
 
 Both inputs must be verified archives. This tests same-Windows-account storage
@@ -15,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -22,10 +25,21 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-OLD_VERSION = "0.8.5-preview"
-NEW_VERSION = "0.8.6-preview"
-OLD_PUBLIC_SHA256 = "cc5d14702aa0facffbd88839e5b45645e871f3aab962c454bccf5895ab946dc4"
 SOURCE_FILES = ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "release-version.json")
+
+
+def validate_release_pair(old_version: str, old_sha256: str,
+                          candidate_version: str, candidate_sha256: str) -> None:
+    version_pattern = r"^[0-9]+\.[0-9]+\.[0-9]+-preview$"
+    for label, value in (("old", old_version), ("candidate", candidate_version)):
+        if not re.fullmatch(version_pattern, value):
+            raise ValueError(f"Invalid {label} preview version")
+    for label, value in (("old", old_sha256), ("candidate", candidate_sha256)):
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", value):
+            raise ValueError(f"Invalid {label} SHA-256")
+    numeric = lambda value: tuple(map(int, value.removesuffix("-preview").split(".")))
+    if numeric(candidate_version) <= numeric(old_version):
+        raise ValueError("Candidate version must be newer than public old version")
 
 # This worker runs in an isolated subprocess so modules from the two source
 # commits cannot cross-contaminate imports. It creates only synthetic data.
@@ -141,21 +155,27 @@ def run_worker(source: Path, action: str, root: Path, expected_version: str) -> 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--old-zip", type=Path, required=True, help="Previously downloaded public 0.8.5 ZIP")
+    parser.add_argument("--old-zip", type=Path, required=True, help="Previously downloaded public ZIP")
+    parser.add_argument("--old-version", required=True)
+    parser.add_argument("--old-sha256", required=True)
     parser.add_argument("--candidate-zip", type=Path, required=True)
+    parser.add_argument("--candidate-version", required=True)
     parser.add_argument("--candidate-sha256", required=True)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
+    validate_release_pair(args.old_version, args.old_sha256,
+                          args.candidate_version, args.candidate_sha256)
     repo = Path(__file__).resolve().parent.parent
     old_zip, new_zip = args.old_zip.resolve(strict=True), args.candidate_zip.resolve(strict=True)
-    old_root, old_commit = inspect_archive(old_zip, OLD_PUBLIC_SHA256, OLD_VERSION)
-    new_root, new_commit = inspect_archive(new_zip, args.candidate_sha256, NEW_VERSION)
+    old_root, old_commit = inspect_archive(old_zip, args.old_sha256, args.old_version)
+    new_root, new_commit = inspect_archive(new_zip, args.candidate_sha256, args.candidate_version)
     # The old source must belong to the tagged public release, not an arbitrary
     # coincidentally named archive. The embedded source commit is authoritative.
-    tag = subprocess.check_output(["git", "rev-parse", "v0.8.5-preview^{commit}"], cwd=repo, text=True).strip()
+    tag = subprocess.check_output(["git", "rev-parse", f"v{args.old_version}^{{commit}}"], cwd=repo, text=True).strip()
     subprocess.run(["git", "merge-base", "--is-ancestor", old_commit, tag], cwd=repo, check=True)
     report = {"format":"neantik-upgrade-rollback-storage-v1", "status":"not_run",
-              "old_zip_sha256":OLD_PUBLIC_SHA256, "candidate_zip_sha256":args.candidate_sha256.lower(),
+              "old_version":args.old_version, "candidate_version":args.candidate_version,
+              "old_zip_sha256":args.old_sha256.lower(), "candidate_zip_sha256":args.candidate_sha256.lower(),
               "old_source_commit":old_commit, "candidate_source_commit":new_commit,
               "coverage":"synthetic same-account storage/profile/proxy/DPAPI; no GUI or browser session"}
     with tempfile.TemporaryDirectory(prefix="neantik-upgrade-rollback-") as temporary:
@@ -169,15 +189,15 @@ def main() -> int:
             archive.extractall(qa / "new")
         old_portable = qa / "old" / old_root
         new_portable = qa / "new" / new_root
-        report["old_seed"] = run_worker(old_source, "seed", old_portable, OLD_VERSION)
+        report["old_seed"] = run_worker(old_source, "seed", old_portable, args.old_version)
         original_digest = data_digest(old_portable)
         shutil.copytree(old_portable / "Data", new_portable / "Data", dirs_exist_ok=False)
         if data_digest(new_portable) != original_digest:
             raise RuntimeError("Copied Data differs from the preserved old snapshot")
-        report["candidate_upgrade"] = run_worker(new_source, "upgrade", new_portable, NEW_VERSION)
+        report["candidate_upgrade"] = run_worker(new_source, "upgrade", new_portable, args.candidate_version)
         if data_digest(old_portable) != original_digest:
             raise RuntimeError("Candidate changed the preserved old snapshot")
-        report["old_rollback"] = run_worker(old_source, "check", old_portable, OLD_VERSION)
+        report["old_rollback"] = run_worker(old_source, "check", old_portable, args.old_version)
         report["status"] = "passed"
         report["preserved_old_snapshot"] = True
         report["candidate_copy_changed"] = data_digest(new_portable) != original_digest

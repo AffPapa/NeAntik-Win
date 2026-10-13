@@ -8,7 +8,7 @@ import tempfile
 import unittest
 import zipfile
 
-from upgrade_rollback_integration import file_hash, inspect_archive
+from upgrade_rollback_integration import file_hash, inspect_archive, validate_release_pair
 
 
 class UpgradeArchiveTests(unittest.TestCase):
@@ -45,6 +45,20 @@ class UpgradeArchiveTests(unittest.TestCase):
         self.make_archive(f"{self.root}/../outside.txt")
         with self.assertRaisesRegex(ValueError, "Unsafe archive member"):
             inspect_archive(self.archive_path, file_hash(self.archive_path), "0.8.6-preview")
+
+    def test_explicit_release_pair_accepts_adjacent_preview_versions(self) -> None:
+        validate_release_pair("0.8.6-preview", "a" * 64, "0.8.7-preview", "B" * 64)
+
+    def test_explicit_release_pair_rejects_downgrade_or_equal_version(self) -> None:
+        for candidate in ("0.8.5-preview", "0.8.6-preview"):
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(ValueError, "newer"):
+                validate_release_pair("0.8.6-preview", "a" * 64, candidate, "b" * 64)
+
+    def test_explicit_release_pair_rejects_invalid_hash_or_version(self) -> None:
+        with self.assertRaisesRegex(ValueError, "old SHA-256"):
+            validate_release_pair("0.8.6-preview", "bad", "0.8.7-preview", "b" * 64)
+        with self.assertRaisesRegex(ValueError, "candidate preview version"):
+            validate_release_pair("0.8.6-preview", "a" * 64, "0.8.7-dev", "b" * 64)
 
 
 if __name__ == "__main__":
