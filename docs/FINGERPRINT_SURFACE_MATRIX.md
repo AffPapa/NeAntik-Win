@@ -1,11 +1,11 @@
 # Fingerprint surface matrix and evidence plan
 
 Status: 2026-10-13. This is an engineering inventory, not an anonymity score.
-The public 0.8.1-preview and unreleased V3 prototype must be kept separate.
+The public 0.8.2-preview (same core as 0.8.1) and unreleased V3 prototype must be kept separate.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
-| Surface | Public 0.8.1-preview | Unreleased V3 | Required observation before a privacy claim |
+| Surface | Public 0.8.2-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |
 | HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
 | Language and `Accept-Language` | Profile/Chromium defaults | Same | Compare HTTP, JavaScript, `Intl` formatting and locale of a real page; document deliberate locale choice. |

@@ -2,7 +2,7 @@
 
 ## Lightweight local runtime
 
-NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata. The 0.8.1-preview portable folder includes source-built unbranded Chromium in `Engine/Chromium`; new profiles prefer it and older Chrome/Edge profiles remain pinned to their browser family. Its reviewed native privacy patch caps reported CPU count and device memory; the separate build-compatibility patch and exact hashes are recorded in the engine receipt. No Electron runtime, cloud account service or web application server is required.
+NeAntik is a Python 3.12/Tk desktop manager packaged as a PyInstaller onedir executable. SQLite stores local metadata. The 0.8.2-preview portable folder includes source-built unbranded Chromium in `Engine/Chromium`; new profiles prefer it and older Chrome/Edge profiles remain pinned to their browser family. Its reviewed native privacy patch caps reported CPU count and device memory; the separate build-compatibility patch and exact hashes are recorded in the engine receipt. No Electron runtime, cloud account service or web application server is required.
 
 `release-version.json` is the single application/build version source and is bundled in the executable distribution.
 

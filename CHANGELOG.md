@@ -2,6 +2,18 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.2-preview — proxy DNS disclosure (2026-10-13)
+
+- The proxy form now explains that a proxy **hostname** may be resolved locally.
+  Saving a named proxy shows the same warning; an IP literal removes only
+  that lookup, not other possible DNS or WebRTC leaks.
+- No profile-data or backup migration. The bundled baseline Chromium binary,
+  its narrow CPU/RAM reduction, and proxy launch rules are unchanged from
+  0.8.1-preview. The experimental V3 Canvas seed/timezone core is **not**
+  included: a local linkability control found a stable profile-specific
+  Canvas signal. The public network route is not independently certified.
+- Portable Windows x64 only; unsigned; no automatic Chromium updater.
+
 ## Unreleased — expanded local QA (2026-10-13)
 
 - Added a reproducible single-host Canvas linkability control for the public
@@ -16,11 +28,8 @@ All notable changes to NeAntik Win (previously NeVision Win) are documented here
   loopback-only TCP and zero NetLog UDP checks passed on public 0.8.1 and the
   clean V3 development core. This does not certify OS DNS, IPv6 or WebRTC
   routes; no public binary was changed.
-- Clarified the proxy-hostname DNS boundary in the unreleased manager UI:
-  Settings and the proxy-host hint explain that the proxy's own hostname may
-  resolve locally; the save status distinguishes a hostname from an IP
-  literal. A local packet-capture attempt was denied without administrator
-  rights, so the DNS leak gate remains open. The public ZIP is unchanged.
+- A local packet-capture attempt was denied without administrator rights,
+  so the system-DNS leak gate remains open.
 - Completed a clean-from-scratch development build of the experimental V3
   Chromium core and an internal-only portable QA archive. Exact patch/build
   provenance, Canvas and cross-context loopback probes, the archive checker,
