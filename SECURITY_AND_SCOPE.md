@@ -1,12 +1,12 @@
 # Security, privacy and scope
 
-Published-download behavior below applies to NeAntik Win 0.8.5-preview. The
-0.8.6-preview V4b source and portable candidate are described separately; a
-local candidate is not a public release.
+The historical 0.8.5-preview behavior and 0.8.6-preview V4b addition are
+described separately. Check the official download page and its checksum for
+the version currently available; local candidate tests are not public-release proof.
 
-## 0.8.6-preview candidate boundary
+## 0.8.6-preview V4b boundary
 
-The candidate's opt-in V4b mode requires a matching Chromium 155 source build
+The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
 and the top-level site for measured opaque sRGB uint8 Canvas2D readbacks,
 including frames and dedicated/shared/service workers. The prior V3
@@ -16,17 +16,18 @@ proof of a unique or anonymous network identity. WebGL/WebGPU, translucent,
 float16 and display-p3 readbacks remain stock or unverified. No claim covers
 all tracking surfaces, population anonymity or same-user malware.
 
-On one Windows 11 x64 host, the candidate core passed 6 + 21 + 3 native unit
+On one Windows 11 x64 host, the V4b core passed 6 + 21 + 3 native unit
 tests, 12/12 two-site/restart Canvas cases and 6/6 context cases with 11/11
 checks. Two staging runs yielded 39 byte-identical files. The test identity
 is pinned to upstream commit
 `cfaadc5a132d78e1828635aa8405a499f3e14864`, V4b patch SHA-256
 `bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708`
-and candidate `chrome.dll` SHA-256
+and tested `chrome.dll` SHA-256
 `6762cf6ead3b829b481fde9540069cc709c9de3a211c738856190850a6928413`.
 External DNS/UDP/IPv6/TURN routing and a second computer are **NOT RUN**.
-The candidate still needs packaged and public-download verification; the
-published ZIP remains 0.8.5-preview. No version guarantees anonymity.
+Local packaged verification and public-download integrity are separate gates;
+the latter must be checked against the exact published ZIP. No version
+guarantees anonymity.
 
 ## Product boundary
 
@@ -64,9 +65,9 @@ When a proxy is assigned to a **bundled Chromium** profile, the launcher uses on
 
 The Extensions action opens the selected browser's native extension manager for a closed profile. When a profile is already open, use its browser menu. Extensions are optional and not installed automatically. They can access sensitive browsing data according to their permissions; NeAntik does not audit or sandbox third-party extensions.
 
-## Browser-surface matrix for this release
+## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
+This matrix describes the **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Version 0.8.6-preview additionally has the opt-in V4b mode described above; do not apply this historical Canvas row to that mode. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|
