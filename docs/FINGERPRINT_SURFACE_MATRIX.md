@@ -78,6 +78,22 @@ not reduced uniqueness. A second GPU/host, population-level linkability and
 real-site compatibility remain **NOT RUN**; no WebGL, Audio or font spoofing
 was added.
 
+The separate [`v5_optin_cross_surface_gate.py`](../tools/v5_optin_cross_surface_gate.py)
+compared stock Chromium with both ordinary and opt-in V5 modes from the
+repeat-downloaded 0.8.8-preview portable package. On 2026-10-14, all **16/16
+bounded checks passed** across four fresh, loopback-only sessions on the same
+Windows host. The public package's `chrome.exe` SHA-256 was
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`
+and `chrome.dll` SHA-256 was
+`9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075`.
+The gate confirmed selected ordinary-mode parity with stock, bounded CPU/RAM
+and UTC consistency in tested opt-in contexts, Client Hints parity, and
+Canvas PNG/pixel rotation between two fresh opt-in sessions while selected
+WebGL/text/audio observations remained equal. Raw traits remain in a private
+local report; the published gate emits only verdicts and binary hashes. This
+does not establish anonymity, non-linkability, external network isolation,
+cross-machine consistency, or real-site compatibility.
+
 ## Public 0.8.7-preview follow-up, 2026-10-13
 
 Three fresh loopback-only audits were run against the Chromium binary extracted
