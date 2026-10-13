@@ -1551,14 +1551,16 @@ class BrowserLauncher:
         return None
 
     def has_native_privacy_baseline(self) -> bool:
-        """Describe only a bundled core whose receipt declares a native patch."""
+        """True only for the older always-on baseline, not V5 opt-in mode."""
         engine = self.bundled_browser()
         if engine is None:
             return False
         try:
             receipt = json.loads((engine.parent / "ENGINE_PROVENANCE.json").read_text(encoding="utf-8"))
+            patch_hash = receipt.get("privacy_patch_sha256", "")
             return (receipt.get("format") == "neantik-chromium-source-build-v1"
-                    and bool(re.fullmatch(r"[0-9a-f]{64}", receipt.get("privacy_patch_sha256", ""))))
+                    and bool(re.fullmatch(r"[0-9a-f]{64}", patch_hash))
+                    and patch_hash != NATIVE_PREVIEW_PATCH_SHA256)
         except (OSError, ValueError, TypeError, AttributeError):
             return False
 
@@ -2122,7 +2124,9 @@ class ProfileDialog(BaseDialog):
         self.proxy = ttk.Combobox(body, values=proxy_labels, style="Input.TCombobox", state="readonly")
         self.proxy.current(selected_index)
         self.proxy.pack(fill="x", pady=(0, 14))
-        browser_hint = ("Встроенный Chromium · уменьшена детализация CPU/RAM; остальные сигналы и IP не скрыты."
+        browser_hint = ("Встроенный Chromium · обычный режим показывает штатные CPU/RAM; экспериментальный режим выбирается отдельно."
+                        if app.launcher.native_persona_capabilities() is not None else
+                        "Встроенный Chromium · уменьшена детализация CPU/RAM; остальные сигналы и IP не скрыты."
                         if app.launcher.has_native_privacy_baseline() else
                         "Встроенный Chromium по умолчанию · без подмены отпечатка устройства."
                         if app.launcher.bundled_browser() else
@@ -2738,7 +2742,11 @@ class NeVisionApp:
         tk.Label(empty, text=f"Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно. {browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
         IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42,
                    tooltip="Новый профиль создаётся локально и запускается во встроенном Chromium.").pack()
-        privacy_note = "Данные локально · без облака · уменьшена детализация CPU/RAM" if self.launcher.has_native_privacy_baseline() else "Данные локально · без cloud sync · без подмены fingerprint"
+        privacy_note = ("Данные локально · экспериментальный режим доступен отдельно"
+                        if self.launcher.native_persona_capabilities() is not None else
+                        "Данные локально · без облака · уменьшена детализация CPU/RAM"
+                        if self.launcher.has_native_privacy_baseline() else
+                        "Данные локально · без синхронизации · без подмены fingerprint")
         tk.Label(empty, text=privacy_note, bg=self.colors["panel"], fg=self.colors["muted_dim"], font=("Segoe UI", 8)).pack(pady=(18, 0))
         tk.Label(empty, text=f"Ctrl+N — новый профиль   ·   Ctrl+F — поиск   ·   Enter — запуск\n{browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], font=("Segoe UI", 9), justify="center").pack(pady=(12, 0))
         IconButton(empty, "Сайт и обновления", "launch", self.open_release_site, self.colors, self.colors["panel"], width=200,
@@ -2782,6 +2790,7 @@ class NeVisionApp:
             family = "chromium"
         browser_label = {"chromium": "Встроенный Chromium", "chrome": "Google Chrome", "edge": "Microsoft Edge"}.get(family, "Браузер ещё не закреплён")
         privacy_label = ("экспериментальный fingerprint · не гарантия анонимности" if identity["mode"] == NATIVE_PREVIEW else
+                         "обычный профиль · CPU/RAM/UTC штатные" if family == "chromium" and self.launcher.native_persona_capabilities() is not None else
                          "уменьшена детализация CPU/RAM" if family == "chromium" and self.launcher.has_native_privacy_baseline() else
                          "без подмены fingerprint")
         identity_label = ("Старый неподдерживаемый профиль" if unsupported else
@@ -3320,7 +3329,9 @@ class NeVisionApp:
             messagebox.showinfo(APP_NAME, "Changelog доступен в репозитории проекта.", parent=self.root)
 
     def show_about(self) -> None:
-        scope = ("В этот portable-выпуск входит Chromium; установленный Chrome не требуется. В ядре уменьшена детализация CPU/RAM, но анонимность не гарантируется."
+        scope = ("В этот portable-выпуск входит Chromium; установленный Chrome не требуется. В обычном профиле CPU/RAM/UTC штатные; экспериментальный режим ограничивает CPU/RAM и использует UTC. Анонимность не гарантируется."
+                 if self.launcher.native_persona_capabilities() is not None else
+                 "В этот portable-выпуск входит Chromium; установленный Chrome не требуется. В ядре уменьшена детализация CPU/RAM, но анонимность не гарантируется."
                  if self.launcher.has_native_privacy_baseline() else
                  "В этот portable-выпуск входит Chromium; установленный Chrome не требуется. Подмены fingerprint нет."
                  if self.launcher.bundled_browser() else

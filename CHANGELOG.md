@@ -2,6 +2,19 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.9-preview — ordinary/experimental mode clarity (2026-10-14)
+
+- Corrected the manager's profile, create-dialog and About descriptions: the
+  V5 ordinary mode retains stock CPU/RAM/timezone values. Only the separate
+  opt-in experimental mode requests bounded CPU/RAM and UTC. This release
+  changes wording, not the Chromium engine or existing profile data.
+- Rechecked the exact public 0.8.8 Chromium with a four-session V5
+  cross-surface gate (16/16 checks) and a loopback HTTP-proxy loss/recovery
+  gate (10/10 checks). These do not prove external routing or anonymity.
+- The bundled Chromium is unchanged from 0.8.8-preview. This is an unsigned
+  portable prerelease; Windows 10, a second host and independent DNS/IPv6/TURN
+  observation remain unverified.
+
 ## 0.8.8-preview — published prerelease (2026-10-14)
 
 - The optional Canvas2D mode now sends its ephemeral 32-byte session key from

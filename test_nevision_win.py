@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 from nevision_win import (
     AppPaths,
     BrowserLauncher,
+    NATIVE_PREVIEW_PATCH_SHA256,
     PRIVACY_CHECK_URL,
     DARK_COLORS,
     LIGHT_COLORS,
@@ -512,6 +513,10 @@ class PortableCoreRegressionTests(unittest.TestCase):
                                        "privacy_patch_sha256": "a" * 64}), encoding="utf-8")
         self.assertTrue(launcher.has_native_privacy_baseline())
         receipt.write_text(json.dumps({"format": "neantik-chromium-source-build-v1",
+                                       "privacy_patch_sha256": NATIVE_PREVIEW_PATCH_SHA256}), encoding="utf-8")
+        self.assertFalse(launcher.has_native_privacy_baseline(),
+                         "V5 ordinary mode has stock CPU/RAM, even when the patch is present")
+        receipt.write_text(json.dumps({"format": "neantik-chromium-source-build-v1",
                                        "privacy_patch_sha256": "invalid"}), encoding="utf-8")
         self.assertFalse(launcher.has_native_privacy_baseline())
 
@@ -974,11 +979,16 @@ class InterfaceLogicTests(unittest.TestCase):
         app.root = MagicMock()
         app.launcher = MagicMock()
         app.launcher.has_native_privacy_baseline.return_value = False
+        app.launcher.native_persona_capabilities.return_value = None
         with patch("nevision_win.messagebox.showinfo") as show:
             app.launcher.bundled_browser.return_value = Path("C:/portable/Engine/Chromium/chrome.exe")
             app.show_about()
             self.assertIn("входит Chromium", show.call_args.args[1])
             self.assertIn("установленный Chrome не требуется", show.call_args.args[1])
+            app.launcher.native_persona_capabilities.return_value = {"timezone": True}
+            app.show_about()
+            self.assertIn("В обычном профиле CPU/RAM/UTC штатные", show.call_args.args[1])
+            app.launcher.native_persona_capabilities.return_value = None
             app.launcher.bundled_browser.return_value = None
             app.show_about()
             self.assertIn("Собственного ядра", show.call_args.args[1])

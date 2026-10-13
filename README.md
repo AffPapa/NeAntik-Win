@@ -1,15 +1,14 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. The native baseline caps exposed logical CPU count at 4 and approximated device memory at 8 GiB. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint reduction do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
+Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. In the current V5 core, ordinary profiles report stock CPU, memory and timezone values; only the separate opt-in experimental mode caps exposed CPU at 4, device memory at 8 GiB and selects UTC. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint changes do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
 
-The published **0.8.8-preview** retains hardlink rejection during profile backup,
-preventing that path from copying a file outside the profile into an unencrypted
-backup ZIP. The [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md)
-records the exact ZIP, hash, tests and open gates.
-The unreleased **0.8.8-preview candidate** moves the optional Canvas session
-key out of renderer process arguments into early browser-to-renderer Mojo IPC.
-Its local native and cross-context tests passed; packaged and public-download
-checks are still required before it replaces 0.8.7 on the download page.
+**0.8.9-preview** corrects the manager's ordinary/experimental mode descriptions
+without changing the bundled Chromium or profile data. The public
+[0.8.8 release evidence](docs/RELEASE_PUBLICATION_0.8.8-preview.md) records
+the previous exact ZIP, hash, tests and open gates. That release kept backup
+hardlink rejection and moved the optional Canvas session key from renderer
+arguments into early browser-to-renderer Mojo IPC. Ordinary mode does not
+apply the experimental CPU/RAM/UTC controls.
 Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
 source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed
 per browser session and top-level site; CPU, RAM and UTC controls are partial.
@@ -29,7 +28,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Separate local browser directories, persistent cookies/history and profile metadata.
 - New bundled-Chromium profiles keep downloads in their own `Data/Profiles/<id>/Downloads` folder. Moving the portable folder or restoring a backup rebases only this managed path; a custom download directory chosen in Chromium is not overwritten. Previously used and installed-browser profiles keep their settings.
 - New bundled-Chromium profiles also start with a blank new-tab document. This avoids loading Chromium's remote new-tab page but does **not** stop all browser background requests; see the [startup-network measurements](docs/START_PAGE_NETWORK_2026-10.md).
-- A narrow, auditable native Chromium patch reduces two hardware-related fingerprint signals consistently across measured JavaScript contexts and the Device-Memory Client Hint; it does not alter installed Chrome/Edge profiles.
+- An optional experimental Chromium mode caps two hardware-related fingerprint signals consistently across measured JavaScript contexts and the Device-Memory Client Hint; ordinary bundled-Chromium and installed Chrome/Edge profiles do not enable those controls.
 - Groups, tags, notes, search, settings-only duplication and local activity history.
 - Local proxy vault; passwords protected with Windows DPAPI for the current Windows account.
 - Background browser launches with a bounded worker queue and status for externally opened profiles.
@@ -40,7 +39,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Optional [profile diagnostic page](https://nevision-win.mail782861.chatgpt.site/check.html) shows browser-visible values and, on request, the IP seen by that site. Visiting the page reveals your IP to its hosting; it is not a comprehensive leak test.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. The bundled core's two capped hardware values are only a partial fingerprint reduction; UA, graphics, fonts, screen, timezone and many other signals are not standardized. Chromium security updates require a new portable release; this bundle has no automatic updater.
+The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. The experimental mode's two capped hardware values are only a partial fingerprint change; UA, graphics, fonts, screen and many other signals are not standardized. Chromium security updates require a new portable release; this bundle has no automatic updater.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 

@@ -25,6 +25,7 @@ from urllib.request import Request, ProxyHandler, build_opener
 import uuid
 
 from browser_integration import OwnedJob, spawn_owned_browser
+from native_persona_context_audit import prepare_disposable_engine
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 from proxy_integration import Evidence, HTTPProxy, LocalHTTPServer, Target, TEST_HOST
 from start_page_network_audit import summarize_netlog
@@ -250,7 +251,11 @@ def main() -> int:
               "chrome_dll_sha256": sha256(args.chrome.with_name("chrome.dll")),
               "status": "INCONCLUSIVE"}
     try:
-        report.update(measure(args.chrome.resolve()))
+        # Extracted portable engines need AppContainer read access. Grant it
+        # only to a disposable QA copy, never to the downloaded release tree.
+        with tempfile.TemporaryDirectory(prefix="neantik-proxy-loss-engine-qa-") as temporary:
+            chrome = prepare_disposable_engine(args.chrome.resolve(), Path(temporary))
+            report.update(measure(chrome))
     except Exception as error:
         report["reason_code"] = str(error) if isinstance(error, Inconclusive) else type(error).__name__
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
