@@ -356,6 +356,16 @@ def proxy_choices(proxies: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     return labels, ids
 
 
+def profile_network_note(proxy_id: str | None, linked_profiles: int = 0) -> str:
+    """Explain the network-identity limit without claiming proxy leak protection."""
+    if not proxy_id:
+        return "Без proxy: данные профилей разделены, но сайты могут видеть один и тот же прямой внешний IP."
+    if linked_profiles > 1:
+        return (f"Этот proxy назначен {linked_profiles} профилям. У них может быть общий внешний IP — "
+                "разные профили не становятся отдельными сетевыми личностями.")
+    return "Proxy назначен только этому профилю. Его внешний IP и отсутствие DNS/WebRTC-утечек не подтверждены."
+
+
 def validated_browser_family(value: Any) -> str:
     if type(value) is not str or value not in {"", "chrome", "edge", "chromium"}:
         raise NeVisionError("Backup или профиль содержит неподдерживаемую привязку браузера.")
@@ -630,6 +640,12 @@ class Storage:
             except json.JSONDecodeError as exc:
                 raise NeVisionError("Fingerprint-настройки профиля повреждены. Восстановите проверенный backup.") from exc
         return result
+
+    def count_profiles_for_proxy(self, proxy_id: str) -> int:
+        """Count exact proxy assignments, not names that users may duplicate."""
+        with self.connection() as db:
+            row = db.execute("SELECT count(*) FROM profiles WHERE proxy_id = ?", (proxy_id,)).fetchone()
+        return int(row[0])
 
     def _save_fingerprint_in_db(self, db: sqlite3.Connection, profile_id: str, fingerprint: dict[str, Any]) -> None:
         db.execute("INSERT INTO profile_fingerprints(profile_id, config_json) VALUES (?, ?) ON CONFLICT(profile_id) DO UPDATE SET config_json=excluded.config_json", (profile_id, serialize_identity(fingerprint)))
@@ -1438,6 +1454,10 @@ class Storage:
         result.append(("Размер профиля", human_size(directory_size(path))))
         result.append(("Последний запуск", display_datetime(profile.get("last_launch_at"))))
         result.append(("Proxy", profile.get("proxy_name") or "Не назначен"))
+        result.append(("Сетевой выход", profile_network_note(
+            profile.get("proxy_id"),
+            self.count_profiles_for_proxy(str(profile["proxy_id"])) if profile.get("proxy_id") else 0,
+        )))
         if profile.get("proxy_id") and not self.get_proxy(str(profile["proxy_id"])):
             result.append(("Связь proxy", "Профиль ссылается на удалённый proxy"))
         else:
@@ -2797,6 +2817,16 @@ class NeVisionApp:
         for index, (icon, label, value, accent) in enumerate(columns):
             card = self._metric_card(info, icon, label, value, accent)
             card.pack(side="left", fill="x", expand=True, padx=(0, 10 if index < len(columns) - 1 else 0))
+
+        linked_profiles = (self.storage.count_profiles_for_proxy(str(profile["proxy_id"]))
+                           if profile.get("proxy_id") else 0)
+        route_note = tk.Frame(body, bg=self.colors["panel_2"], padx=12, pady=10)
+        route_note.pack(fill="x", pady=(12, 0))
+        note_accent = self.colors["amber"] if not profile.get("proxy_id") or linked_profiles > 1 else self.colors["cyan"]
+        VectorIcon(route_note, "proxy", 17, note_accent, self.colors["panel_2"]).pack(side="left")
+        tk.Label(route_note, text=profile_network_note(profile.get("proxy_id"), linked_profiles),
+                 bg=self.colors["panel_2"], fg=self.colors["text"], font=("Segoe UI", 9),
+                 wraplength=690, justify="left", anchor="w").pack(side="left", fill="x", expand=True, padx=(9, 0))
 
         lower = tk.Frame(body, bg=self.colors["panel"])
         lower.pack(fill="both", expand=True, pady=(20, 0))

@@ -36,6 +36,7 @@ from nevision_win import (
     palette_for_theme,
     proxy_endpoint,
     proxy_choices,
+    profile_network_note,
     resolve_theme,
 )
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
@@ -48,6 +49,24 @@ class StorageTests(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_shared_proxy_count_uses_id_and_updates_after_reassignment(self):
+        shared = self.storage.save_proxy({"name": "same", "scheme": "http", "host": "127.0.0.1", "port": 8080})
+        other = self.storage.save_proxy({"name": "same", "scheme": "http", "host": "127.0.0.2", "port": 8080})
+        first = self.storage.save_profile({"name": "First", "proxy_id": shared})
+        second = self.storage.save_profile({"name": "Second", "proxy_id": shared})
+        self.storage.save_profile({"name": "Third", "proxy_id": other})
+        self.assertEqual(self.storage.count_profiles_for_proxy(shared), 2)
+        self.assertEqual(self.storage.count_profiles_for_proxy(other), 1)
+        self.assertIn("2 профилям", dict(self.storage.health_check(first))["Сетевой выход"])
+        self.storage.save_profile({"name": "Second", "proxy_id": other}, second)
+        self.assertEqual(self.storage.count_profiles_for_proxy(shared), 1)
+        self.assertEqual(self.storage.count_profiles_for_proxy(other), 2)
+
+    def test_network_note_does_not_promise_anonymity(self):
+        self.assertIn("прямой внешний IP", profile_network_note(None))
+        self.assertIn("общий внешний IP", profile_network_note("proxy-id", 2))
+        self.assertIn("не подтверждены", profile_network_note("proxy-id", 1))
 
     def test_proxy_profile_backup_restore(self):
         clear = "local-password"
