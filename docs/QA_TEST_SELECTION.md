@@ -21,3 +21,18 @@ browser workload so their latency comparisons remain interpretable. Use
 disposable profiles only; never run QA against user `Data/` or real secrets.
 If a fixture fails before assertions, report INCONCLUSIVE and repair the
 fixture once; do not count a tool failure as a product FAIL or PASS.
+
+The public-ZIP second-host gate (`public-portable-second-host.yml`) is **manual
+only**, not a push-time test. Supply the immutable release tag, published ZIP
+SHA-256 and binary source commit. It checks the public archive and synthetic
+storage on a fresh hosted Windows VM; it does not prove external routing,
+fingerprint anonymity, consumer Windows compatibility or cross-account
+portability. Do not dispatch it again without a changed gate or new ZIP.
+
+Measured 2026-10-14: ordinary Windows CI took 68–71 seconds and did not
+duplicate the root unittest suite. Adding more runner jobs to save under a
+minute would add setup and coordination overhead. This host has 8 physical/16
+logical CPUs and 31.1 GiB RAM, but only about 14.5 GiB of free commit at the
+measurement; do not set native Chromium `-j16` from an idle snapshot. Retain
+the measured `-j4` baseline and trial 5–6 only during a needed native build
+with >8 GiB commit reserve and no concurrent browser timing test.

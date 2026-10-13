@@ -48,7 +48,17 @@ alter the original. No real user `Data/` was read or changed.
 not receive the authentication event; no experimental code was retained and
 it does not prove a browser defect. **NOT RUN:** correct/wrong proxy-password
 entry in the native Chromium GUI, external DNS/IPv6/UDP/TURN observer,
-Windows 10/ARM64, another PC/account, population-level fingerprint
+Windows 10/ARM64, another consumer PC/account, population-level fingerprint
 linkability or broad real-site compatibility. The full backup ZIP and
 settings-only JSON remain unencrypted, and browser-saved sessions may not
 transfer to another Windows account or PC.
+
+Post-publication, the **same public ZIP** passed a separate, manually dispatched
+[Windows Server 2022 hosted-runner gate](https://github.com/AffPapa/NeAntik-Win/actions/runs/38458812853)
+using QA harness commit `e228e1280113e0968fc39a2334d32705e900bf4e`.
+The runner downloaded the immutable GitHub asset, matched ZIP SHA-256
+`44fef435ec5a46fa52d8441ac7e6d951e0577f611a16a21628a4a33ddcf61284`,
+verified archive/provenance, ran the packaged EXE self-test, and passed 21
+synthetic loopback storage assertions across seven visits with the bundled
+Chromium. This adds a fresh hosted Windows VM check; it does **not** replace
+Windows 10/11 consumer-PC, cross-account, GUI, or external-network testing.
