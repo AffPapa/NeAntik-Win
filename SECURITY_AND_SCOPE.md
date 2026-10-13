@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-Applies to NeAntik Win 0.8.4-preview portable Chromium edition.
+Applies to NeAntik Win 0.8.5-preview portable Chromium edition.
 
 ## Product boundary
 
@@ -30,6 +30,8 @@ Hosts are validated and normalized, including IDNA and IPv6. A missing assigned 
 
 Proxy checking is TCP reachability only: it does not verify authentication, protocol negotiation, DNS routing, UDP, exit IP or WebRTC behavior. No local authenticated-proxy broker is bundled. The manager warns that a proxy **hostname** may be resolved locally; using an IP literal removes only that proxy-host lookup, not other potential DNS routes.
 
+Profile details and health diagnostics warn when no proxy is assigned or the same proxy entry is assigned to multiple profiles. They also state that a uniquely assigned proxy has not been independently checked for exit IP or DNS/WebRTC leaks. This disclosure does not change routing or prove separate network identities.
+
 The optional Diagnostics action opens `https://nevision-win.mail782861.chatgpt.site/check.html` inside the selected profile. That website and its host see the request IP and browser headers; host logs may retain them. A button asks its own server what IP it observed. JavaScript-visible parameters remain in the page; the page does not upload a fingerprint report or start STUN. A displayed IP is a point-in-time observation for one site, **not** proof of DNS/WebRTC/UDP or all-traffic routing.
 
 When a proxy is assigned to a **bundled Chromium** profile, the launcher uses one fixed proxy without a DIRECT fallback, subtracts Chromium's implicit loopback bypass, blocks background name resolution except the proxy endpoint, disables QUIC and sets `disable_non_proxied_udp` WebRTC IP handling. This can prevent local websites or real-time calls from working. Tests show the configured local proxy handles localhost HTTP URLs, unreachable proxies do not fall back to DIRECT in tested cases, and a no-STUN ICE test produces no host candidate. These are browser-scoped checks, **not** a system firewall or proof that every transport uses the proxy; proxy DNS lookup itself is allowed. No-proxy profiles and installed Chrome/Edge are unchanged. The system timezone is not overridden or inferred from proxy IP.
@@ -38,9 +40,9 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Browser-surface matrix for this release
 
-This matrix describes the **0.8.4-preview portable Chromium binary**, unchanged from 0.8.3-preview. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
+This matrix describes the **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
 
-| Surface | 0.8.4-preview behavior | Evidence / limitation |
+| Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|
 | Browser engine, version and TLS/network stack | New profiles use bundled unbranded Chromium 155.0.8059.40; old Chrome/Edge profiles stay pinned | Upstream source commit and build/privacy patch hashes are recorded; no TLS fingerprint suite |
 | JavaScript `navigator` values, UA and Client Hints | Bundled Chromium caps `navigator.hardwareConcurrency` at 4 and device memory at 8 GiB; UA and other hints remain browser-supplied | Loopback comparison saw CPU 16→4 and memory/Device-Memory CH 32→8 on one Windows machine; no external cohort or anti-correlation proof |

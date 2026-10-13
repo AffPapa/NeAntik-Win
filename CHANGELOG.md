@@ -2,6 +2,17 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.5-preview — network identity disclosure (2026-10-13)
+
+- Profile details and health diagnostics now explain whether a profile has no
+  proxy or shares the same proxy entry with other profiles. Separate local
+  data folders do not imply separate external IPs or network identities.
+- A uniquely assigned proxy is also labeled honestly: its external IP and
+  freedom from DNS/WebRTC leaks have not been independently established.
+  No proxy routing, fingerprint behavior, profile data, or backup format changed.
+- Bundled Chromium is unchanged from 0.8.4-preview. Windows 11 x64 portable
+  preview remains unsigned; no claim of full anonymity is made.
+
 ## 0.8.4-preview — blank new tab for new profiles (2026-10-13)
 
 - New, empty bundled-Chromium profiles open a blank document for
