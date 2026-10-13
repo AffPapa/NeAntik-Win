@@ -29,6 +29,20 @@ hashes but no raw device traits. See
 and the [publication evidence](RELEASE_PUBLICATION_0.8.6-preview.md).
 These narrow local passes do not establish anonymity.
 
+### Key handling review, 2026-10-13
+
+Static review of the exact published V4b patch found that its random Canvas
+session key is appended to renderer process command lines and then parsed from
+the renderer command line. This does not expose the value to ordinary website
+JavaScript, but same-user process inspection, diagnostics, or crash artifacts
+may observe it. Therefore the patch's “in-memory only” wording is too broad for
+the current transport. The public 0.8.7 binary is unchanged; no retroactive
+security guarantee is implied. Before another release, move the key into an
+early browser-to-renderer Mojo initialization payload, verify renderer reuse
+cannot cross BrowserContexts, keep it out of argv/profile storage, and add
+renderer/worker argv absence and cross-context isolation tests. See the
+[master implementation plan](MASTER_IMPLEMENTATION_PLAN.md#p1--проверяемое-снижение-fingerprint-энтропии), P1.2a.
+
 ## Public 0.8.7-preview follow-up, 2026-10-13
 
 Three fresh loopback-only audits were run against the Chromium binary extracted

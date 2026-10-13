@@ -210,6 +210,19 @@ main frame и двух iframe. Это только базовая линия о�
   отдельный V4b-аудит двух профилей и двух сессий подтвердил согласованность
   измеренных не-Canvas полей и изменение выбранных Canvas2D digest между
   сессиями; это одно железо и выбранные API, не Gate P1.
+- **P1.2a Защита Canvas session key:** статический разбор V4b обнаружил, что
+  случайный 32-байтовый ключ для Canvas-сессии передаётся renderer-процессам
+  через командную строку и читается из неё. Это не доступно обычной веб-странице,
+  но может раскрыть ключ локальным инструментам диагностики/мониторинга того же
+  пользователя и не соответствует заявленному «in-memory only». До следующей
+  публикации убрать ключ из argv и передавать его через раннюю browser→renderer
+  инициализацию по Mojo; не хранить в профиле и не запрашивать синхронно из
+  горячего Canvas-пути. Для exact Chromium revision сначала проверить модель
+  повторного использования renderer между BrowserContext. Gate: тест отсутствия
+  ключа в renderer/worker argv, тест непересечения BrowserContext, rotation,
+  same-context frame/worker parity, затем сборка затронутых Chromium targets и
+  полный Canvas cross-context suite. Текущий публичный бинарник не исправлен этим
+  планом; это новый выпускной gate, не доказательство удалённого воздействия.
 - **P1.3 Сложные поверхности:** для Canvas/WebGL/Audio, шрифтов и размеров
   сначала измерить уникальность, производительность и совместимость. Не
   добавлять случайный шум как быстрый обход: он может сделать профиль более
@@ -445,6 +458,27 @@ main frame и двух iframe. Это только базовая линия о�
 браузером: допустимы только конкретные, измеренные гарантии в заявленной
 модели угроз. Статус незавершённого этапа остаётся видимым в README и на сайте.
 
+### Быстрый выбор тестов по типу изменения
+
+Не запускать дорогие проверки «на всякий случай» после каждой правки. Сначала
+запускать затронутый узкий тест, а полный набор — на контрольной точке релиза.
+Тест с `integration` в имени не считать браузерным runtime-тестом, пока он не
+запускает точное Chromium/portable-ядро.
+
+| Изменение | Обязательный узкий набор | Отложить до release gate |
+| --- | --- | --- |
+| Документация / сайт | diff-check и source guard; для Site — typecheck + production build | GUI, proxy/STUN, packaged ZIP и Chromium suite |
+| Менеджер, данные, proxy policy | связанные unit-тесты; полный Python suite только для cross-cutting изменений | реальные GUI/сеть, если затронутые границы не менялись |
+| UI/controller/focus | тесты контроллеров и `gui_regression.py`; ручной GUI — только для изменённого поведения | весь Chromium fingerprint suite |
+| Chromium patch/fingerprint | применимость patch, узкие GN target + выбранный gtest, затем точный новый core и cross-context suite | вся route-матрица, если изменённая поверхность не связана с сетью |
+| Сетевые флаги/маршрут | policy unit-тесты и только соответствующий loopback route fixture | независимые DNS/packet/STUN gates — только на внешней контрольной точке |
+| Portable packaging/release | release-tools, guard, чистая сборка, archive verifier/self-test | повторные тесты неизменённого source/старого ZIP |
+
+UI, живые Chromium-профили и сетевые фикстуры не распараллеливать без доказанной
+изоляции: они делят фокус окна, порты, временные профили, процессы и дисковый
+кэш. Исходные unit-наборы в текущем checkout занимают около 14 секунд суммарно;
+их распараллеливание не является значимым ускорением.
+
 ## 5. Первичные основания решений
 
 - [Tor Browser: защита от fingerprinting](https://support.torproject.org/tor-browser/features/fingerprinting-protections/) — меньше различимых групп, согласование значений, а не произвольные уникальные профили.
@@ -452,3 +486,4 @@ main frame и двух iframe. Это только базовая линия о�
 - [W3C Device Memory API](https://www.w3.org/TR/device-memory/) — округление и верхняя граница снижают fingerprint-энтропию, JS и Client Hint должны согласовываться.
 - [MDN hardwareConcurrency](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency) — значение может быть консервативнее фактического числа логических CPU.
 - [Chromium Windows build instructions](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/windows_build_instructions.md) — техническая основа самостоятельной сборки ядра.
+- [Chromium testing guide](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/testing_in_chromium.md) — собирать нужный test target и ограничивать локальный запуск точным `--gtest_filter`, затем расширять проверки по риску изменения.
