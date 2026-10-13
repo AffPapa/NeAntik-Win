@@ -43,6 +43,9 @@ jobs:
       - name: Verify safe source export
         run: python -m unittest discover -s tools -p test_public_source_export.py -v
 
+      - name: Verify packaged-startup harness safety
+        run: python -m unittest discover -s tools -p test_benchmark_packaged_startup.py -v
+
       - name: Run source self-test
         run: python .\nevision_win.py --self-test
 
