@@ -7,10 +7,18 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from webrtc_udp_integration import is_stun_binding_request, netlog_udp_summary
+from webrtc_udp_integration import evaluate_cases, is_stun_binding_request, netlog_udp_summary
 
 
 class StunPacketTests(unittest.TestCase):
+    def test_diagnostic_sandbox_disable_can_never_be_a_privacy_pass(self):
+        direct = {"stun_binding_requests": 5, "netlog": {"stun_destination_sends": 5}}
+        proxy = {"stun_binding_requests": 0, "netlog": {"all_udp_sends": 0}}
+        self.assertEqual(evaluate_cases(direct, proxy, False), "passed")
+        self.assertEqual(evaluate_cases(direct, proxy, True), "diagnostic_control_only")
+        proxy["netlog"]["all_udp_sends"] = 1
+        self.assertEqual(evaluate_cases(direct, proxy, True), "inconclusive")
+
     def test_binding_request(self):
         packet = b"\x00\x01\x00\x00\x21\x12\xa4\x42" + bytes(range(12))
         self.assertTrue(is_stun_binding_request(packet))

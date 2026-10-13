@@ -191,3 +191,27 @@ about absence of local DNS queries. The manager's unreleased source now makes
 the proxy-hostname caveat visible in Settings and when saving a named proxy;
 using an IP literal removes only the lookup of the proxy host itself, not
 other possible DNS paths.
+
+### Network-service sandbox diagnostic — 13 October 2026
+
+The exact extracted public 0.8.2 Chromium was tested with self-hosted STUN
+sinks on `127.0.0.1` and the host's private LAN IPv4 address. In normal
+sandboxed mode, its direct NetLog recorded five
+STUN sends, but the sink received zero packets; the proxy-bound case recorded
+zero UDP sends. In an **explicit disposable diagnostic control** using
+`--disable-features=NetworkServiceSandbox`, the direct sink received all five
+STUN Binding requests in each topology, while the proxy-bound case still
+recorded zero UDP sends. The status is `diagnostic_control_only` with a
+nonzero process exit code, never a release/privacy pass. Both local reports
+are outside Git in `C:\NeAntikBuild\qa\`.
+
+This strongly narrows the discrepancy to the Windows network-service sandbox
+path, but does not prove whether the block is a Windows firewall rule, socket
+broker behavior or another environment-specific interaction. Chromium's
+[upstream socket-broker change](https://chromium.googlesource.com/chromium/src/+/3129fd20b466c9aafbe60e086607badb99bf8ad6)
+describes AppContainer firewall drops for some destinations, and its
+[enterprise policy](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/policy/resources/templates/policy_definitions/Miscellaneous/NetworkServiceSandboxEnabled.yaml)
+warns that disabling the network sandbox increases security risk. We will
+**not** disable it in the shipped browser to make a test pass. Independent
+packet observation and tests on another Windows/network topology remain
+necessary before any WebRTC leak claim.

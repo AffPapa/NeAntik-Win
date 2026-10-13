@@ -101,6 +101,17 @@ def netlog_udp_summary(path: Path, stun_host: str, stun_port: int) -> dict[str, 
                                    for event in attempts)}
 
 
+def evaluate_cases(direct: dict, proxy: dict, diagnostic_disable_network_sandbox: bool) -> str:
+    """Never treat a weakened-sandbox control as a product privacy pass."""
+    checks_pass = (direct["stun_binding_requests"] > 0 and
+                   direct["netlog"]["stun_destination_sends"] > 0 and
+                   proxy["stun_binding_requests"] == 0 and
+                   proxy["netlog"]["all_udp_sends"] == 0)
+    if not checks_pass:
+        return "inconclusive"
+    return "diagnostic_control_only" if diagnostic_disable_network_sandbox else "passed"
+
+
 class ProbeServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -177,7 +188,8 @@ class ProbeHandler(BaseHTTPRequestHandler):
 
 
 def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
-             force_default_policy: bool = False, net_log_dir: Path | None = None) -> dict:
+             force_default_policy: bool = False, net_log_dir: Path | None = None,
+             diagnostic_disable_network_sandbox: bool = False) -> dict:
     token = uuid.uuid4().hex
     stun = StunSink(stun_host)
     server = ProbeServer(token, stun_host, stun.port)
@@ -194,6 +206,8 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
                      "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
                      "--disable-component-update", "--disable-sync", "--disable-quic",
                      "--metrics-recording-only", f"--log-net-log={net_log_path}"]
+        if diagnostic_disable_network_sandbox:
+            arguments.append("--disable-features=NetworkServiceSandbox")
         if proxy_bound:
             arguments += [f"--proxy-server=http://127.0.0.1:{server.server_port}",
                           "--proxy-bypass-list=<-loopback>",
@@ -243,6 +257,8 @@ def main() -> int:
                         help="Diagnostic only: force Chromium's default WebRTC IP handling on the direct control")
     parser.add_argument("--net-log-dir", type=Path,
                         help="Existing private directory for Chromium NetLogs; logs may contain sensitive request details")
+    parser.add_argument("--diagnostic-disable-network-sandbox", action="store_true",
+                        help="Diagnostic control only: temporarily disable network-service sandbox in disposable test processes; never a product setting or privacy pass")
     args = parser.parse_args()
     if os.name != "nt" or not args.chrome.is_file() or args.chrome.name.lower() != "chrome.exe":
         parser.error("An existing Windows chrome.exe is required")
@@ -264,26 +280,27 @@ def main() -> int:
         parser.error(f"STUN host must be assigned to this computer: {error}")
     report = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "direct positive control and proxy-policy comparison; self-hosted STUN; no public network claim",
+              "diagnostic_disable_network_sandbox": args.diagnostic_disable_network_sandbox,
               "cases": [], "status": "started"}
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-webrtc-udp-qa-") as temporary:
             root = Path(temporary)
             report["cases"].append(run_case(args.chrome, root, False, args.stun_host,
-                                            args.force_default_policy, args.net_log_dir))
+                                            args.force_default_policy, args.net_log_dir,
+                                            args.diagnostic_disable_network_sandbox))
             report["cases"].append(run_case(args.chrome, root, True, args.stun_host,
-                                            net_log_dir=args.net_log_dir))
+                                            net_log_dir=args.net_log_dir,
+                                            diagnostic_disable_network_sandbox=args.diagnostic_disable_network_sandbox))
         direct, proxy = report["cases"]
-        report["status"] = ("passed" if direct["stun_binding_requests"] > 0 and
-                            direct["netlog"]["stun_destination_sends"] > 0 and
-                            proxy["stun_binding_requests"] == 0 and
-                            proxy["netlog"]["all_udp_sends"] == 0 else "inconclusive")
+        report["status"] = evaluate_cases(direct, proxy, args.diagnostic_disable_network_sandbox)
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "cases": report["cases"],
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
-    return 0 if report["status"] == "passed" else 1
+    # Only a normally sandboxed pass may satisfy an automated release gate.
+    return 0 if report["status"] == "passed" else 2 if report["status"] == "diagnostic_control_only" else 1
 
 
 if __name__ == "__main__":
