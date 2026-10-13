@@ -145,7 +145,17 @@ def launch_case(storage: Storage, launcher: BrowserLauncher, name: str,
     observation: dict[str, Any] = {"case": name, "profile_id": profile_id,
                                    "proxy_assigned": bool(proxy_id), "native_preview": native_preview}
     try:
-        with patch("nevision_win.subprocess.Popen", side_effect=owned_popen):
+        # Patch only the manager's module binding. Patching Popen on the shared
+        # subprocess module also intercepts the launcher's icacls subprocess,
+        # falsely treating it as a browser spawn on the first ZIP launch.
+        class ManagerSubprocessProxy:
+            def __getattr__(self, attribute: str) -> Any:
+                return getattr(subprocess, attribute)
+
+            def Popen(self, arguments: list[str], **kwargs: Any) -> subprocess.Popen[bytes]:
+                return owned_popen(arguments, **kwargs)
+
+        with patch("nevision_win.subprocess", ManagerSubprocessProxy()):
             process = launcher.launch(profile)
         require(process is helper, "Launcher returned a different process")
         deadline = time.monotonic() + 8
@@ -251,8 +261,11 @@ def main() -> int:
             if args.native_persona:
                 require(launcher.native_persona_capabilities() is not None,
                         "Bundled engine does not have a verified schema-2 native persona receipt")
-            launcher.ensure_bundled_sandbox_access(target_engine)
+            # Exercise the real first-launch path: the launcher, not this QA
+            # harness, must prepare the extracted engine's AppContainer ACL.
             report["cases"].append(launch_case(storage, launcher, "without_proxy", target_engine / "chrome.exe", None))
+            require(launcher._sandbox_acl_prepared,
+                    "First bundled launch did not prepare the Chromium sandbox ACL")
             proxy_id = storage.save_proxy({"name": "Unreachable local QA proxy", "scheme": "http", "host": "127.0.0.1", "port": 9})
             report["cases"].append(launch_case(storage, launcher, "with_proxy", target_engine / "chrome.exe", proxy_id))
             if args.native_persona:
