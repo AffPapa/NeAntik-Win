@@ -296,3 +296,20 @@ public STUN service. It does **not** supply Cloudflare-side logs for the proxy
 case, independent packet capture, system DNS evidence, IPv6, TURN, a working
 external proxy or a second host. Those parts of P2 remain open; this is not
 an anonymity or general WebRTC leak-free certificate.
+
+### Working SOCKS5 HTTPS route — 13 October 2026
+
+The [external route audit](../tools/external_proxy_fail_closed_audit.py) now
+adds an allowlisted SOCKS5 fixture that accepts only the project's named
+HTTPS endpoint on port 443. On the same extracted public 0.8.6 Chromium
+(`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`),
+the endpoint rendered through this fixture. It recorded one connected tunnel
+and nine domain-form requests; Chromium NetLog reported only loopback TCP
+remote hosts and zero UDP sends in the working-SOCKS5 case. A synthetic
+different destination was refused by a unit test. The private report is
+`C:\NeAntikBuild\qa-public-v0.8.6-preview-20261013\external-route-working-socks5-v2.json`.
+This proves one working SOCKS5 path on one Windows host, not browser-wide DNS
+isolation: the proxy resolved and exited from the same machine. No external
+IPv6, separate egress observer, packet capture or proxy-loss recovery was
+tested. P2 remains open.

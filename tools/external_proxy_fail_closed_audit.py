@@ -2,7 +2,7 @@
 
 The endpoint must be a consented HTTPS JSON page that returns a `userAgent`
 field, such as NeAntik's no-store /api/headers. Rejecting fixtures never
-forward; the working CONNECT fixture allows only the named HTTPS origin.
+forward; working HTTP CONNECT and SOCKS5 fixtures allow only the named HTTPS origin.
 This proves only the observed route on this host;
 it is not a DNS, IPv6, WebRTC, packet-capture or anonymity certificate.
 """
@@ -101,15 +101,27 @@ class WorkingConnectProxyHandler(BaseHTTPRequestHandler):
     do_POST = do_GET
 
 
-class RejectingSocks5(socketserver.ThreadingTCPServer):
+class Socks5Proxy(socketserver.ThreadingTCPServer):
     allow_reuse_address = False
     daemon_threads = True
 
-    def __init__(self) -> None:
+    def __init__(self, allowed_host: str | None = None) -> None:
         super().__init__(("127.0.0.1", 0), RejectingSocks5Handler)
+        self.allowed_host = allowed_host.lower() if allowed_host else None
         self.host_counts: Counter[str] = Counter()
         self.address_types: Counter[int] = Counter()
+        self.connected_tunnels = 0
         self.lock = threading.Lock()
+
+
+class WorkingSocks5(Socks5Proxy):
+    def __init__(self, allowed_host: str) -> None:
+        super().__init__(allowed_host)
+
+
+class RejectingSocks5(Socks5Proxy):
+    def __init__(self) -> None:
+        super().__init__()
 
 
 def receive_exact(connection: socket.socket, length: int) -> bytes:
@@ -123,7 +135,7 @@ def receive_exact(connection: socket.socket, length: int) -> bytes:
 
 
 class RejectingSocks5Handler(socketserver.BaseRequestHandler):
-    server: RejectingSocks5
+    server: Socks5Proxy
 
     def handle(self) -> None:
         client: socket.socket = self.request
@@ -149,11 +161,35 @@ class RejectingSocks5Handler(socketserver.BaseRequestHandler):
                 host = socket.inet_ntop(socket.AF_INET6, receive_exact(client, 16))
             else:
                 return
-            receive_exact(client, 2)
+            port = int.from_bytes(receive_exact(client, 2), "big")
             with self.server.lock:
                 self.server.host_counts[host] += 1
                 self.server.address_types[address_type] += 1
-            client.sendall(b"\x05\x05\x00\x01" + b"\x00" * 6)
+            if host != self.server.allowed_host or port != 443 or address_type != 3:
+                client.sendall(b"\x05\x05\x00\x01" + b"\x00" * 6)
+                return
+            try:
+                upstream = socket.create_connection((host, port), timeout=10)
+            except OSError:
+                client.sendall(b"\x05\x04\x00\x01" + b"\x00" * 6)
+                return
+            with upstream:
+                with self.server.lock:
+                    self.server.connected_tunnels += 1
+                client.sendall(b"\x05\x00\x00\x01" + b"\x00" * 6)
+                client.settimeout(10)
+                upstream.settimeout(10)
+                sockets = (client, upstream)
+                while True:
+                    ready, _, _ = select.select(sockets, (), (), 10)
+                    if not ready:
+                        return
+                    for source in ready:
+                        chunk = source.recv(65536)
+                        if not chunk:
+                            return
+                        destination = upstream if source is client else client
+                        destination.sendall(chunk)
         except (OSError, ValueError, ConnectionError, UnicodeError):
             return
 
@@ -239,6 +275,15 @@ def evaluate_working_connect_route(endpoint_host: str, direct: dict,
     }
 
 
+def evaluate_working_socks5_route(endpoint_host: str, direct: dict,
+                                  proxied: dict) -> dict[str, bool]:
+    checks = evaluate_working_connect_route(endpoint_host, direct, proxied)
+    checks["socks5_proxy_received_domain_name"] = (
+        proxied.get("proxy_observed_address_types", {}).get("3", 0) > 0
+    )
+    return checks
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -254,7 +299,7 @@ def main() -> int:
     if args.output.exists() or not args.output.parent.is_dir():
         parser.error("Output path must be new and its parent must exist")
     report = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
-              "scope": "one Windows host; consented HTTPS endpoint; allowlisted working HTTP CONNECT plus rejecting HTTP/SOCKS5 loopback proxies; no external leak certificate",
+              "scope": "one Windows host; consented HTTPS endpoint; allowlisted working HTTP CONNECT/SOCKS5 plus rejecting HTTP/SOCKS5 loopback proxies; no external leak certificate",
               "endpoint_host": endpoint.hostname.lower(), "cases": {}, "status": "started"}
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-external-route-qa-") as temporary:
@@ -300,15 +345,34 @@ def main() -> int:
                 socks.shutdown()
                 socks.server_close()
                 socks_thread.join(timeout=5)
+            working_socks = WorkingSocks5(endpoint.hostname.lower())
+            working_socks_thread = threading.Thread(target=working_socks.serve_forever, daemon=True)
+            working_socks_thread.start()
+            try:
+                report["cases"]["working_socks5"] = run_case(
+                    chrome, root, "working-socks5", args.endpoint,
+                    working_socks.server_address[1], "socks5")
+                report["cases"]["working_socks5"]["proxy_observed_hosts"] = dict(
+                    sorted(working_socks.host_counts.items()))
+                report["cases"]["working_socks5"]["proxy_observed_address_types"] = {
+                    str(key): value for key, value in sorted(working_socks.address_types.items())}
+                report["cases"]["working_socks5"]["proxy_connected_tunnels"] = working_socks.connected_tunnels
+            finally:
+                working_socks.shutdown()
+                working_socks.server_close()
+                working_socks_thread.join(timeout=5)
         report["checks"] = evaluate_external_route(
             endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["proxy_bound"])
         report["socks5_checks"] = evaluate_socks5_route(
             endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["socks5_proxy_bound"])
         report["working_connect_checks"] = evaluate_working_connect_route(
             endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["working_connect"])
+        report["working_socks5_checks"] = evaluate_working_socks5_route(
+            endpoint.hostname.lower(), report["cases"]["direct"], report["cases"]["working_socks5"])
         report["status"] = "passed" if all([*report["checks"].values(),
                                               *report["socks5_checks"].values(),
-                                              *report["working_connect_checks"].values()]) else "inconclusive"
+                                              *report["working_connect_checks"].values(),
+                                              *report["working_socks5_checks"].values()]) else "inconclusive"
     except Exception as error:
         report["status"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
@@ -316,6 +380,7 @@ def main() -> int:
     print(json.dumps({"status": report["status"], "checks": report.get("checks"),
                       "socks5_checks": report.get("socks5_checks"),
                       "working_connect_checks": report.get("working_connect_checks"),
+                      "working_socks5_checks": report.get("working_socks5_checks"),
                       "report": str(args.output), "error": report.get("error")}, ensure_ascii=False))
     return 0 if report["status"] == "passed" else 1
 

@@ -9,7 +9,8 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
 from external_proxy_fail_closed_audit import (  # noqa: E402
     evaluate_external_route, evaluate_socks5_route, evaluate_working_connect_route,
-    response_has_expected_json, WorkingConnectProxy,
+    evaluate_working_socks5_route, response_has_expected_json, WorkingConnectProxy,
+    WorkingSocks5,
 )
 
 
@@ -68,6 +69,40 @@ class ExternalRouteAuditTests(unittest.TestCase):
                 client.sendall(b"CONNECT other.example:443 HTTP/1.1\r\nHost: other.example:443\r\n\r\n")
                 response = client.recv(256)
             self.assertIn(b"403", response)
+            self.assertEqual(proxy.connected_tunnels, 0)
+            self.assertEqual(proxy.host_counts["other.example"], 1)
+        finally:
+            proxy.shutdown()
+            proxy.server_close()
+            thread.join(timeout=3)
+
+    def test_working_socks5_requires_domain_and_tunnel(self):
+        direct = {"expected_json_rendered": True}
+        proxied = {"expected_json_rendered": True,
+                   "proxy_observed_hosts": {"example.test": 1},
+                   "proxy_observed_address_types": {"3": 1},
+                   "proxy_connected_tunnels": 1,
+                   "tcp_remote_hosts": {"127.0.0.1": 1}, "udp_send_count": 0}
+        self.assertTrue(all(evaluate_working_socks5_route("example.test", direct, proxied).values()))
+        proxied["proxy_observed_address_types"] = {"1": 1}
+        self.assertFalse(evaluate_working_socks5_route("example.test", direct, proxied)[
+            "socks5_proxy_received_domain_name"])
+        proxied["proxy_connected_tunnels"] = 0
+        self.assertFalse(evaluate_working_socks5_route("example.test", direct, proxied)[
+            "proxy_opened_tunnel"])
+
+    def test_working_socks5_rejects_other_destination(self):
+        proxy = WorkingSocks5("example.test")
+        thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with socket.create_connection(proxy.server_address, timeout=3) as client:
+                client.settimeout(3)
+                client.sendall(b"\x05\x01\x00")
+                self.assertEqual(client.recv(2), b"\x05\x00")
+                host = b"other.example"
+                client.sendall(b"\x05\x01\x00\x03" + bytes([len(host)]) + host + b"\x01\xbb")
+                self.assertEqual(client.recv(2), b"\x05\x05")
             self.assertEqual(proxy.connected_tunnels, 0)
             self.assertEqual(proxy.host_counts["other.example"], 1)
         finally:
