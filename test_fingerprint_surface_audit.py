@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from fingerprint_surface_audit import evaluate  # noqa: E402
+from fingerprint_surface_audit import compare_fresh_profiles, evaluate  # noqa: E402
 
 
 def report():
@@ -22,11 +22,13 @@ def report():
     return {"surfaces": {"main": deepcopy(window), "iframe": deepcopy(window),
                          "crossOriginFrame": deepcopy(window), "worker": worker,
                          "sharedWorker": common.copy(), "serviceWorker": common.copy()},
-            "http": {"userAgent": "Chromium test"},
+            "http": {"userAgent": "Chromium test", "acceptLanguage": "en-US,en;q=0.9",
+                     "secChUaPlatform": '"Windows"'},
             "client_hints": {"deviceMemory": "8", "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
                              "uaPlatformVersion": '"19.0.0"'},
             "ua_high_entropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
                                 "platformVersion": "19.0.0"},
+            "ua_platform": "Windows",
             "blocked_external_requests": 0}
 
 
@@ -114,6 +116,42 @@ class FingerprintAuditEvaluationTests(unittest.TestCase):
         value = report()
         value["client_hints"]["uaPlatformVersion"] = None
         self.assertFalse(evaluate([value])[0]["ua_platform_version_hint_parity"])
+
+    def test_mismatched_primary_http_language_is_rejected(self):
+        value = report()
+        value["http"]["acceptLanguage"] = "fr-FR,fr;q=0.9"
+        self.assertFalse(evaluate([value])[0]["js_http_primary_language"])
+
+    def test_missing_primary_http_language_is_rejected(self):
+        value = report()
+        value["http"]["acceptLanguage"] = None
+        self.assertFalse(evaluate([value])[0]["js_http_primary_language"])
+
+    def test_mismatched_platform_hint_is_rejected(self):
+        value = report()
+        value["http"]["secChUaPlatform"] = '"Linux"'
+        self.assertFalse(evaluate([value])[0]["ua_platform_hint_parity"])
+
+    def test_missing_platform_hint_is_rejected(self):
+        value = report()
+        value["http"]["secChUaPlatform"] = None
+        self.assertFalse(evaluate([value])[0]["ua_platform_hint_parity"])
+
+    def test_fresh_profile_http_difference_is_rejected(self):
+        first, second = report(), report()
+        second["http"]["acceptLanguage"] = "fr-FR,fr;q=0.9"
+        checks = compare_fresh_profiles([first, second])
+        self.assertTrue(checks["profile_surfaces_equal"])
+        self.assertFalse(checks["profile_http_equal"])
+
+    def test_fresh_profile_hint_difference_is_rejected(self):
+        first, second = report(), report()
+        second["client_hints"]["uaPlatformVersion"] = '"20.0.0"'
+        self.assertFalse(compare_fresh_profiles([first, second])["profile_client_hints_equal"])
+
+    def test_fresh_profile_count_is_required(self):
+        with self.assertRaises(ValueError):
+            compare_fresh_profiles([report()])
 
 if __name__ == "__main__":
     unittest.main()

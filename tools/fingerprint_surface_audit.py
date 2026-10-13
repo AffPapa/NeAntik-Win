@@ -136,8 +136,9 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"></head>
   const uaHighEntropy = navigator.userAgentData
     ? await navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion'])
     : null;
+  const uaPlatform = navigator.userAgentData?.platform ?? null;
   const result = {token, main, iframe, crossOriginFrame, worker, sharedWorker,
-    serviceWorker, httpHints, uaHighEntropy};
+    serviceWorker, httpHints, uaHighEntropy, uaPlatform};
   document.getElementById('result').textContent = JSON.stringify(result);
   await fetch('/report?token=' + token, {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(result)});
@@ -300,6 +301,7 @@ class AuditHandler(BaseHTTPRequestHandler):
                 "userAgent": self.headers.get("User-Agent"),
                 "acceptLanguage": self.headers.get("Accept-Language"),
                 "secChUa": self.headers.get("Sec-CH-UA"),
+                "secChUaPlatform": self.headers.get("Sec-CH-UA-Platform"),
             }
             self.reply(200, PAGE.replace("__TOKEN__", self.server.token)
                        .replace("__CROSS_ORIGIN__", self.server.cross_origin).encode(), "text/html; charset=utf-8",
@@ -384,6 +386,7 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = ()) 
         return {"surfaces": surfaces, "http": server.headers_seen,
                 "client_hints": server.hints_seen,
                 "ua_high_entropy": result.get("uaHighEntropy"),
+                "ua_platform": result.get("uaPlatform"),
                 "blocked_external_requests": server.external_attempts + cross_server.external_attempts}
     finally:
         if process is not None and process.poll() is None:
@@ -436,6 +439,17 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             and platform_hint.startswith('"') and platform_hint.endswith('"')
             and platform_hint[1:-1] == ua_data.get("platformVersion")
         )
+        language_header = report.get("http", {}).get("acceptLanguage")
+        primary_http_language = (
+            language_header.split(",", 1)[0].split(";", 1)[0].strip()
+            if isinstance(language_header, str) else ""
+        )
+        platform_header = report.get("http", {}).get("secChUaPlatform")
+        ua_platform_matches = (
+            isinstance(platform_header, str)
+            and platform_header.startswith('"') and platform_header.endswith('"')
+            and platform_header[1:-1] == report.get("ua_platform")
+        )
         consistency.append({
             "main_iframe": surfaces["main"] == surfaces["iframe"],
             "main_cross_origin_frame": surfaces["main"] == surfaces["crossOriginFrame"],
@@ -460,11 +474,27 @@ def evaluate(reports: list[dict]) -> list[dict[str, bool]]:
             "main_shared_worker_common": all(surfaces["main"].get(key) == surfaces["sharedWorker"].get(key) for key in keys),
             "main_service_worker_common": all(surfaces["main"].get(key) == surfaces["serviceWorker"].get(key) for key in keys),
             "js_http_user_agent": surfaces["main"]["userAgent"] == report["http"]["userAgent"],
+            "js_http_primary_language": bool(primary_http_language)
+            and primary_http_language == surfaces["main"].get("language"),
             "device_memory_hint_parity": hint_matches,
             "ua_full_version_hint_parity": ua_full_version_matches,
+            "ua_platform_hint_parity": ua_platform_matches,
             "ua_platform_version_hint_parity": ua_platform_version_matches,
         })
     return consistency
+
+
+def compare_fresh_profiles(reports: list[dict]) -> dict[str, bool]:
+    if len(reports) != 2:
+        raise ValueError("Exactly two fresh profile reports are required")
+    first, second = reports
+    return {
+        "profile_surfaces_equal": first.get("surfaces") == second.get("surfaces"),
+        "profile_http_equal": first.get("http") == second.get("http"),
+        "profile_client_hints_equal": first.get("client_hints") == second.get("client_hints"),
+        "profile_high_entropy_equal": first.get("ua_high_entropy") == second.get("ua_high_entropy"),
+        "profile_platform_equal": first.get("ua_platform") == second.get("ua_platform"),
+    }
 
 
 def main() -> int:
@@ -482,15 +512,16 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="neantik-fingerprint-audit-") as temporary:
             reports.append(audit_profile(chrome, Path(temporary)))
     consistency = evaluate(reports)
+    profile_consistency = compare_fresh_profiles(reports)
     output = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "two disposable profiles; loopback only; no public leak or anonymity conclusion",
-              "profile_surfaces_equal": reports[0]["surfaces"] == reports[1]["surfaces"],
+              **profile_consistency,
               "context_consistency": consistency, "profiles": reports}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"report": str(args.output), "profile_surfaces_equal": output["profile_surfaces_equal"],
+    print(json.dumps({"report": str(args.output), "profile_consistency": profile_consistency,
                       "context_consistency": consistency}, ensure_ascii=False))
-    return 0 if all(all(item.values()) for item in consistency) else 1
+    return 0 if all(profile_consistency.values()) and all(all(item.values()) for item in consistency) else 1
 
 
 if __name__ == "__main__":

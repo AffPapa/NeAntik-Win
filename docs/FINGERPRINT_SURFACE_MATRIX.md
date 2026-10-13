@@ -1,14 +1,14 @@
 # Fingerprint surface matrix and evidence plan
 
 Status: 2026-10-13. This is an engineering inventory, not an anonymity score.
-The public 0.8.3-preview (same core as 0.8.2) and unreleased V3 prototype must be kept separate.
+The public 0.8.4-preview (same core as 0.8.3) and unreleased V3 prototype must be kept separate.
 An empty or inconsistent measurement is a failure of the audit, not proof of
 privacy. Raw reports can reveal device traits and stay outside the repository.
 
-| Surface | Public 0.8.3-preview | Unreleased V3 | Required observation before a privacy claim |
+| Surface | Public 0.8.4-preview | Unreleased V3 | Required observation before a privacy claim |
 | --- | --- | --- | --- |
-| HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
-| Language and `Accept-Language` | Profile/Chromium defaults | Same | Compare HTTP, JavaScript, `Intl` formatting and locale of a real page; document deliberate locale choice. |
+| HTTP User-Agent, `navigator.userAgent`, platform | Upstream Chromium behavior | Same | Loopback audit compares request headers, main frame, both iframe origins, workers, and JavaScript/HTTP parity for UA Platform, full-version-list and platform-version UA-CH. Extend to more hint fields and real HTTPS sites. |
+| Language and `Accept-Language` | Profile/Chromium defaults | Same | Loopback audit compares the primary HTTP language with `navigator.language`; Chromium may add a fallback language to the header, so full-list equality is not asserted. Compare `Intl` formatting and locale of real HTTPS pages before a privacy claim. |
 | `hardwareConcurrency` | Narrow native reduction | Host-bounded profile value | Check Window, same/cross-origin frames and Dedicated/Shared/Service Workers against the same build's stock host result. |
 | `deviceMemory` and Device-Memory Client Hint | Narrow native reduction | Host-bounded profile value | Check every JavaScript context plus `Sec-CH-Device-Memory`; reject missing hints and claims above stock. |
 | Timezone, `Date`, `Intl` | System timezone | Profile UTC in V3 | Check all contexts, daylight-saving transitions, time arithmetic, rendered dates and real-site compatibility; proxy geography is not a reliable timezone source. |
@@ -59,6 +59,16 @@ measured non-Canvas surfaces stayed equal. V3 therefore still fails the
 release gate. Raw reports remain private; these observations cover one
 Windows 11 host, one scene and headless loopback contexts, not a population
 anonymity estimate.
+
+The later P0 audit-tool update requires primary HTTP/JavaScript language parity,
+ordinary UA-CH Platform parity, and equality of measured HTTP headers, Client
+Hints and JavaScript surfaces across two fresh profiles. It returns a non-zero
+code for any failed check. The updated tool passed on the exact extracted
+0.8.4-preview Chromium on one Windows 11 host; the private raw report is
+`C:\NeAntikBuild\qa\fingerprint-v084-full-gate-20261013.json`. Four blocked
+background proxy attempts per profile were observed in the earlier audit, so
+this loopback fingerprint pass must not be read as a network-silence result.
+No browser binary or portable ZIP changed in this tooling-only step.
 
 A separate probe of Chromium's built-in `--disable-reading-from-canvas`
 switch blocked the tested main and dedicated-worker Canvas2D readbacks, but

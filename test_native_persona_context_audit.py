@@ -33,12 +33,14 @@ def report(cpu: int, memory: float, timezone: str = "UTC") -> dict:
             "main": main, "iframe": dict(main), "crossOriginFrame": dict(main),
             "worker": worker, "sharedWorker": dict(worker), "serviceWorker": dict(worker),
         },
-        "http": {"userAgent": "test-UA"},
+        "http": {"userAgent": "test-UA", "acceptLanguage": "en-US,en;q=0.9",
+                 "secChUaPlatform": '"Windows"'},
         "client_hints": {"deviceMemory": str(memory),
                          "uaFullVersionList": '"Chromium";v="155.0.8059.40"',
                          "uaPlatformVersion": '"19.0.0"'},
         "ua_high_entropy": {"fullVersionList": [{"brand": "Chromium", "version": "155.0.8059.40"}],
                             "platformVersion": "19.0.0"},
+        "ua_platform": "Windows",
     }
 
 
