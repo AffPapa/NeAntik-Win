@@ -27,6 +27,7 @@ import threading
 from urllib.parse import urlsplit
 
 from browser_integration import OwnedJob, spawn_owned_browser
+from native_persona_context_audit import prepare_disposable_engine
 from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
 from privacy_defaults import initialize_privacy_defaults
 from start_page_network_audit import RejectingProxy, summarize_netlog
@@ -303,7 +304,13 @@ def main() -> int:
               "endpoint_host": endpoint.hostname.lower(), "cases": {}, "status": "started"}
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-external-route-qa-") as temporary:
-            root = Path(temporary)
+            qa_root = Path(temporary)
+            # A ZIP extraction drops the AppContainer read/execute ACL needed
+            # by Chromium's sandbox. Prepare that ACL only on a disposable
+            # engine copy, never on the verified release tree.
+            chrome = prepare_disposable_engine(chrome, qa_root / "engine")
+            root = qa_root / "cases"
+            root.mkdir()
             report["cases"]["direct"] = run_case(chrome, root, "direct", args.endpoint)
             proxy = RejectingProxy()
             thread = threading.Thread(target=proxy.serve_forever, daemon=True)
