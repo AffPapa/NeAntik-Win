@@ -397,6 +397,12 @@ main frame и двух iframe. Это только базовая линия о�
   злонамеренного процесса того же Windows-пользователя. Для source commit
   `3fd8777de5d04f6e1cf706756096df950f60d98c` локально прошли 104 целевых,
   263 основных и 66 тестов route-harness; обе проверки Windows CI успешны.
+  После публикации точный повторно скачанный 0.8.16-preview прошёл 17/17
+  assertions в `concurrent_profile_integration.py`: одновременный запуск двух
+  одноразовых профилей, раздельные storage namespaces/service workers,
+  блокировка конфликтующих операций и проверка pin на bundled core. Это один
+  Windows 11 host и не закрывает downloads/extensions, другой аккаунт/ПК или
+  полный P3; [отчёт](PROFILE_ISOLATION_2026-10.md).
   Публичный portable ZIP проверен (262,403,257 байт,
   SHA-256 `8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`),
   повторно скачан и прошёл archive verifier для 1,066 файлов; упакованный EXE

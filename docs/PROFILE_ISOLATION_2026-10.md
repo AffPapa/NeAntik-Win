@@ -172,3 +172,22 @@ privacy-default and backup/clone behavior with the candidate Chromium. The
 harness starts `chrome.exe` directly, so it does not verify the product's
 `BrowserLauncher` or packaged-GUI wiring. Downloads, external networking,
 another account or PC, and full P3 remain untested.
+
+## Public 0.8.16-preview concurrent-profile regression — 14 October 2026
+
+`tools/concurrent_profile_integration.py` was run against the exact
+repeat-downloaded public archive, whose SHA-256 is
+`8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116` and whose
+`chrome.exe` SHA-256 is
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`. The
+test harness source commit was `005c5d3d32ffc3eb4de3a47a0c49dedaf45d769a`;
+17/17 boolean checks passed on one Windows 11 host. Two simultaneous synthetic
+profiles were confirmed running with separate storage namespaces and service
+workers; duplicate launch and backup/delete while busy were refused, each
+profile's lock was released, and both processes used the bundled Chromium.
+The test uses owned headless processes and loopback-only pages, not personal
+profile data, the product GUI, another Windows account or another computer.
+It is bounded evidence for concurrent manager/profile isolation, not a claim
+that all browser state or network identity is isolated. The report is outside
+the repository at
+`C:\NeAntikBuild\concurrent-profiles-v0.8.16-preview-20261014.json`.
