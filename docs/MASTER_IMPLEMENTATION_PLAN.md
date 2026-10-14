@@ -23,11 +23,16 @@ NeAntik и пользовательские untracked source-файлы; его 
 перезаписывать. Обновлять ядро в отдельном чистом checkout, переносить патчи с
 review и сверять их с upstream; затем выполнить полный exact-ZIP release gate.
 Точный Chromium Gitiles tag `155.0.8059.79` указывает на source commit
-[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); это подтверждено ответом JSON
-официального Gitiles endpoint. Commit object пока отсутствует в локальном
-Chromium object database, а ограниченный `git ls-remote` не завершился с
-доступным результатом (**INCONCLUSIVE**). До безопасного получения exact source,
-проверки патчей и полного release gate новый бинарный релиз не публиковать.
+[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); подтверждённый объект получен
+в отдельный checkout `C:\NeAntikBuild\chromium-upstream-155.0.8059.79\src`.
+Синхронизация зависимостей, hooks и GN generation прошли; для Windows применён
+только build-compat patch из `docs/chromium-build-compat.patch` (его SHA и
+состав проверяются отдельно). На 14 октября 2026 в этом checkout идёт
+инкрементальная сборка `chrome` с `-j4`. Это пока **NOT RUN** для результата
+сборки и всех следующих продуктовых ворот: готового `chrome.exe`, встроенного
+NeAntik portable ZIP и проверенного нового выпуска ещё нет. Не переносить
+состояние/артефакты старого Chromium checkout; не публиковать до интеграции,
+проверки совместимости приложения и прохождения полного exact-ZIP release gate.
 
 ## 1. Что именно защищаем
 
