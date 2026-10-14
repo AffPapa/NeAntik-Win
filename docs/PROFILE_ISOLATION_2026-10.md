@@ -277,3 +277,17 @@ explicit warning that sessions and proxy must be configured again. These are
 source-level tests, not a GUI test or proof of operation under a different
 Windows account/computer; DPAPI migration and cross-machine cookies remain
 **NOT RUN**.
+
+## Native backup/core compatibility preflight — 14 October 2026
+
+Source commit `21d75f382425e12c70b3b8f6ec183a71c0fc28bf` adds a restore-time
+guard: the UI checks whether this portable build exposes the compatible native
+core before restoring a native-mode backup. If unavailable, restore stops
+before profile creation, extraction staging or journal creation. The ordinary
+profile backup path remains available. Both targeted regressions and the full
+`test_nevision_win.py` suite passed at this source state (91 tests, 1 skipped);
+the isolated restore-process crash-recovery gate also passed (10/10 invariants).
+This is source/UI-logic coverage only: incompatible native backup restoration
+was not exercised in a packaged GUI or across separate portable installations.
+The public 0.8.16-preview binary and Site do not include this source change;
+no new release was built or published in this cycle. P3 remains open.
