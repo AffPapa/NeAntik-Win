@@ -11,6 +11,21 @@
 
 **Текущий публичный выпуск:** [0.8.16-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.16-preview), бинарный source commit `3fd8777de5d04f6e1cf706756096df950f60d98c`, ZIP SHA-256 `8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`. Публичный ZIP повторно скачан и проверен архивным валидатором; production-сайт показывает тот же размер и SHA. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.16-preview.md). Следующая инженерная очередь остаётся P0; старые контрольные точки не считать актуальным бинарным статусом. Для быстрого выбора тестов и воспроизводимой публикации см. [матрицу выбора тестов](QA_TEST_SELECTION.md) и [операционный регламент GitHub + Sites](RELEASE_OPERATIONS.md).
 
+**Security freshness gate, 14 октября 2026:** живая публикация `release.json` и
+GitHub asset metadata подтверждают 0.8.16-preview и SHA-256 выше; metadata
+указывает на bundled Chromium `155.0.8059.40`. Google Chrome Stable для desktop
+обновлён до `155.0.8059.79/.80` 13 октября и содержит 37 security fixes
+([официальная запись Chrome Releases](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_01668083673.html?amp=1)).
+Поэтому следующий бинарный выпуск **не должен повторно использовать ядро
+0.8.16** без проверки и обновления Chromium. Локальный Chromium source checkout
+на `cfaadc5a132d78e1828635aa8405a499f3e14864` содержит незакоммиченные патчи
+NeAntik и пользовательские untracked source-файлы; его не синхронизировать и не
+перезаписывать. Обновлять ядро в отдельном чистом checkout, переносить патчи с
+review и сверять их с upstream; затем выполнить полный exact-ZIP release gate.
+Попытка получить upstream tag через remote git завершилась без доступного
+результата и считается **INCONCLUSIVE**; точный source commit `155.0.8059.79`
+ещё не установлен. До этого новый бинарный релиз не публиковать.
+
 ## 1. Что именно защищаем
 
 ### Модель противника
