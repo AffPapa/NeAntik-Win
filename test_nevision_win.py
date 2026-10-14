@@ -432,6 +432,55 @@ class StorageTests(unittest.TestCase):
         self.assertEqual((recovered.profile_path(profile_id) / "Default" / "state.txt").read_text(encoding="utf-8"), "restored")
         self.assertEqual(list(recovered.paths.operations.glob("*.json")), [])
 
+    def test_restore_recovery_after_profile_directory_publish_interruption(self):
+        source_id = self._profile_with_file("Restore interruption source")
+        archive = self.storage.backup_profile(source_id)
+        original_replace = os.replace
+
+        class InjectedInterruption(BaseException):
+            pass
+
+        def publish_then_interrupt(source, destination):
+            source_path = Path(source)
+            destination_path = Path(destination)
+            destination_id = destination_path.name
+            is_profile_publish = (
+                source_path.is_dir()
+                and source_path.name.startswith(".restore-")
+                and source_path.parent.name.casefold() == "profiles"
+                and destination_path.parent.name.casefold() == "profiles"
+                and len(destination_id) == 32
+                and all(character in "0123456789abcdef" for character in destination_id.casefold())
+            )
+            result = original_replace(source, destination)
+            if is_profile_publish:
+                raise InjectedInterruption()
+            return result
+
+        with patch("nevision_win.os.replace", side_effect=publish_then_interrupt):
+            with self.assertRaises(InjectedInterruption):
+                self.storage.restore_profile(archive, "Restored after interruption")
+
+        journals = list(self.storage.paths.operations.glob("*.json"))
+        self.assertEqual(len(journals), 1)
+        restored_id = json.loads(journals[0].read_text(encoding="utf-8"))["profile"]["id"]
+        restored_path = self.storage.profile_path(restored_id)
+        self.assertTrue(restored_path.is_dir())
+        self.assertFalse(
+            any(profile["id"] == restored_id for profile in self.storage.list_profiles())
+        )
+
+        recovered = Storage(AppPaths(self.root))
+
+        self.assertEqual(recovered.get_profile(restored_id)["name"], "Restored after interruption")
+        self.assertEqual(
+            (recovered.profile_path(restored_id) / "Default" / "state.txt").read_bytes(), b"state"
+        )
+        self.assertEqual(
+            (recovered.profile_path(source_id) / "Default" / "state.txt").read_bytes(), b"state"
+        )
+        self.assertEqual(list(recovered.paths.operations.glob("*.json")), [])
+
     def test_profile_create_does_not_leave_a_record_when_folder_creation_fails(self):
         with patch.object(Path, "mkdir", side_effect=PermissionError("simulated mkdir failure")):
             with self.assertRaisesRegex(NeVisionError, "каталог профиля"):

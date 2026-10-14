@@ -132,10 +132,11 @@ localStorage, IndexedDB, Cache Storage and service-worker state.
 A were rejected while B remained active; both browser jobs and profile locks
 closed afterward. The private report is
 `C:\NeAntikBuild\qa\concurrent-profiles-v0.8.9-preview-20261014.json` and
-contains verdicts, not browser storage values. This covers one manager process
-on one Windows 11 host. Two independent manager processes, another Windows
-session/account, power-cut recovery, GUI actions and public-network routes
-remain **NOT RUN**; Gate P3 stays open.
+contains verdicts, not browser storage values. This specific browser test covers
+one manager process on one Windows 11 host; the separate independent-process
+delete-recovery gate below passed 8/8. Another Windows session/account,
+power-cut recovery, GUI actions and public-network routes remain **NOT RUN**;
+Gate P3 stays open.
 
 ## Two independent managers and process-crash recovery — 14 October 2026
 
@@ -149,15 +150,29 @@ recovered the original profile data and cleared the journal.
 
 **8/8 bounded assertions passed** on this host. This is the source `Storage`
 path, not the packaged GUI executable or a browser test. It checks one delete
-interruption point and process-crash recovery; restore interruption, a real
-power cut, another Windows session/account and hostile same-user processes
-remain **NOT RUN**. Gate P3 stays open.
+interruption point and process-crash recovery; actual restore-process
+termination after publish, a real power cut, another Windows session/account
+and hostile same-user processes remain **NOT RUN**. Gate P3 stays open.
 
 The same independent-manager test was rerun on source commit
 `f5e2fde4defd85bdfad575ebe171ebe5d5bb88e0`; the Windows unittest passed and
 asserted the same 8/8 recovery invariants. This confirms the source gate still
 passes after the settings-transfer documentation update; it is not a new
 packaged-binary or power-loss test.
+
+## Restore publish/DB interruption fault-injection — 14 October 2026
+
+On source commit `1f97d4b6c6c9c6cdcb61ad98032196e4f3bd0f48`, a new regression
+test exercised the actual `Storage.restore_profile` path with synthetic
+backup data. It injected a `BaseException` immediately after the staging
+directory was atomically renamed into the profile directory and before the DB
+insert, then opened a fresh `Storage` instance. Recovery rebuilt the profile
+row, preserved both source and restored test files, and cleared the operation
+journal. The full `test_nevision_win.py` suite passed 90 tests with one skip.
+This tests the exact transaction boundary and startup roll-forward, but the
+injected exception still runs Python's `finally`; it is not a child-process
+kill or power-loss test. The separate delete crash gate remains the only
+actual process-termination recovery test so far.
 
 ## 0.8.15-preview candidate storage regression — 14 October 2026
 
