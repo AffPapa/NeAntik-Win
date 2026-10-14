@@ -8,7 +8,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from two_manager_process_gate import _command, _require_disposable_root, run_gate
+from two_manager_process_gate import (
+    _command,
+    _require_disposable_root,
+    run_gate,
+    run_restore_crash_gate,
+)
 
 
 class TwoManagerProcessGateTests(unittest.TestCase):
@@ -31,6 +36,14 @@ class TwoManagerProcessGateTests(unittest.TestCase):
         self.assertEqual(report["reason"], "ok")
         self.assertTrue(all(report["checks"].values()), report)
         self.assertEqual(len(report["checks"]), 8)
+
+    @unittest.skipUnless(os.name == "nt", "Windows process termination gate")
+    def test_restore_process_crash_after_publish_recovers_profile_and_data(self):
+        report = run_restore_crash_gate()
+        self.assertEqual(report["status"], "PASS", report)
+        self.assertEqual(report["reason"], "ok")
+        self.assertTrue(all(report["checks"].values()), report)
+        self.assertEqual(len(report["checks"]), 10)
 
 
 if __name__ == "__main__":

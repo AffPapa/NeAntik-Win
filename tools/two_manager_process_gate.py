@@ -1,4 +1,4 @@
-"""Disposable Windows process gate for delete-journal locking and crash recovery.
+"""Disposable Windows process gates for profile-operation crash recovery.
 
 Runs three independent Python managers. No browser is started and no existing
 portable Data directory is opened. The parent owns and removes its temporary
@@ -158,6 +158,40 @@ def _worker_hold_delete(root: Path, profile_id: str) -> int:
     return 1
 
 
+def _worker_hold_restore(root: Path, profile_id: str) -> int:
+    """Exit at the real restore publish/DB-commit boundary on parent command."""
+    _require_disposable_root(root)
+    storage = Storage(AppPaths(root))
+    source_root = canonical_path_key(storage.paths.profiles)
+    original_replace = os.replace
+
+    def pause_after_publish(source: os.PathLike[str] | str, target: os.PathLike[str] | str) -> None:
+        source_path = Path(source)
+        target_path = Path(target)
+        source_was_directory = source_path.is_dir()
+        original_replace(source, target)
+        target_id = target_path.name
+        if (
+            source_was_directory
+            and source_path.name.startswith(".restore-")
+            and canonical_path_key(source_path.parent) == source_root
+            and canonical_path_key(target_path.parent) == source_root
+            and len(target_id) == 32
+            and all(character in "0123456789abcdef" for character in target_id.casefold())
+        ):
+            # Restore journal is durable and directory is visible; DB INSERT has
+            # not started. Parent inspects this exact state before inducing exit.
+            _emit(event="restore_published", restored_id=target_id)
+            command = sys.stdin.readline().strip()
+            os._exit(CRASH_EXIT_CODE if command == "CRASH" else 74)
+
+    os.replace = pause_after_publish
+    archive = root / "synthetic-restore-source.zip"
+    storage.restore_profile(archive, "Restored after process interruption")
+    _emit(event="unexpected_restore_completion")
+    return 1
+
+
 def _worker_contend(root: Path, profile_id: str) -> int:
     _require_disposable_root(root)
     try:
@@ -255,9 +289,116 @@ def run_gate() -> dict[str, Any]:
     return {"status": "PASS" if reason == "ok" and all(checks.values()) else "FAIL", "reason": reason, "checks": checks}
 
 
+def run_restore_crash_gate() -> dict[str, Any]:
+    """Crash a real restore worker after publish, then verify startup recovery."""
+    if os.name != "nt":
+        return {"status": "NOT_RUN", "reason": "windows_only"}
+    root = Path(tempfile.mkdtemp(prefix="neantik-two-manager-gate-"))
+    owned: list[subprocess.Popen[str]] = []
+    checks: dict[str, bool] = {}
+    reason = "ok"
+    try:
+        (root / ROOT_MARKER).write_text("synthetic-only-v1", encoding="ascii")
+        storage = Storage(AppPaths(root))
+        source_id = storage.save_profile({"name": "Synthetic restore source"})
+        source_state = storage.profile_path(source_id) / "Default" / "state.bin"
+        source_state.parent.mkdir(parents=True)
+        source_state.write_bytes(SYNTHETIC_STATE)
+        archive = storage.backup_profile(source_id)
+        shutil.copyfile(archive, root / "synthetic-restore-source.zip")
+
+        child = _spawn("hold-restore", root, source_id)
+        owned.append(child)
+        ready = _read_line_bounded(child)
+        restored_id = ready.get("restored_id")
+        checks["child_paused_after_publish"] = (
+            ready.get("event") == "restore_published"
+            and isinstance(restored_id, str)
+            and len(restored_id) == 32
+            and child.poll() is None
+        )
+        if not checks["child_paused_after_publish"]:
+            raise RuntimeError("restore_child_not_at_publish_barrier")
+
+        journal_files = _operation_files(root)
+        restored_path = storage.profile_path(restored_id)
+        checks["journal_and_directory_published"] = (
+            len(journal_files) == 1
+            and restored_path.is_dir()
+            and (restored_path / "Default" / "state.bin").read_bytes() == SYNTHETIC_STATE
+        )
+        journal = json.loads(journal_files[0].read_text(encoding="utf-8")) if journal_files else {}
+        checks["database_insert_not_started"] = (
+            not _row_exists(root, restored_id)
+            and journal.get("operation") == "restore"
+            and journal.get("profile", {}).get("id") == restored_id
+        )
+        checks["source_profile_untouched"] = (
+            _row_exists(root, source_id)
+            and source_state.read_bytes() == SYNTHETIC_STATE
+        )
+
+        contender = _spawn("contend", root, source_id)
+        owned.append(contender)
+        contender_code, contender_result = _finish(contender)
+        checks["second_manager_busy"] = (
+            contender_code == 0 and contender_result.get("result") == "busy"
+        )
+        checks["state_unchanged_during_contention"] = (
+            len(_operation_files(root)) == 1
+            and restored_path.is_dir()
+            and not _row_exists(root, restored_id)
+        )
+
+        if child.stdin is None:
+            raise RuntimeError("restore_child_stdin_missing")
+        child.stdin.write("CRASH\n")
+        child.stdin.flush()
+        child.wait(timeout=CHILD_TIMEOUT_SECONDS)
+        checks["controlled_process_crash"] = child.returncode == CRASH_EXIT_CODE
+        if not checks["controlled_process_crash"]:
+            raise RuntimeError("restore_crash_exit_mismatch")
+
+        recovery = _spawn("recover", root, source_id)
+        owned.append(recovery)
+        recovery_code, recovery_result = _finish(recovery)
+        checks["startup_recovery_succeeded"] = (
+            recovery_code == 0 and recovery_result.get("result") == "recovered"
+        )
+        checks["restored_profile_and_data_recovered"] = (
+            _row_exists(root, restored_id)
+            and Storage(AppPaths(root)).get_profile(restored_id)["name"]
+            == "Restored after process interruption"
+            and (restored_path / "Default" / "state.bin").read_bytes() == SYNTHETIC_STATE
+            and source_state.read_bytes() == SYNTHETIC_STATE
+        )
+        checks["journal_cleared"] = not _operation_files(root)
+        if not all(checks.values()):
+            reason = "restore_recovery_invariant_failed"
+    except (OSError, sqlite3.Error, NeVisionError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        reason = str(exc) if isinstance(exc, RuntimeError) else type(exc).__name__
+    finally:
+        for process in owned:
+            if process.poll() is None:
+                process.kill()
+            try:
+                process.communicate(timeout=CHILD_TIMEOUT_SECONDS)
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                pass
+        try:
+            _require_disposable_root(root)
+            shutil.rmtree(root)
+            if root.exists():
+                reason = "cleanup_incomplete"
+        except (OSError, RuntimeError) as exc:
+            reason = f"cleanup_failed_{type(exc).__name__}"
+    return {"status": "PASS" if reason == "ok" and all(checks.values()) else "FAIL",
+            "reason": reason, "checks": checks}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", nargs="?", choices=("hold-delete", "contend", "recover"))
+    parser.add_argument("mode", nargs="?", choices=("hold-delete", "hold-restore", "contend", "recover"))
     parser.add_argument("--root", type=Path)
     parser.add_argument("--profile-id")
     args = parser.parse_args()
@@ -266,6 +407,8 @@ def main() -> int:
             parser.error("worker mode requires root and profile ID")
         if args.mode == "hold-delete":
             return _worker_hold_delete(args.root, args.profile_id)
+        if args.mode == "hold-restore":
+            return _worker_hold_restore(args.root, args.profile_id)
         if args.mode == "contend":
             return _worker_contend(args.root, args.profile_id)
         return _worker_recover(args.root, args.profile_id)
