@@ -361,3 +361,32 @@ The fixtures themselves resolved and connected to the endpoint using the
 same host's DNS and egress; the public endpoint saw the test requests. This is
 not independent DNS observation, packet capture, separate proxy egress,
 IPv6/TURN evidence, or proxy-loss/recovery coverage. P2 remains open.
+
+### HTTP proxy loss/recovery on the public 0.8.16-preview engine — 14 October 2026
+
+[`proxy_loss_recovery_gate.py`](../tools/proxy_loss_recovery_gate.py) was run
+against Chromium extracted from the repeat-downloaded public 0.8.16-preview
+ZIP. The ZIP SHA-256 was
+`8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`; browser
+binary source commit `3fd8777de5d04f6e1cf706756096df950f60d98c`; harness source
+commit `900d7f150c89914e38cb6ea16a170f9b1c6ee4ff`. The tested
+`chrome.exe` SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb` and
+`chrome.dll` SHA-256
+`9d0943446e0cbe405f82286ce46c03ad8e928f7b8e46d3ed33082dce2f544075` match
+the release manifest. The disposable-engine copy received the required
+AppContainer read/execute ACL; the downloaded archive and user data were not
+modified.
+
+All 10 assertions passed: initial request used the loopback HTTP proxy; the
+browser process remained alive when the proxy stopped; neither the synthetic
+target nor another target received a request during the outage; after proxy
+recovery the same browser process again used it; exactly two intended requests
+reached the target; NetLog showed loopback TCP only and zero UDP sends. The
+private summary is
+`C:\NeAntikBuild\route-loss-v0.8.16-preview-20261014.json`.
+
+This is a bounded one-host, one-browser-process, loopback HTTP-proxy test. It
+does not independently observe public DNS, IPv6, TURN, system packet routes,
+other proxy types, another machine or another egress network. P2 remains open;
+this is not a general leak-free or anonymity claim.
