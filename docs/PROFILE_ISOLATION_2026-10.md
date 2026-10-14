@@ -153,6 +153,12 @@ interruption point and process-crash recovery; restore interruption, a real
 power cut, another Windows session/account and hostile same-user processes
 remain **NOT RUN**. Gate P3 stays open.
 
+The same independent-manager test was rerun on source commit
+`f5e2fde4defd85bdfad575ebe171ebe5d5bb88e0`; the Windows unittest passed and
+asserted the same 8/8 recovery invariants. This confirms the source gate still
+passes after the settings-transfer documentation update; it is not a new
+packaged-binary or power-loss test.
+
 ## 0.8.15-preview candidate storage regression — 14 October 2026
 
 The exact rebuilt candidate ZIP from binary source commit

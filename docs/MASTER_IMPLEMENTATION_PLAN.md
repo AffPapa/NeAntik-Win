@@ -378,6 +378,10 @@ main frame и двух iframe. Это только базовая линия о�
   менеджер получил `busy` при активной операции удаления, а после аварийного
   выхода первого восстановились данные и журнал. Это не тест отключения
   питания, другого Windows session/account или packaged GUI.
+  Повтор `test_two_manager_process_gate.TwoManagerProcessGateTests.test_independent_managers_busy_then_recover_after_crash`
+  на source commit `f5e2fde4defd85bdfad575ebe171ebe5d5bb88e0` прошёл; это
+  подтверждает текущий source `Storage` gate, не добавляя доказательства для
+  package, power loss или другого Windows account.
   Старые профили не меняются; произвольные расширения и межмашинное
   восстановление не проверены.
   В опубликованном 0.8.15-preview дополнительно закрыт путь обхода изоляции через
