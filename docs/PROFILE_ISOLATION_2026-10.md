@@ -226,3 +226,17 @@ APIs, another Windows account or PC, or the privacy of extension data in an
 unencrypted backup. Raw browser data and report were not published; the report
 is at
 `C:\NeAntikBuild\extension-isolation-v0.8.16-preview-20261014.json`.
+
+## P3.3 settings-only transfer regression — 14 October 2026
+
+Four source tests passed on `6af9541bf6a1163e587d3bec84f099492e2fdea9` for the
+existing minimal export/import flow: allowed metadata is copied into a new
+empty profile; proxy username/password, notes, cookies and old identity seed
+are excluded; malformed, oversized and untrusted fields fail without partial
+profile creation; and native-mode templates are refused if the receiving
+portable lacks the required core. Ordinary templates remain importable without
+that core. The current UI already provides export/import confirmation with an
+explicit warning that sessions and proxy must be configured again. These are
+source-level tests, not a GUI test or proof of operation under a different
+Windows account/computer; DPAPI migration and cross-machine cookies remain
+**NOT RUN**.
