@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.15-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.15-preview), бинарный source commit `5434718dd14a5ea0edc20c440c801a873c9fbcf4`, ZIP SHA-256 `fd9eedf2b9f6b9f3b42b51eb5ce29608e41b165c7ec2d282e17926c4f2b44ead`. Публичный ZIP независимо скачан, sidecar и manifest сверены; production-сайт показывает тот же размер и SHA. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.15-preview.md). Более поздние docs-only коммиты `main` не меняют бинарник. Исторические контрольные точки 0.8.14 и старше не являются статусом текущего ZIP. Для ускорения следующего цикла есть [матрица выбора тестов](QA_TEST_SELECTION.md).
+**Текущий публичный выпуск:** [0.8.16-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.16-preview), бинарный source commit `3fd8777de5d04f6e1cf706756096df950f60d98c`, ZIP SHA-256 `8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`. Публичный ZIP повторно скачан и проверен архивным валидатором; production-сайт показывает тот же размер и SHA. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.16-preview.md). Следующая инженерная очередь остаётся P0; старые контрольные точки не считать актуальным бинарным статусом. Для быстрого выбора тестов и воспроизводимой публикации см. [матрицу выбора тестов](QA_TEST_SELECTION.md) и [операционный регламент GitHub + Sites](RELEASE_OPERATIONS.md).
 
 ## 1. Что именно защищаем
 
