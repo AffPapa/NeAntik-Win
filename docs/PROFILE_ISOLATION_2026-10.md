@@ -191,3 +191,20 @@ It is bounded evidence for concurrent manager/profile isolation, not a claim
 that all browser state or network identity is isolated. The report is outside
 the repository at
 `C:\NeAntikBuild\concurrent-profiles-v0.8.16-preview-20261014.json`.
+
+## Public 0.8.16-preview packaged secret/backup self-test — 14 October 2026
+
+The exact release `NeAntikWin.exe` SHA-256
+`caa05a1dc223955aaf1ee776128cae068886641c8a929f953c19654a47576701` was run
+with `--self-test` in a hidden process; exit code was 0, expected PASS output
+was captured, and stderr was empty. The packaged self-test uses a synthetic
+DPAPI value and a temporary `Data` root to check protect/unprotect roundtrip,
+proxy vault storage, profile backup/restore and long-path operations. It
+deletes its own temporary root. Three matching source tests also passed on
+source commit `16bc02603d8c147b9599826b44e255a49ac81b5b`: DPAPI-backed proxy
+backup/restore, backup manifest sensitivity wording, and no proxy credentials
+in HTTP(S) Chromium arguments. These checks do not prove protection from
+malware or other processes under the same Windows account, Windows clipboard
+history, a different account/computer, or cryptographic suitability for
+portable encrypted session backups. Browser session backups remain sensitive
+and are not encrypted by this gate.
