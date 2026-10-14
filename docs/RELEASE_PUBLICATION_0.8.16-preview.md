@@ -30,13 +30,18 @@ from the public Site source commit.
 - Live `/release.json` reported the same release URL, ZIP size and SHA-256 as
   the public GitHub asset. A public ZIP HEAD request returned HTTP 200 and
   `Content-Length: 262403257`.
-- Site typecheck and production build passed. Manual GUI on a fresh machine,
-  Windows 10/ARM64, external network-route tests and cross-machine browser
-  storage portability were **NOT RUN** in this publication check.
+- Site typecheck and production build passed. At initial publication, manual
+  GUI on a fresh machine, Windows 10/ARM64 and external network-route tests
+  were **NOT RUN**. Follow-up bounded tests against the same public ZIP are
+  recorded in the network and route reports: proxy loss/recovery 10/10, public
+  STUN policy 4/4, and HTTPS proxy cases 28/28. Independent DNS/packet
+  observation, another host and cross-machine storage portability remain
+  **NOT RUN**.
 
 ## Notes for the next cycle
 
-The exact mechanism for earlier GitHub uploads was not recorded. This release
-used the pre-existing authenticated GitHub CLI login stored by Windows; no new
-PAT was created or exposed. For the repeatable workflow and Windows packaging
-workarounds, see [RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md).
+Publication used the pre-existing authenticated GitHub CLI login stored by
+Windows; no new PAT was created or exposed. The tested GitHub + public Site
+workflow and Windows packaging workarounds are recorded in
+[RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md). Start each release by following
+that document and record the exact binary and Site source commits separately.

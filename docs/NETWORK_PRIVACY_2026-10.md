@@ -415,3 +415,24 @@ core/proxy combination. Cloudflare-side proxy-case logs, independent packet
 capture, system DNS, IPv6, TURN, external proxy egress and a second host remain
 unavailable or **NOT RUN**. This does not establish that every WebRTC, DNS or
 network route is leak-free; P2 remains open.
+
+### External HTTPS proxy routes on the public 0.8.16-preview engine — 14 October 2026
+
+[`external_proxy_fail_closed_audit.py`](../tools/external_proxy_fail_closed_audit.py)
+was rerun against the exact repeat-downloaded public ZIP (SHA-256
+`8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`); its
+manifest's `chrome.exe` and `chrome.dll` hashes matched the tested files. The
+committed harness was `018f1a28e1144aec843a855fffffae6f1513c590`. The harness
+prepared a disposable engine copy because ZIP extraction does not preserve
+Chromium's Windows AppContainer ACL; the public release tree was not modified.
+
+The five-case report passed 28/28 assertions: rejecting HTTP proxy 7/7,
+rejecting SOCKS5 8/8, working HTTPS CONNECT 6/6 and working SOCKS5 7/7, with
+positive direct controls. Rejecting profiles did not render the test endpoint;
+allowlisted routes rendered through their proxy. SOCKS5 received the
+destination as a domain name. Proxied NetLogs showed loopback TCP only and
+zero UDP sends. The same-host proxy used the same host's DNS/egress; this does
+not establish independent proxy egress or DNS. System DNS, independent packet
+capture, IPv6, TURN and another host remain **NOT RUN**. The private report is
+outside the repository at
+`C:\NeAntikBuild\external-route-v0.8.16-preview-20261014-committed-harness.json`.
