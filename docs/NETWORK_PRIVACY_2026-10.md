@@ -390,3 +390,28 @@ This is a bounded one-host, one-browser-process, loopback HTTP-proxy test. It
 does not independently observe public DNS, IPv6, TURN, system packet routes,
 other proxy types, another machine or another egress network. P2 remains open;
 this is not a general leak-free or anonymity claim.
+
+### Public STUN control on the public 0.8.16-preview engine — 14 October 2026
+
+[`public_stun_policy_audit.py`](../tools/public_stun_policy_audit.py) was run
+against the same repeat-downloaded public 0.8.16-preview ZIP. ZIP SHA-256 was
+`8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`; binary
+source commit was
+`3fd8777de5d04f6e1cf706756096df950f60d98c`; tested `chrome.exe` and
+`chrome.dll` hashes matched the public release manifest. Harness source commit
+was `9fb1226c51400d751507b5d4a532e9e3bb0b577a`.
+
+All four assertions passed on this host. The direct control observed `host` and
+`srflx` ICE candidate types and 17 UDP sends in Chromium NetLog. In the
+rejecting-HTTP-proxy profile, the test observed no ICE candidates, zero NetLog
+UDP sends, and its synthetic proxy-route control. As documented by the
+harness, Cloudflare received a direct STUN request and could see this test
+connection's public IP; raw candidates, the IP and NetLog were not retained in
+the report. The private summary is
+`C:\NeAntikBuild\public-stun-v0.8.16-preview-20261014.json`.
+
+This is a bounded positive control and a one-host result for this Chromium
+core/proxy combination. Cloudflare-side proxy-case logs, independent packet
+capture, system DNS, IPv6, TURN, external proxy egress and a second host remain
+unavailable or **NOT RUN**. This does not establish that every WebRTC, DNS or
+network route is leak-free; P2 remains open.

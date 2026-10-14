@@ -304,6 +304,13 @@ main frame и двух iframe. Это только базовая линия о�
   packet capture отсутствуют. Протокол и границы указаны в
   [сетевом отчёте](NETWORK_PRIVACY_2026-10.md); независимая сеть, DNS/IPv6,
   TURN и второй хост остаются открыты.
+  14 октября тот же bounded Cloudflare STUN control повторён на Chromium из
+  точного публичного ZIP 0.8.16-preview: прямой контроль наблюдал `host`/
+  `srflx` и 17 UDP sends, rejecting-proxy профиль — ноль ICE-кандидатов,
+  ноль UDP sends и положительный синтетический route-control. Четыре
+  assertions прошли; это один host и один proxy policy, не внешний egress,
+  DNS/IPv6/TURN или независимый packet capture. См. актуальную запись в
+  [сетевом отчёте](NETWORK_PRIVACY_2026-10.md); P2 остаётся открытым.
   На точном 0.8.7 также повторён HTTPS route audit: direct endpoint,
   rejecting HTTP/SOCKS5 и allowlisted working CONNECT/SOCKS5 прошли; SOCKS5
   видел destination как доменное имя. Оба работающих локальных proxy
