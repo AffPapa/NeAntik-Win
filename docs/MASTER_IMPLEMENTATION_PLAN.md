@@ -22,9 +22,12 @@ GitHub asset metadata подтверждают 0.8.16-preview и SHA-256 выш�
 NeAntik и пользовательские untracked source-файлы; его не синхронизировать и не
 перезаписывать. Обновлять ядро в отдельном чистом checkout, переносить патчи с
 review и сверять их с upstream; затем выполнить полный exact-ZIP release gate.
-Попытка получить upstream tag через remote git завершилась без доступного
-результата и считается **INCONCLUSIVE**; точный source commit `155.0.8059.79`
-ещё не установлен. До этого новый бинарный релиз не публиковать.
+Точный Chromium Gitiles tag `155.0.8059.79` указывает на source commit
+[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); это подтверждено ответом JSON
+официального Gitiles endpoint. Commit object пока отсутствует в локальном
+Chromium object database, а ограниченный `git ls-remote` не завершился с
+доступным результатом (**INCONCLUSIVE**). До безопасного получения exact source,
+проверки патчей и полного release gate новый бинарный релиз не публиковать.
 
 ## 1. Что именно защищаем
 
