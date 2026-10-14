@@ -412,6 +412,11 @@ main frame и двух iframe. Это только базовая линия о�
   PASS/NOT RUN приведены в [release evidence](RELEASE_PUBLICATION_0.8.16-preview.md).
   [Протокол загрузок](DOWNLOAD_ISOLATION_2026-10.md).
   [Протокол и границы](PROFILE_ISOLATION_2026-10.md).
+  Дополнительная проверка exact public 0.8.16-preview: synthetic unpacked
+  Manifest V3 `chrome.storage.local` прошёл 8/8 проверок изоляции между A/B,
+  перезапуска, backup/restore и configuration-only clone. Только один Windows
+  11 host; произвольные расширения, вредоносный код, другое устройство и
+  незашифрованные backup остаются за пределами теста. [Протокол P3.1](PROFILE_ISOLATION_2026-10.md).
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после

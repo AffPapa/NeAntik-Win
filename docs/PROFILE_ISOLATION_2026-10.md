@@ -208,3 +208,21 @@ malware or other processes under the same Windows account, Windows clipboard
 history, a different account/computer, or cryptographic suitability for
 portable encrypted session backups. Browser session backups remain sensitive
 and are not encrypted by this gate.
+
+## Public 0.8.16-preview extension storage isolation — 14 October 2026
+
+`tools/extension_isolation_audit.py` ran against a disposable ACL-prepared copy
+of the exact public Chromium from the same ZIP noted above; the copied
+`chrome.exe` retained SHA-256
+`751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`. Harness
+source commit: `84e953969b50228497bda9f7a222a86cc5b77c71`. All 8 checks passed:
+the same synthetic unpacked Manifest V3 extension had separate
+`chrome.storage.local` in A/B; each value persisted after restart; A retained
+its value after same-machine backup/restore; and a configuration-only clone
+had no extension value. Test pages were loopback-only and external startup
+requests met a rejecting local proxy. This does not assess malicious extension
+permissions/code, store installation or update behavior, arbitrary extension
+APIs, another Windows account or PC, or the privacy of extension data in an
+unencrypted backup. Raw browser data and report were not published; the report
+is at
+`C:\NeAntikBuild\extension-isolation-v0.8.16-preview-20261014.json`.
