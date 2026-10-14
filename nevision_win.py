@@ -1455,11 +1455,25 @@ class Storage:
                 raise NeVisionError("Backup слишком большой для безопасного восстановления (лимит: 8 GB).")
         return members
 
-    def restore_profile(self, archive_path: Path, name_override: str = "") -> str:
+    def restore_profile(
+        self,
+        archive_path: Path,
+        name_override: str = "",
+        *,
+        native_core_available: bool | None = None,
+    ) -> str:
         with self.profile_operation_lock("__data_recovery__"):
-            return self._restore_profile_locked(archive_path, name_override)
+            return self._restore_profile_locked(
+                archive_path, name_override, native_core_available=native_core_available
+            )
 
-    def _restore_profile_locked(self, archive_path: Path, name_override: str = "") -> str:
+    def _restore_profile_locked(
+        self,
+        archive_path: Path,
+        name_override: str = "",
+        *,
+        native_core_available: bool | None = None,
+    ) -> str:
         archive_path = filesystem_path(archive_path)
         if not archive_path.exists():
             raise NeVisionError("Файл backup не найден.")
@@ -1497,6 +1511,11 @@ class Storage:
                 if ((manifest["format"] == NATIVE_BACKUP_FORMAT) != (fingerprint["mode"] == NATIVE_PREVIEW) or
                         manifest["format"] == "neantik-profile-backup-v2"):
                     raise NeVisionError("Формат backup не соответствует fingerprint-профилю.")
+                if fingerprint["mode"] == NATIVE_PREVIEW and native_core_available is False:
+                    raise NeVisionError(
+                        "Этот backup требует совместимого встроенного native-ядра. "
+                        "Профиль не восстановлен; используйте сборку NeAntik с поддержкой этого ядра."
+                    )
                 members = self._validated_backup_members(archive_members)
                 profile_name = name_override.strip() or str(original.get("name", "Восстановленный профиль"))
                 data = {
@@ -3446,7 +3465,15 @@ class NeVisionApp:
             self.set_status("Ошибка восстановления backup")
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
 
-        self._run_in_background(f"restore:{uuid.uuid4().hex}", lambda: self.storage.restore_profile(archive_path), completed, failed)
+        native_core_available = self.launcher.native_persona_capabilities() is not None
+        self._run_in_background(
+            f"restore:{uuid.uuid4().hex}",
+            lambda: self.storage.restore_profile(
+                archive_path, native_core_available=native_core_available
+            ),
+            completed,
+            failed,
+        )
 
     def open_proxy_vault(self) -> None:
         ProxyVaultDialog(self)

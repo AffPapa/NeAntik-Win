@@ -207,6 +207,29 @@ class StorageTests(unittest.TestCase):
         prefs = json.loads((restored / "Default" / "Preferences").read_text(encoding="utf-8"))
         self.assertEqual(prefs["download"]["default_directory"], str(restored.resolve() / "Downloads"))
 
+    def test_native_backup_requires_compatible_core_before_creating_profile(self):
+        source_id = self.storage.save_profile({
+            "name": "Native backup fixture",
+            "fingerprint": native_preview_identity(),
+        })
+        source_file = self.storage.profile_path(source_id) / "Default" / "state.txt"
+        source_file.parent.mkdir(parents=True)
+        source_file.write_bytes(b"synthetic-native-profile")
+        archive = self.storage.backup_profile(source_id)
+
+        with self.assertRaisesRegex(NeVisionError, "требует совместимого встроенного native-ядра"):
+            self.storage.restore_profile(archive, native_core_available=False)
+
+        self.assertEqual([profile["id"] for profile in self.storage.list_profiles()], [source_id])
+        self.assertEqual(source_file.read_bytes(), b"synthetic-native-profile")
+        self.assertEqual(list(self.storage.paths.operations.glob("*.json")), [])
+        self.assertFalse(any(path.name.startswith(".restore-") for path in self.storage.paths.profiles.iterdir()))
+
+        ordinary_id = self._profile_with_file("Ordinary backup fixture")
+        ordinary_archive = self.storage.backup_profile(ordinary_id)
+        restored_id = self.storage.restore_profile(ordinary_archive, native_core_available=False)
+        self.assertIsNotNone(self.storage.get_profile(restored_id))
+
     def test_restore_rejects_zip_path_traversal_before_creating_profile(self):
         archive = self.storage.paths.backups / "unsafe.zip"
         manifest = {
@@ -1314,6 +1337,9 @@ class InterfaceLogicTests(unittest.TestCase):
         app.root = MagicMock()
         app.set_status = MagicMock()
         app._run_in_background = MagicMock()
+        app.launcher = MagicMock()
+        app.launcher.native_persona_capabilities.return_value = None
+        app.storage = MagicMock()
         archive = "C:/synthetic/backup.zip"
         with patch("nevision_win.filedialog.askopenfilename", return_value=archive), patch(
             "nevision_win.messagebox.askyesno", return_value=False
@@ -1327,6 +1353,11 @@ class InterfaceLogicTests(unittest.TestCase):
         ):
             app.restore_backup()
         app._run_in_background.assert_called_once()
+        restore_operation = app._run_in_background.call_args.args[1]
+        restore_operation()
+        app.storage.restore_profile.assert_called_once_with(
+            Path(archive), native_core_available=False
+        )
         app.set_status.assert_called_once_with("Восстанавливаю backup…")
 
     def test_about_describes_actual_browser_bundle(self):
