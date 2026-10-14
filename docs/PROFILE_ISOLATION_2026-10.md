@@ -150,8 +150,8 @@ recovered the original profile data and cleared the journal.
 
 **8/8 bounded assertions passed** on this host. This is the source `Storage`
 path, not the packaged GUI executable or a browser test. It checks one delete
-interruption point and process-crash recovery; actual restore-process
-termination after publish, a real power cut, another Windows session/account
+interruption point and process-crash recovery; restore-process termination is
+separately covered below. A real power cut, another Windows session/account
 and hostile same-user processes remain **NOT RUN**. Gate P3 stays open.
 
 The same independent-manager test was rerun on source commit
@@ -171,8 +171,24 @@ row, preserved both source and restored test files, and cleared the operation
 journal. The full `test_nevision_win.py` suite passed 90 tests with one skip.
 This tests the exact transaction boundary and startup roll-forward, but the
 injected exception still runs Python's `finally`; it is not a child-process
-kill or power-loss test. The separate delete crash gate remains the only
-actual process-termination recovery test so far.
+kill or power-loss test.
+
+## Restore recovery after controlled worker-process crash — 14 October 2026
+
+The extended `tools/two_manager_process_gate.py` passed its dedicated Windows
+test on harness source commit `531648a1c73e795f8cf7079e54ec31b14c429a13`:
+`test_restore_process_crash_after_publish_recovers_profile_and_data`. It runs
+the real `Storage.restore_profile` against a synthetic ZIP and pauses its child
+after the staging directory is atomically published, when the durable restore
+journal exists but before the profile DB insert. The parent verified that
+pre-commit state, a second manager received `busy` without changing it, then
+instructed the child to terminate with exit code 73. A fresh manager recovered
+the restored DB row and data, preserved the source profile, and cleared the
+journal. All **10/10** restore-crash invariants passed; all four tests in
+`test_two_manager_process_gate.py` passed on this host. This is a controlled
+process termination on one Windows 11 host and a disposable root, not a real
+power interruption, packaged-GUI test, other Windows account or second PC.
+P3 remains open.
 
 ## 0.8.15-preview candidate storage regression — 14 October 2026
 

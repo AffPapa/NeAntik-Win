@@ -453,10 +453,14 @@ main frame и двух iframe. Это только базовая линия о�
   account. Новый source fault-injection тест restore прошёл на commit
   `1f97d4b6c6c9c6cdcb61ad98032196e4f3bd0f48`: прерывание сразу после атомарной
   публикации каталога и до DB insert восстановилось при новом `Storage`;
-  полный `test_nevision_win.py` — 90 PASS, 1 SKIP. Это не kill процесса и не
-  отключение питания; соответствующие ворота и другие непроверенные сценарии
-  перечислены в [P3 evidence](PROFILE_ISOLATION_2026-10.md). Ни один тест не
-  работает на пользовательской `Data/`.
+  полный `test_nevision_win.py` — 90 PASS, 1 SKIP. Затем отдельный child
+  process-crash gate на harness commit `531648a1c73e795f8cf7079e54ec31b14c429a13`
+  подтвердил **10/10** инвариантов: второй manager получает `busy`, worker
+  завершается сразу после publish и до DB insert, startup roll-forward
+  восстанавливает запись/данные и убирает journal; весь файл process-gate —
+  4 PASS. Это не тест отключения питания, GUI или другого Windows account.
+  Непроверенные сценарии перечислены в [P3 evidence](PROFILE_ISOLATION_2026-10.md).
+  Ни один тест не работает на пользовательской `Data/`.
 
 ### P4 — простой интерфейс и скорость
 
