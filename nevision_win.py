@@ -2160,6 +2160,7 @@ class IconButton(tk.Canvas):
         self.width = width or max(height, label_font.measure(text) + (43 if icon else 24))
         self.hovered = False
         self.focused = False
+        self._pressed_keys: set[str] = set()
         super().__init__(parent, width=self.width, height=height, bg=canvas_bg, highlightthickness=0, borderwidth=0, cursor="hand2", takefocus=1)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
@@ -2168,6 +2169,8 @@ class IconButton(tk.Canvas):
         self.bind("<Button-1>", self._on_click)
         self.bind("<Return>", self._on_key)
         self.bind("<space>", self._on_key)
+        self.bind("<KeyRelease-Return>", self._on_key_release)
+        self.bind("<KeyRelease-space>", self._on_key_release)
         self.hint = HoverTip(self, tooltip, colors) if tooltip else None
         self._render()
 
@@ -2208,14 +2211,25 @@ class IconButton(tk.Canvas):
 
     def _on_focus_out(self, _event: tk.Event[Any]) -> None:
         self.focused = False
+        self._pressed_keys.clear()
         self._render()
 
     def _on_click(self, _event: tk.Event[Any]) -> None:
         self.focus_set()
         self.command()
 
-    def _on_key(self, _event: tk.Event[Any]) -> None:
-        self.command()
+    def _on_key(self, event: tk.Event[Any]) -> str:
+        key = str(event.keysym)
+        if key not in {"Return", "space"}:
+            return "break"
+        if key not in self._pressed_keys:
+            self._pressed_keys.add(key)
+            self.command()
+        return "break"
+
+    def _on_key_release(self, event: tk.Event[Any]) -> str:
+        self._pressed_keys.discard(str(event.keysym))
+        return "break"
 
 
 class BaseDialog(tk.Toplevel):

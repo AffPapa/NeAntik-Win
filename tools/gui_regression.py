@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -124,6 +125,33 @@ class GuiTests(unittest.TestCase):
                 self.assertGreater(widget.winfo_height(), 20)
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
+
+    def test_icon_button_ignores_keyboard_repeat_until_release(self):
+        buttons = []
+
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+
+        button = next(widget for widget in walk(self.app.root)
+                      if isinstance(widget, nv.IconButton))
+        button.command = lambda: buttons.append("activated")
+
+        for keysym in ("Return", "space"):
+            with self.subTest(key=keysym):
+                event = SimpleNamespace(keysym=keysym)
+                button._on_key(event)
+                button._on_key(event)
+                self.assertEqual(len(buttons), 1)
+                button._on_key_release(event)
+                button._on_key(event)
+                self.assertEqual(len(buttons), 2)
+                button._on_key_release(event)
+                buttons.clear()
+
+        button._on_key(SimpleNamespace(keysym="a"))
+        self.assertEqual(buttons, [])
 
     def test_duplicate_proxy_choices_do_not_change_assignment(self):
         payload = {"name": "Same", "scheme": "http", "host": "127.0.0.1", "port": 8080}
