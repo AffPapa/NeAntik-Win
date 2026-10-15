@@ -1,0 +1,121 @@
+name: Review and attest published NeAntik release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing public NeAntik release tag to review (for example v0.8.24-preview)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  attest-reviewed-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Checkout the protected default-branch workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python for the stdlib-only validation helper
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Download exact release and validate tag, archive, and metadata
+        id: validate
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF -cne 'refs/heads/main') { throw 'Attestation workflow must run from main.' }
+          if ($env:GITHUB_REPOSITORY -cne 'AffPapa/NeAntik-Win') { throw 'Unexpected repository.' }
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$') { throw 'Invalid release tag.' }
+
+          $api = 'https://api.github.com/repos/AffPapa/NeAntik-Win'
+          $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28'; 'User-Agent' = 'NeAntik-release-review' }
+          $release = Invoke-RestMethod -Uri "$api/releases/tags/$($env:RELEASE_TAG)" -Headers $headers
+          if ($release.tag_name -cne $env:RELEASE_TAG -or $release.draft) { throw 'Release tag is missing, mismatched, or still a draft.' }
+
+          $tagRef = Invoke-RestMethod -Uri "$api/git/ref/tags/$($env:RELEASE_TAG)" -Headers $headers
+          if ($tagRef.object.type -cne 'tag') { throw 'Release must point to an annotated Git tag.' }
+          $annotatedTag = Invoke-RestMethod -Uri "$api/git/tags/$($tagRef.object.sha)" -Headers $headers
+          if ($annotatedTag.tag -cne $env:RELEASE_TAG -or $annotatedTag.object.type -cne 'commit' -or $annotatedTag.object.sha -notmatch '^[0-9a-f]{40}$') { throw 'Annotated tag does not resolve to a commit.' }
+
+          $version = $env:RELEASE_TAG.Substring(1)
+          $archiveName = "NeAntikWin-portable-v$version.zip"
+          $sidecarName = "$archiveName.sha256"
+          $manifestName = $archiveName.Substring(0, $archiveName.Length - 4) + '.manifest.json'
+          $archivePath = Join-Path $env:RUNNER_TEMP $archiveName
+          $checksumPath = "$archivePath.sha256"
+          $manifestPath = Join-Path $env:RUNNER_TEMP $manifestName
+          $metadataPath = Join-Path $env:RUNNER_TEMP 'neantik-release-metadata.json'
+          $predicatePath = Join-Path $env:RUNNER_TEMP 'neantik-release-review-predicate.json'
+
+          foreach ($assetName in @($archiveName, $sidecarName, $manifestName)) {
+            $found = @($release.assets | Where-Object { $_.name -ceq $assetName })
+            if ($found.Count -ne 1) { throw "Expected exactly one GitHub release asset named $assetName." }
+            if ($found[0].size -isnot [long] -and $found[0].size -isnot [int]) { throw "Invalid size metadata for $assetName." }
+            $maximumSize = switch ($assetName) { $archiveName { 2000000000 }; $sidecarName { 4096 }; $manifestName { 8388608 } }
+            if ($found[0].size -le 0 -or $found[0].size -gt $maximumSize) { throw "Unexpected size for $assetName." }
+            $expectedUrl = "https://github.com/AffPapa/NeAntik-Win/releases/download/$($env:RELEASE_TAG)/$assetName"
+            if ($found[0].browser_download_url -cne $expectedUrl) { throw "Unexpected download URL for $assetName." }
+            $targetPath = switch ($assetName) { $archiveName { $archivePath }; $sidecarName { $checksumPath }; $manifestName { $manifestPath } }
+            Invoke-WebRequest -Uri $expectedUrl -OutFile $targetPath
+          }
+
+          $releaseSummary = @{
+            repository = 'AffPapa/NeAntik-Win'
+            tag_name = $release.tag_name
+            draft = [bool]$release.draft
+            html_url = $release.html_url
+            tag_commit = $annotatedTag.object.sha
+            assets = @($release.assets | Where-Object { $_.name -in @($archiveName, $sidecarName, $manifestName) } | ForEach-Object {
+              @{ name = $_.name; size = $_.size; digest = $_.digest }
+            })
+          }
+          $releaseSummary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $metadataPath -Encoding utf8
+
+          python .\tools\prepare_release_attestation.py --release-json $metadataPath --archive $archivePath --checksum $checksumPath --manifest $manifestPath --predicate-out $predicatePath
+          if ($LASTEXITCODE -ne 0) { throw 'Release metadata review failed.' }
+          & .\tools\verify-release-archive.ps1 -ArchivePath $archivePath
+          if (-not $?) { throw 'Full portable archive verifier failed.' }
+
+          "ARCHIVE_PATH=$archivePath" >> $env:GITHUB_ENV
+          "PREDICATE_PATH=$predicatePath" >> $env:GITHUB_ENV
+          "ARCHIVE_SHA256=$((Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "SOURCE_COMMIT=$($annotatedTag.object.sha)" >> $env:GITHUB_OUTPUT
+          "RELEASE_URL=$($release.html_url)" >> $env:GITHUB_OUTPUT
+          "RELEASE_TAG=$($release.tag_name)" >> $env:GITHUB_OUTPUT
+
+      - name: Create a signed post-publication review attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ env.ARCHIVE_PATH }}
+          predicate-type: https://affpapa.org/attestations/neantik-release-review/v1
+          predicate-path: ${{ env.PREDICATE_PATH }}
+
+      - name: Record the exact reviewed subject
+        shell: pwsh
+        env:
+          REVIEWED_TAG: ${{ steps.validate.outputs.RELEASE_TAG }}
+          REVIEWED_SHA256: ${{ steps.validate.outputs.ARCHIVE_SHA256 }}
+          REVIEWED_SOURCE_COMMIT: ${{ steps.validate.outputs.SOURCE_COMMIT }}
+          REVIEWED_RELEASE_URL: ${{ steps.validate.outputs.RELEASE_URL }}
+        run: |
+          "### NeAntik release review attestation" >> $env:GITHUB_STEP_SUMMARY
+          "- Release: [$env:REVIEWED_TAG]($env:REVIEWED_RELEASE_URL)" >> $env:GITHUB_STEP_SUMMARY
+          "- Annotated tag commit: ``$env:REVIEWED_SOURCE_COMMIT``" >> $env:GITHUB_STEP_SUMMARY
+          "- ZIP SHA-256: ``$env:REVIEWED_SHA256``" >> $env:GITHUB_STEP_SUMMARY
+          '- Claim: the workflow verified and attested the already-published ZIP; it did not build that ZIP.' >> $env:GITHUB_STEP_SUMMARY

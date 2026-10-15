@@ -58,6 +58,36 @@ release test matrix or authorize publishing a candidate that failed a gate.
   from `gh release download` is not a pass: retry once with `curl.exe -L
   --fail` to the public asset URL, then stop if it is still incomplete.
 
+## 2.1 Attest a reviewed existing ZIP (not a build)
+
+The manual workflow `.github/workflows/attest-existing-release.yml` is a
+separate trust layer for an already-published artifact. Run it only from
+`main`, with the exact existing release tag. On a Windows runner it resolves
+the annotated tag through GitHub's API, downloads the ZIP and its two public
+sidecars, checks the GitHub asset digests and source commit, and runs the full
+portable archive verifier before creating a short-lived OIDC/Sigstore
+attestation with the custom predicate
+`https://affpapa.org/attestations/neantik-release-review/v1`.
+
+After the workflow succeeds, download that same ZIP and verify it with a recent
+GitHub CLI:
+
+```powershell
+gh attestation verify .\NeAntikWin-portable-vX.Y.Z.zip `
+  --repo AffPapa/NeAntik-Win `
+  --predicate-type https://affpapa.org/attestations/neantik-release-review/v1 `
+  --signer-repo AffPapa/NeAntik-Win `
+  --signer-workflow AffPapa/NeAntik-Win/.github/workflows/attest-existing-release.yml `
+  --source-ref refs/heads/main
+```
+
+This claim means only that the identified workflow reviewed the existing
+release bytes and their embedded release metadata. It does **not** claim that
+CI built the ZIP, prove the build reproducible, cryptographically verify a
+release-tag signature, replace Authenticode, or guarantee that the program is
+safe or anonymous. A failed attestation or verifier is a release gate failure;
+do not replace or move an existing tag to work around it.
+
 ## 3. Update the existing Sites publication
 
 1. Read the Sites skill and the selected checkout's `.openai/hosting.json`.
