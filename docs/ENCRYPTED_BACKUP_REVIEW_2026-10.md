@@ -74,6 +74,37 @@ implementation. No dependency choice should be inferred from these notes.
 - This review does not change the product's network, fingerprint, or anonymity
   claims.
 
+## Follow-up review (2026-10-16)
+
+Two separate read-only reviews of the current source confirmed the existing
+backup/restore boundaries and examined the Windows packaging path. No files
+were changed by those reviewers and no tests were run as part of their review.
+
+- Existing regression coverage exercises ZIP validation, legacy ZIP restore,
+  tampering/corruption, size limits, and backup/restore transaction handling;
+  it does not prove encryption behavior.
+- `build.ps1` creates a PyInstaller `--onedir --windowed` bundle. That layout
+  can carry native Python wheels in principle, but no cryptography dependency,
+  frozen-app smoke test, or exact-artifact self-test exists. Feasibility is
+  **NOT RUN**, not PASS.
+- A dependency addition must also update the pinned build requirements,
+  `tools/prepare-build-metadata.py`'s dependency/license allowlist,
+  `THIRD_PARTY_NOTICES.md`, CI installation, public-source export checks, and
+  release-tool tests. A successful source import alone is not packaging proof.
+- The current design gate remains open: choose a maintained, independently
+  specified streaming container/implementation before product code. A primitive
+  API such as AES-GCM is not by itself a reviewed multi-gigabyte file format.
+  Do not invent framing, use a whole-file in-memory API, or silently apply
+  DPAPI (which would break cross-account/PC portability).
+- NIST SP 800-132 is the relevant published password-derived-storage guidance,
+  but NIST's publication page says revision is planned. Its status does not
+  select a KDF or validate this product's parameters. Likewise, the
+  Cryptography project's AEAD page documents primitives, not a backup container.
+
+Result: encrypted export remains **NOT IMPLEMENTED** and is not a release
+claim. Legacy ZIP import/restore remains supported as-is. No new dependency,
+format, UI, binary, or site copy is authorized by this review.
+
 ## References
 
 - [RFC 9106: Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work
@@ -81,3 +112,5 @@ implementation. No dependency choice should be inferred from these notes.
 - [age file format specification](https://github.com/C2SP/C2SP/blob/main/age.md)
 - [PyCryptodome KDF documentation](https://pycryptodome.readthedocs.io/en/latest/src/protocol/kdf.html)
 - [PyInstaller Hooks Contrib](https://github.com/pyinstaller/pyinstaller-hooks-contrib)
+- [Cryptography: authenticated encryption API](https://cryptography.io/en/stable/hazmat/primitives/aead/)
+- [NIST SP 800-132 publication and revision note](https://csrc.nist.gov/pubs/sp/800/132/final)
