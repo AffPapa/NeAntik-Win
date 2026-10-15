@@ -49,3 +49,31 @@ that every widget was usable, browser/Chromium launch timing, Windows 10 QA,
 accessibility QA, or a cross-machine performance guarantee. The existing
 source-UI numbers above and these packaged measurements have different
 boundaries and must not be directly compared.
+
+## Current public portable-manager observation — 15 October 2026
+
+The same five-start harness was run on the exact public `v0.8.18-preview`
+ZIP, freshly downloaded from the public Release. ZIP SHA-256:
+`62c73096470c62a9bfacefbfee30753e99def38bdc22aba1c90e222bd22af095`;
+EXE SHA-256:
+`fb7eef35dd4cadd3f7b6f8ff92bcc30c612c3006f4ce0d71198bf57b7f7fc10b`;
+binary source commit: `85580d07b28cd8d795576481b3119f04dd1ba6dd`. The release
+archive verifier passed before extraction; no user `Data/` was included or
+opened. Private raw report:
+`C:\N155\qa-performance-0.8.18-preview-20261015\packaged-startup-five-runs.json`.
+
+| Visible-window observation | Result |
+| --- | ---: |
+| Five runs | 697.946, 207.940, 209.048, 209.006, 183.982 ms |
+| Median / min / max / spread | 209.006 / 183.982 / 697.946 / 513.964 ms |
+| Manager private memory after 5 s idle | 21.62–22.46 MiB |
+| Manager working set after 5 s idle | 43.74–44.38 MiB |
+
+All five runs reached a visible titled manager window and exited through the
+harness cleanup. The first run's slower observation dominates the spread;
+therefore report both the median and individual samples, not just a single
+"startup" number. As above, these are ordinary starts from one extracted
+archive with a warm OS cache; visible-window timing is not full UI readiness,
+Chromium startup, cold boot, Windows 10, accessibility, or second-machine
+evidence. The browser core was not launched. No product code, release archive
+or Site was changed by this measurement.
