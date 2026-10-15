@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-The published 0.8.19-preview release described below bundles stock Chromium and does not
+The published 0.8.24-preview release described below bundles stock Chromium and does not
 modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
 builds are historical and do not describe this release. Check the official
 download page and checksum for the current artifact; local tests alone are not
@@ -12,7 +12,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## Historical 0.8.6-preview V4b boundary (not included in 0.8.19-preview)
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.24-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
@@ -47,7 +47,7 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-The published 0.8.19-preview manages local directories and bundles unbranded
+The published 0.8.24-preview manages local directories and bundles unbranded
 stock Chromium `155.0.8059.79`, built from pinned upstream source with a
 build-compatibility patch only. `fingerprint_modification` is explicitly
 `false`; NeAntik does not override browser/device fingerprint values. New
@@ -104,7 +104,7 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.19-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
+This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.24-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|
