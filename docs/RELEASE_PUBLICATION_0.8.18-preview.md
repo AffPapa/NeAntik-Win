@@ -40,13 +40,20 @@ independently below.
   profile, loopback-only observers; all 8 attempted external requests were
   blocked. The private device-traits report stays outside Git at
   `C:\N155\audit-0.8.18-preview-20261015.json`.
+- `tools/upgrade_rollback_integration.py` on the exact public 0.8.17 and 0.8.18
+  ZIPs (both SHA-256 values verified against GitHub): **PASS** for a synthetic
+  same-Windows-account storage/profile/proxy/DPAPI seed → 0.8.18 upgrade →
+  0.8.17 rollback. The old snapshot remained unchanged and the candidate copy
+  changed as expected. Private report:
+  `C:\N155\upgrade-rollback-0.8.17-to-0.8.18-20261015.json`.
 
-Not rerun on this exact archive: proxy, migration, storage, download and broader
-browser/network integration suites. Manual visible GUI, another Windows machine,
-independent external DNS/IPv6/UDP/STUN/TURN observers and fingerprint-spoofing
-checks are **NOT RUN** (fingerprint spoofing is intentionally absent). Loopback
-blocking does not prove external-route privacy. These limitations must not be
-represented as release PASS.
+Not rerun on this exact archive: proxy, download and broader browser/network
+integration suites. The storage test covers same-account persistence only, not
+an interactive browser session, another Windows account or another machine.
+Manual visible GUI, independent external DNS/IPv6/UDP/STUN/TURN observers and
+fingerprint-spoofing checks are **NOT RUN** (fingerprint spoofing is
+intentionally absent). Loopback blocking does not prove external-route privacy.
+These limitations must not be represented as release PASS.
 
 ## Production Site
 
