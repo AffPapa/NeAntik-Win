@@ -504,6 +504,14 @@ main frame и двух iframe. Это только базовая линия о�
   готовит изолированную ACL-копию и сравнивает SHA исполняемого файла с ZIP.
   Итоговый source harness commit `c988ec25dfaced8733909bd82f6cf1f959150ce9`;
   подробности и ограничения — в [P3.1 protocol](PROFILE_ISOLATION_2026-10.md).
+  На source commit `c30e8bdbb22ea256b22ec2231c0d022da1667b7f` добавлен
+  Windows-only regression с настоящим junction на чувствительное
+  `Default/Network/Cookies` наружу: production `_launch_locked` отклоняет
+  профиль до browser resolve, family pin и `Popen`, внешний synthetic marker
+  остаётся неизменным. `PortableCoreRegressionTests` прошёл **43 теста, 1
+  platform skip** (2.359 с); Chromium и пользовательские данные не
+  использовались. Это test-only source change, не новый бинарный релиз и не
+  проверка вложенных путей сверх фиксированного allowlist.
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после
