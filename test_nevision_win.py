@@ -1404,6 +1404,33 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_privacy_diagnostics_requires_explicit_consent_and_discloses_limits(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.selected_profile = MagicMock(return_value={"id": "synthetic-profile"})
+        app.launch_selected = MagicMock()
+
+        with patch("nevision_win.messagebox.askyesno", return_value=False) as confirm:
+            app.open_privacy_diagnostics()
+        confirm.assert_called_once()
+        consent_text = confirm.call_args.args[1]
+        for disclosure in (
+            "внешний сайт", "IP-адрес", "proxy", "DNS", "WebRTC", "UDP", "анонимность"
+        ):
+            with self.subTest(disclosure=disclosure):
+                self.assertIn(disclosure, consent_text)
+        self.assertEqual(confirm.call_args.kwargs["default"], "no")
+        app.launch_selected.assert_not_called()
+
+        with patch("nevision_win.messagebox.askyesno", return_value=True):
+            app.open_privacy_diagnostics()
+        app.launch_selected.assert_called_once_with(diagnostics=True)
+
+        app.selected_profile.return_value = None
+        with patch("nevision_win.messagebox.askyesno") as confirm:
+            app.open_privacy_diagnostics()
+        confirm.assert_not_called()
+
     def test_profile_template_export_requires_selected_profile(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()

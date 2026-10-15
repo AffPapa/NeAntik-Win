@@ -57,6 +57,13 @@ APP_NAME = "NeAntik Win"
 APP_VERSION = json.loads((Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "release-version.json").read_text(encoding="utf-8"))["version"]
 SITE_URL = "https://nevision-win.mail782861.chatgpt.site"
 PRIVACY_CHECK_URL = SITE_URL + "/check.html"
+PRIVACY_DIAGNOSTICS_CONSENT = (
+    "Откроется внешний сайт проверки в выбранном профиле. Сайт увидит IP-адрес "
+    "этого запроса; если настроенный proxy работает, это может быть его адрес "
+    "выхода. Маршрут отдельно не проверен.\n\n"
+    "Страница не проверяет DNS, WebRTC, UDP или весь сетевой трафик и не "
+    "подтверждает анонимность.\n\nПродолжить?"
+)
 PORTABILITY_WARNING = (
     "На другом ПК или под другой учётной записью Windows сохранённые в Chromium "
     "пароли, cookies и сессии могут не работать из-за защиты Windows DPAPI и "
@@ -3297,6 +3304,16 @@ class NeVisionApp:
         self.launch_selected(extensions=True)
 
     def open_privacy_diagnostics(self) -> None:
+        if not self.selected_profile():
+            return
+        confirmed = messagebox.askyesno(
+            APP_NAME,
+            PRIVACY_DIAGNOSTICS_CONSENT,
+            parent=self.root,
+            default=messagebox.NO,
+        )
+        if not confirmed:
+            return
         self.launch_selected(diagnostics=True)
 
     def clone_selected(self) -> None:
