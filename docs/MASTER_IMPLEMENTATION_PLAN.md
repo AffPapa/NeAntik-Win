@@ -9,9 +9,9 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.24-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.24-preview), бинарный source commit `96da9945be1558fa2fd47b372ea61315e96fbd04`, ZIP 262,386,734 байта, SHA-256 `a440ab85d2ac4a8e152ecb3f4069fad870db4c1a19d444a6973f8d82c0380591`. Локальный и повторно скачанный ZIP, sidecar и GitHub API digest совпали; verifier прошёл (1,066 файлов), упакованный EXE self-test — exit 0, Windows CI run `38733032956` — success. Public-source guard: 222 файла PASS. На момент выпуска production Site version 58 был развёрнут из source commit `0d129644c5316a25d6db67b32270afb4ac19b1d4`; после MR-034 текущая Site version 59 описана ниже. Живые `/`, `/release.json`, `/CHANGELOG.md` и ZIP HEAD были проверены, версия/source/filename/size/SHA совпали. GUI точной сборки запустился и показал пустое локальное рабочее пространство — PASS. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.24-preview.md).
+**Текущий публичный выпуск:** [0.8.25-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.25-preview), бинарный source commit `112580b7c312763928368e547fa79712d112d739`, ZIP 262,390,594 байта, SHA-256 `ffbdc26c81d6081bc7fca2777d0cc9248a5d9debb4324fa888b011251e39c353`. Свежераспакованный EXE SHA-256 `7ff61e24ecc8ffdd6e8723e4b86e1b2d328d87c1e49fcdc5afdca7139379f38b`; verifier (1,066 файлов), EXE self-test (exit 0), полный source suite 295 тестов (3 пропуска), 58 release-tool проверок, public-source guard и Windows CI run `38743935514` — PASS. Публичный ZIP повторно скачан; размер, SHA-256, sidecar и GitHub API digest совпали. Production Site version 61 развёрнут из Site source commit `430a967ced7e3be041817d523ede28b171508252`; live `/`, client bundle, `/CHANGELOG.md`, `/release.json` и ZIP HEAD подтвердили новую версию и точные metadata. GUI smoke, внешние DNS/IPv6/UDP/STUN/TURN и другая машина пока не проверены. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.25-preview.md).
 
-**Дополнение после релиза (2026-10-15):** MR-034 прошёл на точных публичных ZIP 0.8.23 → 0.8.24 для side-by-side переноса synthetic storage, proxy/DPAPI и Chromium cookie + localStorage под тем же Windows-пользователем; старый snapshot не изменился. Это не проверка in-place, иных browser stores или межмашинного переноса. Инструкции и ограничения опубликованы в Site version 59 (source commit `b794a92a6bd72dd16e0e60a9110c157048c5c277`); live `/`, `/CHANGELOG.md`, `/release.json` и GitHub ZIP HEAD вернули согласованные данные. Полный протокол — в [MR-034 evidence](RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
+**Дополнение после релиза (2026-10-15):** MR-034 прошёл на точных публичных ZIP 0.8.23 → 0.8.24 для side-by-side переноса synthetic storage, proxy/DPAPI и Chromium cookie + localStorage под тем же Windows-пользователем; старый snapshot не изменился. Это не проверка in-place, иных browser stores или межмашинного переноса. Отчёт опубликован в Site version 60 (source commit `7a43740ab687fd2ce8a4fd63873e42aba7fc3a9f`); новая версия продукта — Site version 61, описанная в release evidence ниже. Полный протокол — в [MR-034 evidence](RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
 
 0.8.23 выпущен с credential-free proxy protocol diagnostic: HTTP(S) `OPTIONS *`, SOCKS5 no-auth greeting, TLS HTTPS с обычной проверкой сертификата. Сохранённые учётные данные и сайт назначения не используются; Windows может разрешить hostname прокси через системный DNS. Это не подтверждает CONNECT, внешний маршрут, DNS/WebRTC/UDP или анонимность. Источник Chromium указывает, что встроенный SOCKS5 не поддерживает авторизацию, поэтому probe намеренно не предлагает SOCKS5 auth. Связанный набор: 164 теста (4 пропуска), в том числе 14 synthetic proxy tests; release tooling — 58, archive verifier — PASS; точные ZIP и source hashes зафиксированы в отчёте. Форма создания профиля в GUI automation осталась INCONCLUSIVE. Независимый DNS/egress observer — открытый внешний gate; не заменять его loopback-проверками.
 
@@ -524,6 +524,14 @@ main frame и двух iframe. Это только базовая линия о�
   platform skip** (2.359 с); Chromium и пользовательские данные не
   использовались. Это test-only source change, не новый бинарный релиз и не
   проверка вложенных путей сверх фиксированного allowlist.
+  В опубликованном 0.8.25-preview проверка до Chromium запуска дополнена
+  bounded direct-child enumeration только для `Default/IndexedDB` и
+  `Default/Service Worker/CacheStorage`, максимум 10 000 элементов на каталог.
+  Настоящие Windows junction в обоих деревьях и fail-closed сценарии прошли;
+  полный suite — 295 PASS, 3 пропуска. Синтетические 20 000 элементов дали
+  27,7 мс median / 29,7 мс p95 на одном Windows 11. Скрипт не обходит более
+  глубокие уровни и не устраняет TOCTOU/same-user tampering; [evidence
+  0.8.25](RELEASE_PUBLICATION_0.8.25-preview.md).
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после
