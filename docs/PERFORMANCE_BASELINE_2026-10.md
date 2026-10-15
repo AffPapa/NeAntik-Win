@@ -77,3 +77,25 @@ archive with a warm OS cache; visible-window timing is not full UI readiness,
 Chromium startup, cold boot, Windows 10, accessibility, or second-machine
 evidence. The browser core was not launched. No product code, release archive
 or Site was changed by this measurement.
+
+## Current source metadata/UI observation — 15 October 2026
+
+`tools/benchmark_runtime.py` was run at source HEAD
+`b7374b1e23f26847be824a4b40ec05dcfdadd3f7`, using disposable SQLite/profile
+data and 30 search plus 30 refresh measurements at each size. Host: Windows 11
+build 26200, Python 3.12.10, 16 logical CPUs. No user `Data/` or Chromium core
+was opened. Private raw report:
+`C:\N155\qa-performance-source-b7374b1-20261015.json`.
+
+| Synthetic profiles | UI initialization* | Search median / p95 | Refresh median / p95 |
+| ---: | ---: | ---: | ---: |
+| 10 | 114.206 ms | 0.986 / 1.586 ms | 5.006 / 6.421 ms |
+| 100 | 90.644 ms | 1.384 / 1.694 ms | 5.438 / 6.205 ms |
+| 1,000 | 99.507 ms | 5.685 / 6.329 ms | 12.660 / 15.197 ms |
+
+\* One observation of `NeAntikApp` construction plus Tk `update_idletasks`,
+before the root window is withdrawn; not a packaged cold start or complete
+interactive readiness measurement. The bounded 1000-profile search/refresh
+results do not currently demonstrate a list-performance bottleneck. They do
+not replace interaction latency, typing responsiveness, Windows 10, or
+cross-machine measurements.
