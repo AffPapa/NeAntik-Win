@@ -66,6 +66,12 @@ PRIVACY_DIAGNOSTICS_CONSENT = (
     "Страница не проверяет DNS, WebRTC, UDP или весь сетевой трафик и не "
     "подтверждает анонимность.\n\nПродолжить?"
 )
+EXTENSIONS_PRIVACY_CONSENT = (
+    "Сторонние расширения могут менять отпечаток браузера и получать доступ "
+    "к данным профиля согласно своим разрешениям. NeAntik не "
+    "проверяет и не изолирует их код. Устанавливайте только расширения, которым "
+    "доверяете.\n\nПродолжить к действию с расширениями?"
+)
 PORTABILITY_WARNING = (
     "На другом ПК или под другой учётной записью Windows сохранённые в Chromium "
     "пароли, cookies и сессии могут не работать из-за защиты Windows DPAPI и "
@@ -3169,13 +3175,20 @@ class NeVisionApp:
             ("Чистая копия", "clone", self.clone_selected, "Создать новый профиль с теми же настройками, но без cookies, истории и сессий."),
             ("Проверить", "health", self.health_selected, "Проверить состояние локальных файлов и привязку браузера."),
             ("Диагностика", "health", self.open_privacy_diagnostics, "Открыть проверку IP и видимых сайту параметров именно в этом профиле. Наш сайт увидит ваш IP; DNS и WebRTC не проверяются."),
-            ("Расширения", "profiles", self.open_extensions, "Открыть страницу расширений в браузере этого профиля."),
+            ("Расширения", "profiles", self.open_extensions,
+             "Сторонние расширения могут менять отпечаток и читать данные профиля согласно разрешениям. Устанавливайте только доверенные."),
         )
         for index, (label, icon, command, hint) in enumerate(actions):
             IconButton(action_row, label, icon, command, self.colors, self.colors["card"], kind="primary" if index == 0 else "ghost", width=190, height=38,
                        tooltip=hint).grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=3)
         for column in range(3):
             action_row.columnconfigure(column, weight=1)
+        tk.Label(
+            action_row,
+            text="Сторонние расширения могут менять отпечаток браузера и читать данные профиля — проверяйте разрешения.",
+            bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8),
+            wraplength=650, justify="left", anchor="w",
+        ).grid(row=2, column=0, columnspan=3, sticky="ew", padx=5, pady=(7, 0))
 
         info = tk.Frame(body, bg=self.colors["panel"])
         info.pack(fill="x")
@@ -3369,6 +3382,16 @@ class NeVisionApp:
             return
         if not self._allow_profile_mutation(profile):
             return
+        if extensions and not getattr(self, "_extensions_warning_acknowledged", False):
+            confirmed = messagebox.askyesno(
+                APP_NAME,
+                EXTENSIONS_PRIVACY_CONSENT,
+                parent=self.root,
+                default=messagebox.NO,
+            )
+            if not confirmed:
+                return
+            self._extensions_warning_acknowledged = True
         if self._is_profile_active(str(profile["id"])):
             if diagnostics:
                 self.root.clipboard_clear()

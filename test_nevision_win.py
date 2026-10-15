@@ -1663,6 +1663,45 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_extensions_action_warns_once_and_describes_permissions_and_fingerprint(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.selected_profile = MagicMock(return_value={
+            "id": "synthetic-profile", "name": "Synthetic",
+        })
+        app._allow_profile_mutation = MagicMock(return_value=True)
+        app._is_profile_active = MagicMock(return_value=True)
+
+        with patch("nevision_win.messagebox.askyesno", return_value=True) as confirm, \
+                patch("nevision_win.messagebox.showinfo") as show:
+            app.launch_selected(extensions=True)
+            app.launch_selected(extensions=True)
+
+        self.assertEqual(confirm.call_count, 1)
+        self.assertEqual(show.call_count, 2)
+        warning = confirm.call_args.args[1]
+        self.assertIn("отпечаток", warning)
+        self.assertIn("данным профиля", warning)
+        self.assertIn("разрешениям", warning)
+
+    def test_extensions_action_cancel_does_not_open_or_mark_acknowledged(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.selected_profile = MagicMock(return_value={
+            "id": "synthetic-profile", "name": "Synthetic",
+        })
+        app._allow_profile_mutation = MagicMock(return_value=True)
+        app._is_profile_active = MagicMock()
+
+        with patch("nevision_win.messagebox.askyesno", return_value=False) as confirm, \
+                patch("nevision_win.messagebox.showinfo") as show:
+            app.launch_selected(extensions=True)
+
+        confirm.assert_called_once()
+        app._is_profile_active.assert_not_called()
+        show.assert_not_called()
+        self.assertFalse(getattr(app, "_extensions_warning_acknowledged", False))
+
     def test_proxy_diagnostic_uses_protocol_probe_without_reading_vault_secret(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
