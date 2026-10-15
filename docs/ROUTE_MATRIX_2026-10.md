@@ -160,3 +160,30 @@ Private report:
 This is source-harness evidence against the exact release engine, not packaged
 GUI coverage. It does not establish external DNS/IPv6/UDP/TURN behavior,
 proxy-auth success, independent egress, or anonymity; P2 remains **OPEN**.
+
+### Exact public 0.8.18-preview WebRTC UDP cross-namespace controls — 15 October 2026
+
+The exact public Chromium (`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`) passed
+the direct-positive-control plus HTTP/SOCKS5 proxy comparison against a STUN
+receiver in the local Ubuntu WSL network namespace: **3 cases**, HTTP and
+SOCKS5 route checks both **PASS**. Direct sent 5 STUN Binding requests and
+5 UDP datagrams to the controlled receiver. With HTTP and SOCKS5 proxies
+selected, the receiver saw 0 STUN requests and 0 UDP datagrams; Chromium NetLog
+reported 0 UDP sends in both proxy cases. SOCKS5 positive route controls saw
+one synthetic route-control request and four proxied page requests. The harness
+used disposable profiles under `Data/Profiles`, production
+`BrowserLauncher.ensure_profile_path_is_isolated` before each Popen, and a
+byte-identical sandbox-ACL prepared copy. The Windows junction regression
+passed immediately before the run.
+
+Harness source commit `9b406be691f2ed3bc34528e70a601594855e483c`;
+`webrtc_udp_integration.py` SHA-256
+`7a4c56340b806028a686797fc88bbbeed0c81b4c40cf6bd108d4c68e9e8d64db`;
+`wsl_stun_route_audit.py` SHA-256
+`10c97c0c8dccb9b5a00a8796c025872fd8a686964bec5abd436717b4fd0d0dba`.
+Private report: `C:\N155\wsl-stun-0.8.18-preview-20261015.json`.
+
+This is a same-machine cross-network-namespace control, not an independent
+public egress/packet observer. External DNS, public IPv6, TURN, another host,
+proxy authentication and anonymity remain **NOT RUN**; P2 remains **OPEN**.

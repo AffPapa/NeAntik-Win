@@ -362,6 +362,14 @@ main frame и двух iframe. Это только базовая линия о�
   Это подтверждает только локальную fail-closed конфигурацию; внешний DNS,
   IPv6, TURN и второй egress observer по-прежнему **NOT RUN**. Точный отчёт —
   [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md).
+  На точном публичном Chromium 0.8.18-preview WSL cross-namespace WebRTC gate
+  прошёл direct positive-control + HTTP + SOCKS5: WSL receiver получил 5 STUN
+  Binding/UDP datagrams direct и ноль при обоих proxy; Chromium NetLog показал
+  ноль UDP sends в proxy случаях. SOCKS5 synthetic route controls прошли.
+  Это сильнее Windows-loopback listener, но всё ещё та же машина, не публичный
+  egress/packet observer; внешние DNS, IPv6, TURN, другой хост и proxy auth
+  остаются **NOT RUN**. Протокол и provenance — в route matrix и
+  [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.4 Анонимная сеть:** отдельно принять архитектурное решение на основе
   Tor Browser / Tor спецификаций и лицензий. Нельзя переименовать proxy
   в «Tor-режим». Нужны независимое ревью, план обновлений и UX предупреждений.

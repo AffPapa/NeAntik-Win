@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import ipaddress
 import json
 import os
@@ -119,7 +120,17 @@ def main() -> int:
         sink.snapshot()  # Positive control for host-to-WSL TCP reachability.
         root = Path(tempfile.mkdtemp(prefix="neantik-wsl-stun-qa-"))
         try:
-            chrome = prepare_disposable_engine(args.chrome, root)
+            source_chrome = args.chrome.resolve()
+            if not (source_chrome.parent / "ENGINE_PROVENANCE.json").is_file():
+                raise RuntimeError("Portable engine provenance is required; installed Chrome is not equivalent")
+            source_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+            chrome = prepare_disposable_engine(source_chrome, root)
+            prepared_hash = hashlib.sha256(chrome.read_bytes()).hexdigest()
+            if prepared_hash != source_hash:
+                raise RuntimeError("Disposable ACL-prepared engine executable hash changed")
+            report["browser_executable_sha256"] = source_hash
+            report["disposable_engine_acl_prepared"] = True
+            report["prepared_executable_sha256"] = prepared_hash
             report["cases"].append(run_case(chrome, root, False, args.wsl_host,
                                             remote_sink=sink))
             report["cases"].append(run_case(chrome, root, True, args.wsl_host,

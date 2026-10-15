@@ -102,6 +102,19 @@ independently below.
   source engine SHA-256 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
   Private report: `C:\N155\download-integration-final-diagnostic-0.8.18-preview-20261015.json`.
   Source harness only; it is not packaged GUI or cross-machine/cross-account proof.
+- `tools/wsl_stun_route_audit.py` + `tools/webrtc_udp_integration.py` on the
+  exact public 0.8.18 Chromium: **PASS**, three same-machine Windows↔Ubuntu WSL
+  network-namespace cases. Direct positive control sent 5 STUN Binding requests
+  and 5 UDP datagrams. HTTP and SOCKS5 proxy cases each produced 0 receiver STUN
+  requests, 0 receiver UDP datagrams and 0 NetLog UDP sends; SOCKS5 route
+  controls confirmed one synthetic route-control and four proxied page
+  requests. Both proxy-policy evaluators passed. Harness profiles use
+  `Data/Profiles` and the product path isolation check before each Popen.
+  Harness source commit `9b406be691f2ed3bc34528e70a601594855e483c`; source
+  Chromium SHA-256 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+  Private report: `C:\N155\wsl-stun-0.8.18-preview-20261015.json`.
+  Same-host namespace control only; external egress, DNS, public IPv6, TURN,
+  proxy authentication and GUI are not covered.
 
 Not rerun on this exact archive: proxy-auth success and broader browser/network
 integration suites. Migration coverage is same-account, synthetic and limited
