@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.25-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.25-preview), бинарный source commit `112580b7c312763928368e547fa79712d112d739`, ZIP 262,390,594 байта, SHA-256 `ffbdc26c81d6081bc7fca2777d0cc9248a5d9debb4324fa888b011251e39c353`. Свежераспакованный EXE SHA-256 `7ff61e24ecc8ffdd6e8723e4b86e1b2d328d87c1e49fcdc5afdca7139379f38b`; verifier (1,066 файлов), EXE self-test (exit 0), полный source suite 295 тестов (3 пропуска), 58 release-tool проверок, public-source guard, Windows CI run `38743935514` и hosted Windows 2022 second-host run `38745934605` — PASS. Публичный ZIP повторно скачан; размер, SHA-256, sidecar и GitHub API digest совпали. Production Site version 62 развёрнут из Site source commit `9039bfce0109276d990a184e233d9f0513b50535` после проверки Site version 61; live `/`, client bundle, `/CHANGELOG.md`, `/release.json` и ZIP HEAD подтвердили новую версию и точные metadata. GUI smoke, внешние DNS/IPv6/UDP/STUN/TURN и вторая физическая машина пока не проверены. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.25-preview.md).
+**Текущий публичный выпуск:** [0.8.26-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.26-preview), бинарный source commit `2c868bee8a18ae9776009e0a253b862ecbaef0b0`, ZIP 262,391,420 байт, SHA-256 `77e5b36649ff198c6982b49bb17f656377e31610880e8a0f0d6f17ee8cda5955`, EXE SHA-256 `c80e93c49af26aca089bb929955cda1b911cb1f650c4ab5d25103d7442e1d0e3`. Archive verifier (1,066 файлов), packaged EXE self-test, полный source suite 295 тестов (3 пропуска), GUI callback regression 21/21, 58 release-tool проверок, public-source guard и Windows CI run `38749404602` — PASS. Окно изолированной portable-сборки открылось; это не ручная keyboard-only/UIA/NVDA проверка. Публичный ZIP повторно скачан: размер и SHA-256 совпали с локальным и GitHub API digest. Production Site version 63 развёрнут из Site source commit `279d40d0364626d5c4e936e37961ddccb0980cc8`; live `/`, `/release.json`, `/CHANGELOG.md` и ZIP HEAD подтвердили версию/commit/хеш/длину — PASS. Внешние DNS/IPv6/UDP/STUN/TURN, Windows 10/ARM64 и вторая физическая машина — NOT RUN. [Точный отчёт выпуска](RELEASE_PUBLICATION_0.8.26-preview.md).
 
 **Дополнение после релиза (2026-10-15):** MR-034 прошёл на точных публичных ZIP 0.8.23 → 0.8.24 для side-by-side переноса synthetic storage, proxy/DPAPI и Chromium cookie + localStorage под тем же Windows-пользователем; старый snapshot не изменился. Это не проверка in-place, иных browser stores или межмашинного переноса. Отчёт опубликован в Site version 60 (source commit `7a43740ab687fd2ce8a4fd63873e42aba7fc3a9f`); новая версия продукта — Site version 61, описанная в release evidence ниже. Полный протокол — в [MR-034 evidence](RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
 
@@ -710,8 +710,10 @@ main frame и двух iframe. Это только базовая линия о�
   `tools/gui_regression.py` — **21/21 PASS** после исправления устаревшего
   имени кнопки в одном тесте (`TCP-проверка proxy` → `Проверить proxy`). Это
   callback-level regression прямых вызовов обработчиков, не маршрутизация
-  событий Tcl/Tk, UIA/MSAA/NVDA или физическая keyboard-only проверка;
-  portable-бинарник не собирался.
+  событий Tcl/Tk, UIA/MSAA/NVDA или физическая keyboard-only проверка.
+  Она включена в portable 0.8.26-preview, который собран и опубликован после
+  archive/self-test/GUI-window smoke gate; физический клавиатурный и screen-reader
+  gate остаются открыты. См. [отчёт 0.8.26](RELEASE_PUBLICATION_0.8.26-preview.md).
 - **P4.3 Производительность:** бюджет запуска менеджера, открытия профиля,
   памяти в простое, поиска по 100/1000 профилям и размера ZIP. Измерения
   проводить на заданном железе, пять прогонов с медианой/разбросом.
