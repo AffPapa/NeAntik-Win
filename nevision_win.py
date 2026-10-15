@@ -29,6 +29,7 @@ import threading
 import time
 import uuid
 import zipfile
+import zlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -1382,13 +1383,46 @@ class Storage:
                 zip_out.writestr("nevision-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
                 for file_path, relative in files_to_archive:
                     zip_out.write(file_path, Path("profile") / relative)
+            self._verify_created_backup(partial, manifest, files_to_archive)
             os.replace(filesystem_path(partial), filesystem_path(archive))
-        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+        except (OSError, RuntimeError, zipfile.BadZipFile, EOFError, zlib.error, NeVisionError) as exc:
             with contextlib.suppress(FileNotFoundError):
                 filesystem_path(partial).unlink()
             raise NeVisionError(f"Не удалось создать backup: {exc}") from exc
         self.log("profile.backup_created", profile_id, str(archive.name))
         return archive
+
+    @classmethod
+    def _verify_created_backup(
+        cls,
+        archive_path: Path,
+        expected_manifest: dict[str, Any],
+        files_to_archive: list[tuple[Path, Path]],
+    ) -> None:
+        """Verify the completed ZIP and its CRCs before publishing the backup."""
+        cls._preflight_backup_archive(archive_path)
+        try:
+            with zipfile.ZipFile(filesystem_path(archive_path), "r") as archive:
+                infos = archive.infolist()
+                names = [item.filename for item in infos]
+                expected = {"nevision-manifest.json", *("profile/" + relative.as_posix() for _, relative in files_to_archive)}
+                if len(names) != len(set(names)) or set(names) != expected:
+                    raise NeVisionError("Состав backup не совпадает с исходными данными профиля.")
+                cls._validated_backup_members(infos)
+                manifest_info = archive.getinfo("nevision-manifest.json")
+                if manifest_info.file_size > MAX_BACKUP_MANIFEST_BYTES:
+                    raise NeVisionError("Manifest backup превышает безопасный размер.")
+                try:
+                    actual_manifest = json.loads(archive.read(manifest_info).decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError, KeyError) as exc:
+                    raise NeVisionError("Manifest созданного backup повреждён.") from exc
+                if actual_manifest != expected_manifest:
+                    raise NeVisionError("Manifest созданного backup не совпадает с профилем.")
+                corrupt_member = archive.testzip()
+                if corrupt_member is not None:
+                    raise NeVisionError(f"CRC-проверка backup не прошла: {Path(corrupt_member).name}.")
+        except (zipfile.BadZipFile, EOFError, OSError, RuntimeError, zlib.error) as exc:
+            raise NeVisionError("Не удалось проверить целостность созданного backup.") from exc
 
     @staticmethod
     def _preflight_backup_archive(archive_path: Path) -> None:
@@ -1399,7 +1433,7 @@ class Storage:
         if end_record is None or entries_index is None or directory_size_index is None:
             raise NeVisionError("Версия Python не поддерживает безопасную проверку backup.")
         try:
-            with archive_path.open("rb") as source:
+            with filesystem_path(archive_path).open("rb") as source:
                 metadata = end_record(source)
         except Exception as exc:
             raise NeVisionError("Не удалось безопасно прочитать метаданные backup.") from exc

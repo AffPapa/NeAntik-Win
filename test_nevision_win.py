@@ -294,6 +294,55 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(first.read_bytes(), original)
         self.assertFalse(list(self.storage.paths.backups.glob("*.partial")))
 
+    def test_backup_verification_failure_preserves_prior_archive_and_removes_partial(self):
+        profile_id = self._profile_with_file()
+        first = self.storage.backup_profile(profile_id)
+        original = first.read_bytes()
+
+        with patch.object(Storage, "_verify_created_backup", side_effect=NeVisionError("synthetic CRC failure")):
+            with self.assertRaisesRegex(NeVisionError, "synthetic CRC failure"):
+                self.storage.backup_profile(profile_id)
+
+        self.assertEqual(first.read_bytes(), original)
+        self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [first])
+        self.assertFalse(list(self.storage.paths.backups.glob("*.partial")))
+
+    def test_created_backup_verifier_rejects_corrupted_member_crc(self):
+        profile_id = self._profile_with_file()
+        profile = self.storage.get_profile(profile_id)
+        source = self.storage.profile_path(profile_id)
+        files_to_archive = self.storage._backup_files(source)
+        manifest = {
+            "format": "nevision-profile-backup-v1",
+            "created_at": "2026-10-15T00:00:00Z",
+            "profile": {key: profile.get(key) for key in ("id", "name", "group_name", "tags", "notes", "browser_family")},
+            "proxy_credentials_included": False,
+            "browser_session_data_included": True,
+            "encrypted": False,
+        }
+        archive_path = self.storage.paths.backups / "synthetic-corrupt.zip"
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("nevision-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            for file_path, relative in files_to_archive:
+                archive.write(file_path, Path("profile") / relative)
+
+        with zipfile.ZipFile(archive_path, "r") as archive:
+            member = archive.getinfo("profile/Default/state.txt")
+            header_offset = member.header_offset
+        with archive_path.open("r+b") as target:
+            target.seek(header_offset)
+            local_header = target.read(30)
+            name_size = int.from_bytes(local_header[26:28], "little")
+            extra_size = int.from_bytes(local_header[28:30], "little")
+            target.seek(header_offset + 30 + name_size + extra_size + 1)
+            original_byte = target.read(1)
+            self.assertEqual(len(original_byte), 1)
+            target.seek(-1, os.SEEK_CUR)
+            target.write(bytes([original_byte[0] ^ 0x01]))
+
+        with self.assertRaises(NeVisionError):
+            Storage._verify_created_backup(archive_path, manifest, files_to_archive)
+
     def test_backup_enforces_the_same_limits_as_restore(self):
         profile_id = self.storage.save_profile({"name": "Many files"})
         folder = self.storage.profile_path(profile_id)

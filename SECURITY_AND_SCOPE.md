@@ -84,7 +84,7 @@ Metadata is stored in SQLite and browser data lives in `Data/`. There is no NeAn
 
 Proxy passwords use Windows DPAPI for the current Windows user. Software running as that user may be able to decrypt them. Moving a database to another account or PC does not make its secrets decryptable there. Browser DPAPI/App-Bound Encryption also limits portability of saved browser credentials and sessions; cross-PC cookie portability is not guaranteed.
 
-Backup ZIPs are unencrypted and can include cookies, active sessions, history and browser password stores. They exclude proxy-vault secrets, and restored profiles have no proxy assigned. Keep backups private. A UI warning and manifest fields explicitly describe this sensitivity.
+Backup ZIPs are unencrypted and can include cookies, active sessions, history and browser password stores. They exclude proxy-vault secrets, and restored profiles have no proxy assigned. Keep backups private. A UI warning and manifest fields explicitly describe this sensitivity. Before publishing a newly generated archive, NeAntik verifies the expected member set, manifest and member CRCs; this detects many incomplete/corrupt writes but does not encrypt the archive or protect against another process running as the same Windows user. CRC verification reads the completed archive again and adds I/O proportional to its size.
 
 Clipboard password cleanup occurs after 30 seconds and on normal close, only when the current clipboard still equals the copied password. It does not erase Windows clipboard history, cloud clipboard synchronization or copies retained elsewhere; crashes may prevent cleanup.
 
