@@ -1,8 +1,32 @@
-# Chromium lifecycle checkpoint — 13 October 2026
+# Chromium lifecycle checkpoint — 16 October 2026
 
 This is a dated **P5.1 decision record**, not a standing claim that the
 portable browser is current or secure. Check the live release channel again
 before each new release and after a security advisory.
+
+## 16 October checkpoint for 0.8.30-preview
+
+The current public portable release is `v0.8.30-preview`; its bundled,
+unmodified Chromium is `155.0.8059.79` (see the exact archive identity and
+provenance in [release evidence](RELEASE_PUBLICATION_0.8.30-preview.md)). The
+official Chrome Releases [Stable Channel update of 13 October 2026](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_01668083673.html)
+announced `155.0.8059.79/.80` for Windows and Mac and `155.0.8059.79` for
+Linux. It reports 37 security fixes, including critical issues. Thus the
+bundled version matches the announced general Stable version observed on
+16 October. This is a channel/version comparison only: it does not prove that
+every Chrome fix applies identically to this unbranded build, that its source
+is byte-for-byte reproducible, or that the build is immune to undisclosed
+vulnerabilities. The portable core has no automatic updater.
+
+The `156.0.8078.12/.13` announcement of 7 October was **Early Stable** for a
+small percentage of users, not a later general Stable security release. It is
+not by itself a reason to replace the current release. Recheck the official
+general Stable channel and advisories before the next binary release.
+
+**Decision:** no rebuild solely for this checkpoint; the current bundled
+version matches the latest general Stable announcement found. This does not
+close the lifecycle gate for a future release and does not change the
+immutable 0.8.30 artifact or its recorded test results.
 
 ## 15 October checkpoint for 0.8.18-preview
 
