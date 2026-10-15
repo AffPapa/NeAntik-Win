@@ -6,7 +6,8 @@ Chromium privacy patch and makes no anonymity claim.
 
 ## Identity
 
-- Browser source commit and immutable tag target: `4c06345c33ad09676a9b967b12d12f8964ea197e` (`v0.8.20-preview`).
+- Browser source commit and tag target: `4c06345c33ad09676a9b967b12d12f8964ea197e` (`v0.8.20-preview`).
+- Tag note: GitHub reports this already-published ref as lightweight (`object.type=commit`), created by the release command's `--target`; it resolves to the exact source commit. It was not rewritten. Future releases use a pre-pushed annotated tag plus `gh release create --verify-tag`.
 - GitHub prerelease: <https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.20-preview>.
 - ZIP: `NeAntikWin-portable-v0.8.20-preview.zip`, 262,379,286 bytes.
 - ZIP SHA-256: `b3f4afe05240453e4a3cbb830a0c4004fbfa263fa1720de4ce7543063e7e566f`.

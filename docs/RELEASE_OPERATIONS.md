@@ -18,8 +18,13 @@ release test matrix or authorize publishing a candidate that failed a gate.
    Distinguish PASS, FAIL, NOT RUN and INCONCLUSIVE. Never promote a local
    candidate test into evidence for a different ZIP or machine.
 4. Check that the version tag does not already exist. Create and push an
-   immutable annotated tag at the recorded binary source commit. Do not move an
-   existing tag or overwrite a published release.
+   annotated tag at the recorded binary source commit (`git tag -a <tag>
+   <commit> -m <message>`, then push that exact tag). Confirm the remote tag
+   resolves to the binary source commit. Create the release with `gh release
+   create <tag> ... --verify-tag` and omit `--target`; allowing the release
+   command to invent the tag can produce a lightweight ref instead. Treat the
+   published tag as immutable: do not move an existing tag or overwrite a
+   published release.
 
 ## 2. Publish and independently verify GitHub assets
 
