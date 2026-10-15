@@ -4,6 +4,10 @@ Status: native source patch shipped in 0.8.x-preview, not an anonymity
 claim. The app and browser are open source; the modified Chromium files retain
 their upstream BSD-style license. See [the full implementation plan](MASTER_IMPLEMENTATION_PLAN.md).
 
+This document describes a historical patch, not the 0.8.17-preview candidate.
+That candidate uses stock Chromium and discloses `fingerprint_modification: false`;
+it does not bundle or activate the patch below.
+
 ## What changes
 
 The published [`chromium-privacy-baseline.patch`](chromium-privacy-baseline.patch)
@@ -24,7 +28,8 @@ modifies exactly three Chromium source files at upstream commit
 The SHA-256 of `git diff HEAD --binary --` for those three files, in the order
 used by `tools/prepare_source_built_chromium.py`, is
 `24977527be3635ac888d7527c9ff4176b06e2ddc09a1d982001564a316a5d8f7`.
-The separate build-compatibility diff remains
+For the historical Chromium 155.0.8059.40 build, the separate build-
+compatibility diff was
 `fcadf05210669f23925f165d28693e7713f9246c6d382ba7ba24289c4ce81079`.
 Staging rejects any other tracked change, a mismatched diff hash, or a patch
 file that cannot be reverse-applied to the exact source tree. The receipt and

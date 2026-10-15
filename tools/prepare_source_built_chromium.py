@@ -1,8 +1,11 @@
 """Stage a locally built Chromium runtime for a portable release.
 
-The source checkout must be at a pinned upstream commit. Only explicitly
-approved build-compatibility and privacy-baseline patches may differ from it.
-This tool never changes the source checkout or the build output.
+The source checkout must be at a pinned upstream commit. Only an explicitly
+approved build-compatibility patch and, when intentionally used, an approved
+privacy-baseline patch may differ from it. Stock Chromium with no runtime patch
+is valid when release metadata explicitly discloses that no fingerprint
+modification is included. This tool never changes the source checkout or build
+output.
 """
 
 from __future__ import annotations

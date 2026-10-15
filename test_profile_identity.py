@@ -10,32 +10,10 @@ import zipfile
 from unittest.mock import Mock, patch
 
 import profile_identity as identity
-from nevision_win import (AppPaths, BrowserLauncher, NATIVE_PREVIEW_PATCH_SHA256,
-                          NeVisionError, Storage)
+from nevision_win import AppPaths, BrowserLauncher, NeVisionError, Storage
 
 
 class OrdinaryIdentityTests(unittest.TestCase):
-    @staticmethod
-    def fake_bundled_core(root: Path, native: bool) -> Path:
-        engine = root / "Engine" / "Chromium"
-        engine.mkdir(parents=True)
-        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak"):
-            (engine / name).write_bytes(b"fixture")
-        receipt = {"format": "neantik-chromium-source-build-v1", "chromium_version": "155.0.8059.40",
-                   "source_commit": "cfaadc5a132d78e1828635aa8405a499f3e14864",
-                   "privacy_patch_sha256": NATIVE_PREVIEW_PATCH_SHA256 if native else "a" * 64}
-        if native:
-            receipt["native_persona_patch_sha256"] = NATIVE_PREVIEW_PATCH_SHA256
-            receipt["native_persona_core_info"] = {
-                "engine_id": "neantik-chromium", "schema": 2,
-                "compiled_stage": 11,
-                "version": receipt["chromium_version"], "source_commit": receipt["source_commit"],
-                "capabilities": {key: True for key in ("stable_seed", "hardware_concurrency",
-                                                  "device_memory", "canvas_site_scoped_experimental", "timezone")}
-                                | {"canvas": False, "canvas_opaque_srgb_uint8": False}}
-        (engine / "ENGINE_PROVENANCE.json").write_text(json.dumps(receipt), encoding="utf-8")
-        return engine / "chrome.exe"
-
     def test_ordinary_profiles_never_add_browser_override_flags(self):
         ordinary = identity.ordinary_identity()
         self.assertEqual(identity.validate_identity(ordinary), ordinary)
@@ -58,15 +36,14 @@ class OrdinaryIdentityTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(identity.CoreError):
                 identity.validate_identity(invalid)
 
-    def test_new_native_preview_identity_is_canonical_and_distinct(self):
+    def test_native_preview_metadata_is_accepted_for_legacy_recovery_but_never_launched(self):
         first = identity.native_preview_identity()
         second = identity.native_preview_identity()
         self.assertNotEqual(first["seed"], second["seed"])
         self.assertEqual(identity.validate_identity(first), first)
         self.assertEqual(identity.native_preview_identity(123456)["seed"], "123456")
-        self.assertEqual(identity.identity_arguments(identity.native_preview_identity(123456)), [
-            "--neantik-fingerprint-seed=123456", "--neantik-hardware-concurrency=4",
-            "--neantik-device-memory=8", "--neantik-timezone=UTC"])
+        with self.assertRaisesRegex(identity.CoreError, "отключённый экспериментальный режим"):
+            identity.identity_arguments(identity.native_preview_identity(123456))
 
     def test_native_preview_rejects_malformed_or_legacy_seed(self):
         for seed in (0, -1, 2**64, True):
@@ -86,7 +63,7 @@ class OrdinaryIdentityTests(unittest.TestCase):
                 "hardware_concurrency": 8, "device_memory": "8"}})
             launcher = BrowserLauncher(storage)
             with patch.object(launcher, "resolve_browser") as stock, patch("nevision_win.subprocess.Popen") as spawn:
-                with self.assertRaisesRegex(NeVisionError, "экспериментальный профиль"):
+                with self.assertRaises(NeVisionError):
                     launcher.launch(storage.get_profile(profile_id))
             stock.assert_not_called()
             spawn.assert_not_called()
@@ -106,6 +83,7 @@ class OrdinaryIdentityTests(unittest.TestCase):
             args = spawn.call_args.args[0]
             self.assertEqual(args[0], str(stock_browser))
             self.assertEqual(identity.identity_arguments(storage.get_profile(profile_id)["fingerprint"]), [])
+            self.assertFalse(any(arg.startswith("--neantik-") for arg in args))
             self.assertFalse(any("fingerprint" in arg.lower() or "user-agent" in arg.lower() for arg in args))
 
     @unittest.skipUnless(sys.platform == "win32", "Windows junction launch gate")
@@ -150,73 +128,19 @@ class OrdinaryIdentityTests(unittest.TestCase):
                 if junction.is_junction():
                     os.rmdir(junction)
 
-    def test_native_preview_rejects_old_core_before_spawn(self):
+    def test_native_preview_profile_is_blocked_and_unchanged_before_browser_selection(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-guard-") as temporary:
             root = Path(temporary)
             storage = Storage(AppPaths(root))
-            profile_id = storage.save_profile({"name": "Preview", "fingerprint": identity.native_preview_identity(123456)})
-            self.fake_bundled_core(root, native=False)
+            original = identity.native_preview_identity(123456)
+            profile_id = storage.save_profile({"name": "Preview", "fingerprint": original})
             launcher = BrowserLauncher(storage)
-            with patch("nevision_win.subprocess.Popen") as spawn:
-                with self.assertRaisesRegex(NeVisionError, "проверенное встроенное ядро"):
+            with patch.object(launcher, "resolve_browser") as resolve, patch("nevision_win.subprocess.Popen") as spawn:
+                with self.assertRaisesRegex(NeVisionError, "отключённый экспериментальный режим"):
                     launcher.launch(storage.get_profile(profile_id))
+            resolve.assert_not_called()
             spawn.assert_not_called()
-
-    def test_native_preview_rejects_previous_handshake_schema(self):
-        with tempfile.TemporaryDirectory(prefix="neantik-native-schema-guard-") as temporary:
-            root = Path(temporary)
-            storage = Storage(AppPaths(root))
-            engine = self.fake_bundled_core(root, native=True)
-            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            receipt["native_persona_core_info"]["schema"] = 1
-            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
-
-    def test_native_preview_rejects_old_stable_canvas_capability(self):
-        with tempfile.TemporaryDirectory(prefix="neantik-native-canvas-guard-") as temporary:
-            root = Path(temporary)
-            storage = Storage(AppPaths(root))
-            engine = self.fake_bundled_core(root, native=True)
-            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            capabilities = receipt["native_persona_core_info"]["capabilities"]
-            capabilities["canvas_opaque_srgb_uint8"] = True
-            capabilities["canvas_site_scoped_experimental"] = False
-            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
-
-    def test_native_preview_rejects_previous_v4b_core(self):
-        with tempfile.TemporaryDirectory(prefix="neantik-native-old-patch-") as temporary:
-            root = Path(temporary)
-            storage = Storage(AppPaths(root))
-            engine = self.fake_bundled_core(root, native=True)
-            receipt_path = engine.parent / "ENGINE_PROVENANCE.json"
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            old_hash = "bba02390999c33bcf6097625c03093022ed534c316184462cc8468efbc79b708"
-            receipt["privacy_patch_sha256"] = old_hash
-            receipt["native_persona_patch_sha256"] = old_hash
-            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-            self.assertIsNone(BrowserLauncher(storage).native_persona_capabilities())
-
-    def test_native_preview_uses_only_verified_bundled_core(self):
-        with tempfile.TemporaryDirectory(prefix="neantik-native-launch-") as temporary:
-            root = Path(temporary)
-            storage = Storage(AppPaths(root))
-            profile_id = storage.save_profile({"name": "Preview", "fingerprint": identity.native_preview_identity(123456)})
-            engine = self.fake_bundled_core(root, native=True)
-            launcher = BrowserLauncher(storage)
-            process = Mock()
-            process.poll.return_value = None
-            with patch.object(launcher, "ensure_bundled_sandbox_access"), \
-                 patch.object(storage, "wait_for_chromium_lock"), \
-                 patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
-                launcher.launch(storage.get_profile(profile_id))
-            args = spawn.call_args.args[0]
-            self.assertEqual(args[0], str(engine))
-            self.assertIn("--neantik-fingerprint-seed=123456", args)
-            self.assertIn("--neantik-timezone=UTC", args)
-            self.assertEqual(storage.get_profile(profile_id)["browser_family"], "chromium")
+            self.assertEqual(storage.get_profile(profile_id)["fingerprint"], original)
 
     def test_native_preview_backup_restore_preserves_identity_in_v3(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-backup-") as temporary:
@@ -233,6 +157,30 @@ class OrdinaryIdentityTests(unittest.TestCase):
             self.assertNotEqual(restored_id, profile_id)
             self.assertEqual(storage.get_profile(restored_id)["fingerprint"], identity_value)
             self.assertEqual((storage.profile_path(restored_id) / "smoke.txt").read_text(encoding="utf-8"), "disposable")
+
+    def test_schema1_legacy_marker_backup_restore_stays_blocked(self):
+        with tempfile.TemporaryDirectory(prefix="neantik-legacy-marker-backup-") as temporary:
+            storage = Storage(AppPaths(Path(temporary)))
+            blocked = {"schema": 1, "mode": identity.LEGACY_UNAVAILABLE}
+            profile_id = storage.save_profile({"name": "Legacy unavailable", "fingerprint": blocked})
+            (storage.profile_path(profile_id) / "state.txt").write_text("synthetic", encoding="utf-8")
+
+            archive = storage.backup_profile(profile_id)
+            with zipfile.ZipFile(archive) as packed:
+                manifest = json.loads(packed.read("nevision-manifest.json"))
+            self.assertEqual(manifest["format"], "neantik-profile-backup-v3")
+            self.assertEqual(manifest["profile"]["fingerprint"], blocked)
+
+            restored_id = storage.restore_profile(archive)
+            restored = storage.get_profile(restored_id)
+            self.assertEqual(restored["fingerprint"], blocked)
+            self.assertEqual((storage.profile_path(restored_id) / "state.txt").read_text(encoding="utf-8"), "synthetic")
+            launcher = BrowserLauncher(storage)
+            with patch.object(launcher, "resolve_browser") as resolve, patch("nevision_win.subprocess.Popen") as spawn:
+                with self.assertRaisesRegex(NeVisionError, "отключённый экспериментальный режим"):
+                    launcher.launch(restored)
+            resolve.assert_not_called()
+            spawn.assert_not_called()
 
     def test_native_backup_cannot_be_downgraded_or_launder_legacy_format(self):
         with tempfile.TemporaryDirectory(prefix="neantik-native-backup-format-") as temporary:

@@ -56,8 +56,7 @@ def identity_arguments(value: Mapping[str, Any]) -> list[str]:
     identity = validate_identity(value)
     if identity["mode"] == "ordinary":
         return []
-    if identity["mode"] == NATIVE_PREVIEW:
-        return [f"--neantik-fingerprint-seed={identity['seed']}",
-                "--neantik-hardware-concurrency=4", "--neantik-device-memory=8",
-                "--neantik-timezone=UTC"]
-    raise CoreError("Запуск старого экспериментального профиля отключён; используйте обычный профиль Chrome или Edge.")
+    raise CoreError(
+        "Этот профиль использует отключённый экспериментальный режим. "
+        "Исходные данные сохранены; создайте чистую копию без cookies, истории и сессий."
+    )

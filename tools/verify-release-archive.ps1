@@ -164,8 +164,9 @@ try {
             if ($engineReceipt.channel -ne 'stable' -or $manifest.engine.source_tree -ne $engineReceipt.source_tree -or
                 $manifest.engine.build_args_sha256 -ne $engineReceipt.build_args_sha256 -or
                 $manifest.engine.build_patch_sha256 -ne $engineReceipt.build_patch_sha256 -or
-                $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
-                ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$') -or
+                $engineReceipt.source_commit -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or
+                $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
+                $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$' -or
                 (Get-ArchiveHash $entries["${prefix}LICENSE"]) -ne $engineReceipt.license_sha256) { throw 'Source-built Chromium provenance is invalid.' }
             $receiptPrivacyPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$engineReceipt.privacy_patch_sha256 } else { '' }
             $manifestPrivacyPatch = if ($manifest.engine.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$manifest.engine.privacy_patch_sha256 } else { '' }
@@ -194,7 +195,6 @@ try {
                 throw 'Native persona provenance is incomplete.'
             }
             $hasApprovedFingerprintPatch = [bool]$receiptPrivacyPatch
-            if ($publicPreview -and $numericVersion -ge [version]'0.8.0' -and -not $hasApprovedFingerprintPatch) { throw 'This release requires the reviewed native privacy patch.' }
             if ($publicPreview -and $numericVersion -ge [version]'0.5.1') {
                 $expectedLocales = 'en-US.pak,ru.pak,th.pak'
                 $receiptLocales = @($engineReceipt.locales | Sort-Object) -join ','
@@ -214,6 +214,10 @@ try {
     if ($hasFingerprintField -and $manifest.fingerprint_modification -isnot [bool]) { throw 'fingerprint_modification must be a boolean.' }
     if ($hasApprovedFingerprintPatch -and (-not $hasFingerprintField -or -not $manifest.fingerprint_modification)) { throw 'Native privacy patch must be disclosed in release manifest.' }
     if ($hasFingerprintField -and $manifest.fingerprint_modification -and -not $hasApprovedFingerprintPatch) { throw 'Fingerprint modification has no reviewed browser patch provenance.' }
+    if ($publicPreview -and $numericVersion -ge [version]'0.8.0' -and $engineEntries.Count -gt 0 -and -not $hasApprovedFingerprintPatch -and
+        (-not $hasFingerprintField -or $manifest.fingerprint_modification -ne $false)) {
+        throw 'Stock Chromium preview must explicitly disclose fingerprint_modification=false.'
+    }
     # High-confidence patterns supplement the source scan and runtime-path guard.
     # Never print matched values; a clean regex scan is not a proof of no secrets.
     $secretPattern = '\bgh[pousr]_[A-Za-z0-9_]{20,}\b|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b|\bAKIA[0-9A-Z]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----'

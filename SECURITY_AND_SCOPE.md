@@ -1,8 +1,10 @@
 # Security, privacy and scope
 
-The historical 0.8.5-preview behavior and 0.8.6-preview V4b addition are
-described separately. Check the official download page and its checksum for
-the version currently available; local candidate tests are not public-release proof.
+The 0.8.17-preview candidate described below bundles stock Chromium and does not
+modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
+builds are historical and do not describe this candidate. Check the official
+download page and checksum for the current artifact; local tests alone are not
+public-release proof.
 
 The published 0.8.7-preview rejects hardlinked files during backup to avoid
 copying data outside a profile into the unencrypted ZIP. The exact public
@@ -10,7 +12,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## 0.8.6-preview V4b boundary
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.17-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
@@ -45,7 +47,7 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-This downloadable edition manages local directories and bundles unbranded Chromium 155.0.8059.40 built from pinned upstream source and a published native privacy patch. New profiles use that browser without an installed Chrome/Edge. Existing profiles pinned to installed Chrome/Edge retain their browser family. In V5 ordinary profiles retain stock CPU/RAM/timezone; the separate opt-in experimental mode caps exposed CPU/RAM and uses UTC. These partial changes do not create a coherent per-profile identity or establish anonymity. Legacy experimental engine profiles are blocked from launch and remain on disk. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The launcher rejects reparse points at the portable data, profiles, and selected profile roots before launch, but does not scan every nested Chromium directory for same-user filesystem tampering. This root-path check must not be read as isolation from another process running as the same Windows account. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
+The 0.8.17-preview candidate manages local directories and bundles unbranded stock Chromium `155.0.8059.79`, built from pinned upstream source with a build-compatibility patch only. `fingerprint_modification` is explicitly `false`; NeAntik does not override browser/device fingerprint values. New profiles use bundled Chromium without installed Chrome/Edge; existing Chrome/Edge profiles remain pinned to their browser family. Experimental native-persona profiles from older releases stay on disk and can be backed up/restored, but this build refuses to launch them. “Чистая копия” creates a new empty profile and carries only settings; it does not copy cookies, history or sessions. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The launcher rejects reparse points at the portable data, profiles, and selected profile roots before launch, but does not scan every nested Chromium directory for same-user filesystem tampering. This root-path check must not be read as isolation from another process running as the same Windows account. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, disable network prediction/preloading, and open a blank new-tab document. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. The blank document does not stop Chromium's other background requests. Existing profiles, installed Chrome and Edge do not receive them retroactively.
 
@@ -75,13 +77,13 @@ Profile details and health diagnostics warn when no proxy is assigned or the sam
 
 The optional Diagnostics action opens `https://nevision-win.mail782861.chatgpt.site/check.html` inside the selected profile. That website and its host see the request IP and browser headers; host logs may retain them. A button asks its own server what IP it observed. JavaScript-visible parameters remain in the page; the page does not upload a fingerprint report or start STUN. A displayed IP is a point-in-time observation for one site, **not** proof of DNS/WebRTC/UDP or all-traffic routing.
 
-When a proxy is assigned to a **bundled Chromium** profile, the launcher uses one fixed proxy without a DIRECT fallback, subtracts Chromium's implicit loopback bypass, blocks background name resolution except the proxy endpoint, disables QUIC and sets `disable_non_proxied_udp` WebRTC IP handling. This can prevent local websites or real-time calls from working. Tests show the configured local proxy handles localhost HTTP URLs, unreachable proxies do not fall back to DIRECT in tested cases, and a no-STUN ICE test produces no host candidate. These are browser-scoped checks, **not** a system firewall or proof that every transport uses the proxy; proxy DNS lookup itself is allowed. No-proxy profiles and installed Chrome/Edge are unchanged. Ordinary profiles keep the system timezone; experimental profiles use UTC. Neither setting is inferred from proxy IP.
+When a proxy is assigned to a **bundled Chromium** profile, the launcher uses one fixed proxy without a DIRECT fallback, subtracts Chromium's implicit loopback bypass, blocks background name resolution except the proxy endpoint, disables QUIC and sets `disable_non_proxied_udp` WebRTC IP handling. This can prevent local websites or real-time calls from working. Tests show the configured local proxy handles localhost HTTP URLs, unreachable proxies do not fall back to DIRECT in tested cases, and a no-STUN ICE test produces no host candidate. These are browser-scoped checks, **not** a system firewall or proof that every transport uses the proxy; proxy DNS lookup itself is allowed. No-proxy profiles and installed Chrome/Edge are unchanged. The browser inherits the operating-system timezone; NeAntik does not infer it from proxy IP.
 
 The Extensions action opens the selected browser's native extension manager for a closed profile. When a profile is already open, use its browser menu. Extensions are optional and not installed automatically. They can access sensitive browsing data according to their permissions; NeAntik does not audit or sandbox third-party extensions.
 
 ## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Version 0.8.6-preview additionally has the opt-in V4b mode described above; do not apply this historical Canvas row to that mode. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. The release tests exercise selected profile/launcher/network behavior and a loopback fingerprint probe on one Windows machine, not a comprehensive anonymity assessment.
+This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.17-preview candidate. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|

@@ -5,6 +5,23 @@ browser binary is not stored in Git history. Its exact version, upstream source
 commit, build arguments, approved build-only patch SHA-256, license and credits
 are recorded in `Engine/Chromium/ENGINE_PROVENANCE.json` inside each archive.
 
+## 0.8.17-preview stock Chromium candidate
+
+This candidate uses Chromium `155.0.8059.79` at upstream source commit
+`a49e2e3d4addfd84e765b52afe230bedb81096db`. The runtime is stock: the only
+local source changes are the Windows build-compatibility patch below; no
+privacy/persona patch is included. The engine receipt and release manifest
+must record an empty privacy-patch hash and `fingerprint_modification: false`.
+
+The completed local `chrome.exe` has SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+That binary-only smoke is not a portable package or release acceptance. The
+stock runtime must still be staged, integrated and validated in the exact
+portable ZIP. The measured build-compatibility source diff SHA-256 is
+`2992c690bd16fd3f7196a52b018cdc0a2556f4148959fb7f3b7072803fe81a3d`.
+
+## Historical Chromium 155.0.8059.40 engine
+
 For the first bundled-core releases, the source version is 155.0.8059.40 at
 Chromium commit `cfaadc5a132d78e1828635aa8405a499f3e14864`. The checkout
 corresponds to the [October 6, 2026 Windows stable announcement](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_086471744.html). The checkout
@@ -59,9 +76,9 @@ to the pinned checkout before `gclient sync`. It sets only that entry's
 `condition` from `checkout_win` to `False` and makes the MIDL adjustment below.
 Do not disable Defender or suppress its alert. The exact source diff hash is
 supplied to the staging command and embedded in the receipt.
-For this build, the combined `git diff HEAD --binary -- DEPS
-build/toolchain/win/midl.py` SHA-256 is
-`fcadf05210669f23925f165d28693e7713f9246c6d382ba7ba24289c4ce81079`.
+For the Chromium 155.0.8059.79 candidate, the combined `git diff HEAD --binary
+-- DEPS build/toolchain/win/midl.py` SHA-256 is
+`2992c690bd16fd3f7196a52b018cdc0a2556f4148959fb7f3b7072803fe81a3d`.
 
 On this workstation, MIDL-generated typelib name hashes also differ from
 Chromium's checked-in Windows output because Windows applies the user's locale

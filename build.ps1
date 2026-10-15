@@ -100,7 +100,7 @@ if (-not $PackageOnly) {
             }
             if ($engineReceipt.source_commit -notmatch '^[0-9a-f]{40}$' -or $engineReceipt.source_tree -notmatch '^[0-9a-f]{40}$' -or
                 $engineReceipt.build_args_sha256 -notmatch '^[0-9a-f]{64}$' -or
-                ($engineReceipt.build_patch_sha256 -and $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$')) { throw 'Source-built browser provenance is incomplete.' }
+                $engineReceipt.build_patch_sha256 -notmatch '^[0-9a-f]{64}$') { throw 'Source-built browser provenance is incomplete.' }
             $privacyPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'privacy_patch_sha256') { [string]$engineReceipt.privacy_patch_sha256 } else { '' }
             if ($privacyPatch -and $privacyPatch -notmatch '^[0-9a-f]{64}$') { throw 'Browser privacy patch provenance is invalid.' }
             $nativePersonaPatch = if ($engineReceipt.PSObject.Properties.Name -contains 'native_persona_patch_sha256') { [string]$engineReceipt.native_persona_patch_sha256 } else { '' }
@@ -118,7 +118,6 @@ if (-not $PackageOnly) {
                     throw 'Native persona core provenance is incomplete.'
                 }
             }
-            if ($publicPreview -and $numericVersion -ge [version]'0.8.0' -and -not $privacyPatch) { throw 'This release requires the reviewed native privacy patch.' }
             $actualLicenseHash = (Get-FileHash -LiteralPath (Join-Path $engineSource 'LICENSE') -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualLicenseHash -ne $engineReceipt.license_sha256) { throw 'Browser engine license does not match provenance.' }
             if ($publicPreview -and $numericVersion -ge [version]'0.5.1') {
@@ -169,7 +168,7 @@ $manifest = [ordered]@{
     browser_strategy = if ($nativePersonaPatch) { 'Portable local profile manager with an opt-in experimental Chromium persona. Canvas2D output is session/site-scoped; CPU/RAM buckets and UTC are partial fingerprint changes. WebGL/WebGPU, other contexts and network routes remain unverified; anonymity is not guaranteed.' } elseif ($privacyPatch) { 'Portable local profile manager with source-built Chromium and conservative native CPU/RAM fingerprint reduction. Other browser fingerprints and network routes are not anonymized.' } elseif ($hasEngine) { 'Portable local profile manager with bundled unbranded Chromium; installed Chrome or Edge remains available for older pinned profiles. No fingerprint modification.' } else { 'Portable local profile manager; launches installed stock Chrome or Edge. No browser engine or fingerprint modification is included.' }
     native_core_bundled = [bool]$hasEngine
     fingerprint_modification = [bool]$privacyPatch
-    schema_version = '1'; backup_format = if ($nativePersonaPatch) { 'v1 ordinary; v3 experimental native persona (unencrypted)' } else { 'nevision-profile-backup-v1 (ordinary profiles only)' }
+    schema_version = '1'; backup_format = if ($nativePersonaPatch) { 'v1 ordinary; v3 experimental native persona (unencrypted)' } else { 'v1 ordinary; legacy v3 metadata is preserved but not launched' }
     signature_status = [string](Get-AuthenticodeSignature -LiteralPath $exePath).Status
     release_notes = 'CHANGELOG.md'; runtime = $runtime; files = $files
 }

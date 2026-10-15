@@ -71,15 +71,16 @@ corresponding code, tests and public artifact exist. After each release, update
 the public ZIP by downloading it again. Do not replace an existing versioned
 archive in place.
 
-## Current status (2026-10-12)
+## Current status (2026-10-15)
 
-The 0.8.1-preview baseline bundles source-built Chromium, keeps ordinary
-profiles separate and applies tested first-launch cookie/permission defaults.
-Some proxy routing and local WebRTC behavior has been tested. Phase 0 licensing
-shipped in 0.7.1-preview; the 0.8.x-preview native patch reduces two exposed
-hardware signals (logical CPU count and approximated memory) with public source
-and a matched build receipt. Full network leak coverage, comprehensive and
-cohort-tested fingerprint reduction, independent anonymity validation,
-Windows 10 compatibility and cross-machine session portability are not done.
-See [the detailed implementation plan](MASTER_IMPLEMENTATION_PLAN.md) for the
-remaining phases and test gates, not claims about the current binary.
+The public release remains 0.8.16-preview until a new portable ZIP is published.
+The next 0.8.17-preview candidate is intentionally scoped as a local profile
+manager with pinned, unmodified stock Chromium 155.0.8059.79: no browser
+fingerprint override is included. The local Chromium compile and blank-page
+startup smoke passed, but staging, app integration, exact-ZIP gates and public
+release checks are still pending. Earlier native-persona work is historical;
+the new candidate preserves its stored profiles but does not launch them.
+Profile separation and selected proxy tests do not prove anonymity or absence
+of network leaks. Windows 10 compatibility and cross-machine session portability
+remain unvalidated. See the [detailed implementation plan](MASTER_IMPLEMENTATION_PLAN.md)
+for exact remaining gates, not claims about an unpublished candidate.

@@ -1,36 +1,13 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. Portable releases include unbranded Chromium built from pinned upstream source, so new profiles work without an installed Chrome or Edge. In the current V5 core, ordinary profiles report stock CPU, memory and timezone values; only the separate opt-in experimental mode caps exposed CPU at 4, device memory at 8 GiB and selects UTC. Existing profiles remain pinned to their original browser family; older unpinned profiles containing data require an explicit original-browser choice or a clean copy. Different engines do not reuse the same data directory. Profile isolation and partial fingerprint changes do **not** establish anonymity or independent network identities. Check the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the current published version and its checksum.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The 0.8.17-preview candidate bundles unbranded Chromium 155.0.8059.79 from pinned upstream source, so new profiles work without installed Chrome or Edge. The application does not modify browser fingerprint values: per-profile storage is separation of local data, not a separate network identity or anonymity guarantee. Existing browser-family pins remain respected. See the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the currently published version and checksum.
 
-**0.8.14-preview** avoids a duplicate notification when exporting profile
-settings without a selected profile. A new bounded WebGL1/2 parity gate covers
-one synthetic scene on one GPU; the bundled Chromium V5 engine remains
-unchanged. This is not a population-uniqueness or anonymity claim.
-
-**0.8.13-preview** made the two transfer choices explicit in Settings:
-full-folder backup for the same Windows account and settings-only export for
-another PC or account. Export now explains when no profile is selected. The
-bundled Chromium V5 engine is unchanged. New bounded local checks cover
-HTTPS-proxy authentication failure and Canvas API compatibility/latency; they
-do not prove external routing or anonymity.
-
-**0.8.12-preview** added a separate profile-settings template for moving a
-name, group, tags and browser mode to another portable copy. Import creates a
-new empty profile; it does not transfer cookies, history, sessions, notes,
-proxy settings or passwords. The JSON template is unencrypted and its text
-fields may contain personal information. Full profile backup remains a
-separate sensitive operation and browser-saved passwords, cookies and sessions
-may require new sign-in under another Windows account or PC. The bundled
-Chromium engine is unchanged. Ordinary mode does not apply the experimental
-CPU/RAM/UTC controls.
-
-Version **0.8.6-preview** added an opt-in V4b native mode that requires the exact
-source-built core and changes only opaque sRGB uint8 Canvas2D readbacks, keyed
-per browser session and top-level site; CPU, RAM and UTC controls are partial.
-Its single-host local gates passed, but other graphics paths, external network
-routes and a second computer are not validated. See the
-[V4b audit](docs/NATIVE_PERSONA_PROTOTYPE_AUDIT.md). Neither this mode
-nor a proxy guarantees anonymity.
+This release removes the experimental native-persona control and launch path.
+Older experimental profiles and their files are preserved, but are not launched
+by this build. The “Чистая копия” action creates an empty ordinary profile with
+settings only; it does not copy cookies, history or active sessions. Earlier
+version notes remain in [CHANGELOG.md](CHANGELOG.md); they describe historical
+artifacts, not capabilities of this release.
 
 ## Download and start
 
@@ -43,7 +20,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Separate local browser directories, persistent cookies/history and profile metadata.
 - New bundled-Chromium profiles keep downloads in their own `Data/Profiles/<id>/Downloads` folder. Moving the portable folder or restoring a backup rebases only this managed path; a custom download directory chosen in Chromium is not overwritten. Previously used and installed-browser profiles keep their settings.
 - New bundled-Chromium profiles also start with a blank new-tab document. This avoids loading Chromium's remote new-tab page but does **not** stop all browser background requests; see the [startup-network measurements](docs/START_PAGE_NETWORK_2026-10.md).
-- An optional experimental Chromium mode caps two hardware-related fingerprint signals consistently across measured JavaScript contexts and the Device-Memory Client Hint; ordinary bundled-Chromium and installed Chrome/Edge profiles do not enable those controls.
+- Bundled stock Chromium reports its own browser/device values; NeAntik adds no fingerprint override.
 - Groups, tags, notes, search, settings-only duplication and local activity history.
 - Local proxy vault; passwords protected with Windows DPAPI for the current Windows account.
 - Background browser launches with a bounded worker queue and status for externally opened profiles.
@@ -54,7 +31,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 - Optional [profile diagnostic page](https://nevision-win.mail782861.chatgpt.site/check.html) shows browser-visible values and, on request, the IP seen by that site. Visiting the page reveals your IP to its hosting; it is not a comprehensive leak test.
 - System light/dark theme, scrollable details and keyboard shortcuts: Ctrl+N new profile, Ctrl+F search, Enter launch selected profile, Escape clear search, F5 refresh.
 
-The portable edition provides profile isolation, local proxy assignment, encrypted local proxy credentials, backup/restore, groups, tags, notes and activity history. The experimental mode's two capped hardware values are only a partial fingerprint change; UA, graphics, fonts, screen and many other signals are not standardized. Chromium security updates require a new portable release; this bundle has no automatic updater.
+The portable edition provides profile isolation, local proxy assignment, locally protected proxy credentials, backup/restore, groups, tags, notes and activity history. It does not impersonate browser/device values or provide a complete leak-protection boundary. Chromium security updates require a new portable release; this bundle has no automatic updater.
 
 Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
 
@@ -94,7 +71,7 @@ python nevision_win.py --self-test
 
 `release-version.json` is the single version source. The build produces a versioned portable folder, ZIP, external checksum, release manifest, dependency notices and provenance/hash inventories under `release/`. Never build over a used portable folder containing `Data/`.
 
-The 0.8.5-preview packages the same source-built Chromium runtime as 0.8.4-preview; the browser binary is not committed to Git. Version 0.8.6-preview uses a separately reviewed [V4b patch](docs/chromium-native-persona-prototype-v4b.patch). The bundle carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. The [privacy patch](docs/CHROMIUM_PRIVACY_BASELINE.md) and [full plan](docs/MASTER_IMPLEMENTATION_PLAN.md) document exactly what changed and what remains unverified. Legacy schema-1 experimental profile metadata is retained as a blocked marker and is never sent to the browser. A clean profile clone copies no cookies or browser session data. See [bundled-browser research](docs/BUNDLED_BROWSER_RESEARCH.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md), [next-phase anonymity architecture](docs/ANONYMITY_ARCHITECTURE_2026-10.md) and [project roadmap](docs/PROJECT_VISION_AND_ROADMAP.md) for the scope and test gates. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
+Historical 0.8.6–0.8.16 releases included reviewed Chromium privacy/persona experiments; those features are not in the 0.8.17-preview candidate. Legacy experimental profile metadata and browser files are preserved, but not sent to Chromium or launched. A “Чистая копия” carries settings only, not cookies or browser session data. The bundle carries `en-US`, Russian and Thai Chromium UI packs; other system languages fall back to English. Development snapshots are allowed only in local `-dev` archives. Research and older patch records remain available in [the full plan](docs/MASTER_IMPLEMENTATION_PLAN.md), [network privacy engineering](docs/NETWORK_PRIVACY_2026-10.md), [browser comparison](docs/PRIVACY_RESEARCH_2026-10.md) and [project roadmap](docs/PROJECT_VISION_AND_ROADMAP.md); they describe historical experiments and open gates, not claims about this release. `tools/fingerprint_surface_audit.py` is a loopback-only developer audit; its output may expose device traits and must not be published.
 
 The public bundled-core release uses source-built stable-branch Chromium,
 not a continuous snapshot. The staging script, reviewed build-only patch and

@@ -119,7 +119,8 @@ class GuiTests(unittest.TestCase):
             for child in widget.winfo_children(): yield from walk(child)
         for widget in walk(self.app.detail):
             if isinstance(widget, nv.IconButton):
-                self.assertGreater(widget.winfo_width(), 60)
+                self.assertGreater(widget.winfo_width(), 60,
+                                   f"button {widget.text!r} was {widget.winfo_width()}px inside {widget.master.winfo_width()}px")
                 self.assertGreater(widget.winfo_height(), 20)
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
@@ -170,41 +171,26 @@ class GuiTests(unittest.TestCase):
         dialog.save()
         self.assertIn("Имя proxy может разрешаться локально", self.app.status_label.cget("text"))
 
-    def test_native_preview_is_opt_in_and_clone_gets_fresh_seed(self):
-        with patch.object(self.app.launcher, "native_persona_capabilities", return_value={"stable_seed": True}):
-            ordinary_dialog = nv.ProfileDialog(self.app)
-            self.app.root.update()
-            self.assertTrue(ordinary_dialog.winfo_viewable())
-            self.assertIs(ordinary_dialog.grab_current(), ordinary_dialog)
-            self.assertIsNotNone(ordinary_dialog.mode_choice)
-            ordinary_dialog.name.insert(0, "Ordinary")
-            ordinary_dialog.save()
-            ordinary = next(item for item in self.storage.list_profiles() if item["name"] == "Ordinary")
-            self.assertEqual(ordinary["fingerprint"]["mode"], "ordinary")
+    def test_new_profiles_are_ordinary_and_legacy_clone_is_empty_ordinary(self):
+        ordinary_dialog = nv.ProfileDialog(self.app)
+        self.app.root.update()
+        self.assertTrue(ordinary_dialog.winfo_viewable())
+        self.assertIs(ordinary_dialog.grab_current(), ordinary_dialog)
+        self.assertFalse(hasattr(ordinary_dialog, "mode_choice"))
+        ordinary_dialog.name.insert(0, "Ordinary")
+        ordinary_dialog.save()
+        ordinary = next(item for item in self.storage.list_profiles() if item["name"] == "Ordinary")
+        self.assertEqual(ordinary["fingerprint"]["mode"], "ordinary")
 
-            preview_dialog = nv.ProfileDialog(self.app)
-            self.app.root.update()
-            preview_dialog.name.insert(0, "Preview")
-            preview_dialog.mode_choice.current(1)
-            preview_dialog.save()
-            preview = next(item for item in self.storage.list_profiles() if item["name"] == "Preview")
-            self.assertEqual(preview["fingerprint"]["mode"], nv.NATIVE_PREVIEW)
-            edit_dialog = nv.ProfileDialog(self.app, preview)
-            self.app.root.update()
-            def visible_labels(widget):
-                for child in widget.winfo_children():
-                    if isinstance(child, nv.ttk.Label):
-                        yield str(child.cget("text"))
-                    yield from visible_labels(child)
-            self.assertTrue(any("seed остаётся метаданными совместимости" in value
-                                for value in visible_labels(edit_dialog)))
-            edit_dialog.destroy()
-            self.app.refresh_profiles(preview["id"])
-            self.app.clone_selected()
-            clone = self.storage.get_profile(self.app.selected_id)
-            self.assertEqual(clone["fingerprint"]["mode"], nv.NATIVE_PREVIEW)
-            self.assertNotEqual(clone["fingerprint"]["seed"], preview["fingerprint"]["seed"])
-            self.assertEqual(list((self.paths.profiles / clone["id"]).iterdir()), [])
+        legacy_id = self.storage.save_profile({"name": "Legacy", "fingerprint": {
+            "schema": 2, "mode": "native-persona-preview", "seed": "123456"}})
+        legacy = self.storage.get_profile(legacy_id)
+        self.app.refresh_profiles(legacy_id)
+        self.app.clone_selected()
+        clone = self.storage.get_profile(self.app.selected_id)
+        self.assertEqual(clone["fingerprint"]["mode"], "ordinary")
+        self.assertEqual(self.storage.get_profile(legacy_id)["fingerprint"], legacy["fingerprint"])
+        self.assertEqual(list((self.paths.profiles / clone["id"]).iterdir()), [])
 
     def test_escape_closes_settings_dialog(self):
         dialog = nv.SettingsDialog(self.app)

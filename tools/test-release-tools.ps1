@@ -20,7 +20,7 @@ function Expect-Failure([string]$Name, [scriptblock]$Action, [string]$Pattern) {
 }
 
 function New-TestArchive([string]$Mode) {
-    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -like 'chromium-source-privacy-provenance*') { '0.8.5-preview' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } elseif ($Mode -eq 'new-preview-051-without-core') { '0.5.1-preview' } elseif ($Mode -eq 'new-preview-060-without-core') { '0.6.0-preview' } elseif ($Mode -eq 'new-preview-070-without-core') { '0.7.0-preview' } elseif ($Mode -eq 'new-preview-071-without-core') { '0.7.1-preview' } elseif ($Mode -eq 'new-preview-090-without-core') { '0.9.0-preview' } else { '0.2.0-preview' }
+    $testVersion = if ($Mode -eq 'chromium-dev') { '0.2.0-dev' } elseif ($Mode -like 'chromium-source-stock*' -or $Mode -like 'chromium-source-privacy-provenance*') { '0.8.5-preview' } elseif ($Mode -eq 'new-preview-without-core') { '0.5.0-preview' } elseif ($Mode -eq 'new-preview-051-without-core') { '0.5.1-preview' } elseif ($Mode -eq 'new-preview-060-without-core') { '0.6.0-preview' } elseif ($Mode -eq 'new-preview-070-without-core') { '0.7.0-preview' } elseif ($Mode -eq 'new-preview-071-without-core') { '0.7.1-preview' } elseif ($Mode -eq 'new-preview-090-without-core') { '0.9.0-preview' } else { '0.2.0-preview' }
     $folder = "NeVisionWin-portable-v$testVersion"
     $version = "{`"version`":`"$testVersion`",`"file_version`":[0,2,0,0],`"channel`":`"preview`"}"
     $payload = [ordered]@{
@@ -95,13 +95,13 @@ function New-TestArchive([string]$Mode) {
             }
         }
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $engineReceipt.channel = 'stable' }
-        if ($Mode -like 'chromium-source-privacy-provenance*') {
+        if ($Mode -like 'chromium-source-stock*' -or $Mode -like 'chromium-source-privacy-provenance*') {
             $engineReceipt.locales = @('en-US.pak', 'ru.pak', 'th.pak')
             foreach ($locale in $engineReceipt.locales) { $payload["Engine/Chromium/locales/$locale"] = 'Synthetic locale fixture' }
         }
         $payload['Engine/Chromium/ENGINE_PROVENANCE.json'] = $engineReceipt | ConvertTo-Json -Compress
     }
-    $sourceProvenanceMode = $Mode -like 'chromium-source-privacy-provenance*' -or $Mode -eq 'new-preview-090-without-core'
+    $sourceProvenanceMode = $Mode -like 'chromium-source-stock*' -or $Mode -like 'chromium-source-privacy-provenance*' -or $Mode -eq 'new-preview-090-without-core'
     if ($sourceProvenanceMode) {
         $sourceFiles = @([ordered]@{ path = 'nevision_win.py'; size_bytes = 7; sha256 = Get-ReleaseTextHash 'fixture' })
         $sourceTreeHash = Get-ReleaseTextHash ($sourceFiles | ConvertTo-Json -Depth 5 -Compress)
@@ -148,6 +148,11 @@ function New-TestArchive([string]$Mode) {
                 if ($Mode -eq 'chromium-source-privacy-false') { $manifest.fingerprint_modification = $false }
                 if ($Mode -eq 'chromium-source-privacy-mismatch') { $manifest.engine.privacy_patch_sha256 = '0' * 64 }
             }
+            if ($Mode -like 'chromium-source-stock*') {
+                $manifest.fingerprint_modification = $false
+                if ($Mode -eq 'chromium-source-stock-claimed-modification') { $manifest.fingerprint_modification = $true }
+                if ($Mode -eq 'chromium-source-stock-missing-disclosure') { $manifest.Remove('fingerprint_modification') }
+            }
             if ($Mode -like 'chromium-source-privacy-native*') {
                 $manifest.engine.native_persona_patch_sha256 = 'f' * 64
                 if ($Mode -eq 'chromium-source-privacy-native-mismatch') { $manifest.engine.native_persona_patch_sha256 = '0' * 64 }
@@ -156,7 +161,7 @@ function New-TestArchive([string]$Mode) {
         if ($Mode -eq 'chromium-fake-stable-snapshot') { $manifest.engine.channel = 'stable' }
     }
     if ($Mode -eq 'launcher-only') { $manifest.native_core_bundled = $false }
-    if ($Mode -like 'chromium-source-privacy-provenance*' -or $Mode -in @('neantik', 'new-preview-without-core', 'new-preview-051-without-core', 'new-preview-060-without-core', 'new-preview-070-without-core', 'new-preview-071-without-core', 'new-preview-090-without-core')) {
+    if ($Mode -like 'chromium-source-stock*' -or $Mode -like 'chromium-source-privacy-provenance*' -or $Mode -in @('neantik', 'new-preview-without-core', 'new-preview-051-without-core', 'new-preview-060-without-core', 'new-preview-070-without-core', 'new-preview-071-without-core', 'new-preview-090-without-core')) {
         $folder = "NeAntikWin-portable-v$testVersion"
         $payload['NeAntikWin.exe'] = $payload['NeVisionWin.exe']
         $payload.Remove('NeVisionWin.exe')
@@ -211,6 +216,13 @@ Expect-Failure 'development core cannot be public preview' { & (Join-Path $PSScr
 $chromiumSource = New-TestArchive 'chromium-source'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSource
 $script:passed++
+$chromiumSourceStockPreview = New-TestArchive 'chromium-source-stock-preview'
+& (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourceStockPreview
+$script:passed++
+$chromiumSourceStockClaim = New-TestArchive 'chromium-source-stock-claimed-modification'
+Expect-Failure 'stock Chromium cannot claim fingerprint modification' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourceStockClaim } 'no reviewed browser patch provenance'
+$chromiumSourceStockUndisclosed = New-TestArchive 'chromium-source-stock-missing-disclosure'
+Expect-Failure 'stock Chromium preview requires explicit non-modification disclosure' { & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourceStockUndisclosed } 'fingerprint_modification=false'
 $chromiumSourcePrivacy = New-TestArchive 'chromium-source-privacy'
 & (Join-Path $PSScriptRoot 'verify-release-archive.ps1') -ArchivePath $chromiumSourcePrivacy
 $script:passed++

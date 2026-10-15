@@ -23,16 +23,30 @@ NeAntik и пользовательские untracked source-файлы; его 
 перезаписывать. Обновлять ядро в отдельном чистом checkout, переносить патчи с
 review и сверять их с upstream; затем выполнить полный exact-ZIP release gate.
 Точный Chromium Gitiles tag `155.0.8059.79` указывает на source commit
-[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); подтверждённый объект получен
-в отдельный checkout `C:\NeAntikBuild\chromium-upstream-155.0.8059.79\src`.
+[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); исходник находится в отдельном checkout `C:\N155\src`.
 Синхронизация зависимостей, hooks и GN generation прошли; для Windows применён
-только build-compat patch из `docs/chromium-build-compat.patch` (его SHA и
-состав проверяются отдельно). На 14 октября 2026 в этом checkout идёт
-инкрементальная сборка `chrome` с `-j4`. Это пока **NOT RUN** для результата
-сборки и всех следующих продуктовых ворот: готового `chrome.exe`, встроенного
-NeAntik portable ZIP и проверенного нового выпуска ещё нет. Не переносить
-состояние/артефакты старого Chromium checkout; не публиковать до интеграции,
-проверки совместимости приложения и прохождения полного exact-ZIP release gate.
+только build-compat patch из `docs/chromium-build-compat.patch`, SHA-256
+`2992c690bd16fd3f7196a52b018cdc0a2556f4148959fb7f3b7072803fe81a3d`.
+Сборка `chrome` завершена: `autoninja -C out\NeAntik155-079-ninja-v1 -j1 chrome`
+вернул `ninja: no work to do`; `chrome.exe` имеет версию `155.0.8059.79`, размер
+4,144,128 байт и SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+Одноразовый headless smoke на `about:blank` завершился с кодом 0 и выдал HTML
+(`PASS`, одна Windows-машина; это только проверка запуска). Это чистый Chromium
+без runtime-патча NeAntik и **не кандидат на выпуск**: интеграция в менеджер,
+совместимость, portable ZIP и все продуктовые/сетевые ворота — **NOT RUN**.
+Сборочные изменения ограничены файлами `DEPS` и `build/toolchain/win/midl.py`;
+checkout не является чистым upstream, его не синхронизировать и не публиковать
+как продуктовый бинарник. Выбран безопасный кандидатный маршрут `0.8.17-preview`:
+portable-менеджер профилей с обычным Chromium 155 и явным отсутствием изменений
+fingerprint. Это не обещание анонимности и не эквивалент антидетект-браузера.
+До сборки релиза требуется убрать активируемый native-persona режим, сохранить
+старые данные профилей без их запуска в обычном режиме, настроить release guard
+на строго проверяемое stock-происхождение и `fingerprint_modification: false`,
+затем пройти тесты точного portable ZIP. Только после появления проверенного
+ZIP разрешено выполнять последовательную публикацию GitHub → повторное скачивание
+и SHA-256 → обновление/deploy существующего сайта → проверка живого `release.json`
+и URL. Ни guard, ни публичные заявления не ослаблять и не подменять provenance.
 
 ## 1. Что именно защищаем
 

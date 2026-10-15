@@ -48,13 +48,14 @@ snapshot may be used only for a local `-dev` archive, never a public release.
   `credits.html` and exact runtime allowlist. A bundled archive must contain
   no PDBs, build intermediates, tests or user `Data/`.
 - Reject staged and untracked Chromium source edits outside the approved
-  patch; require the published privacy patch file to equal the approved diff
-  byte-for-byte. Repeated staging of identical source/build inputs should
+  build-compatibility patch and any explicitly approved privacy patch. For the
+  0.8.17 stock candidate, require no runtime patch and an explicit
+  `fingerprint_modification: false` manifest. Repeated staging of identical source/build inputs should
   produce identical file hashes, including the normalized offline credits.
-- If using the experimental native-persona patch, require the exact separate
-  patch hash and a compiled `--neantik-core-info` capability handshake; never
-  stack it with the 0.8.x baseline patch. Development staging alone is not a
-  clean rebuild, packaged QA or permission to advertise the feature.
+- For the 0.8.17 stock candidate, verify `privacy_patch_sha256` is empty,
+  `fingerprint_modification` is false and the source-built provenance matches
+  Chromium 155.0.8059.79 plus the exact build-compatibility patch. Do not create
+  a synthetic capability receipt or imply fingerprint modification.
 - For 0.7.0, verify only en-US/ru/th Chromium UI packs are present; no size
   reduction is claimed for this release.
 
@@ -74,7 +75,10 @@ snapshot may be used only for a local `-dev` archive, never a public release.
 - In a fresh bundled profile, verify `chrome://newtab` renders a blank document and the new-tab preference survives Chromium startup. Confirm existing profiles and later user choices are untouched. Record remaining background requests; a blank page is not a zero-telemetry claim.
 - Run `tools/cookie_integration.py` on the extracted core: require an allowing control profile and a blocking privacy-default profile on two disposable HTTPS sites.
 - When running raw `chrome.exe` tests from a fresh NTFS extraction, first give AppContainer read/execute access **only** to the disposable `Engine/Chromium` directory, as the real launcher does on first profile launch. An unprepared raw-engine failure is a test-setup failure, not a cookie/privacy result; never grant this access to `Data/`.
-- Run `tools/compare_fingerprint_baseline.py` with the exact extracted core and an unmodified source build from the same Chromium commit for ordinary-mode comparison. For the current V5 opt-in core, also run `tools/v5_optin_cross_surface_gate.py` with those exact two engines; it checks ordinary parity and selected opt-in cross-surface invariants. Keep raw device-trait reports private, record the tested hardware/OS, and check engine receipts. One host and selected scenes are not an entropy or anonymity estimate.
+- For the stock 0.8.17 candidate, inspect the exact extracted core receipt and
+  confirm it has no NeAntik runtime patch. Exercise the app launcher and assert
+  no `--neantik-*` fingerprint override is emitted. Keep raw device-trait
+  reports private; one host is not an anonymity estimate.
 - Run `tools/browser_integration.py` with the extracted core: require separate cookies, localStorage, IndexedDB, Cache Storage and service-worker registrations across two disposable profiles, persistence after restart, same-account backup/restore, and a clean settings-only clone.
 - Run `tools/download_integration.py` with the extracted core: require distinct synthetic files under each new profile's `Downloads`, no cross-profile copy, and a new download after portable relocation. At the packaged launcher boundary, verify Chromium receives a browser-visible absolute path without the internal `\\?\` prefix. Backup/restore must retain files and rebase only the managed path; user-selected custom locations stay untouched.
 - Run `tools/proxy_integration.py` and `tools/launcher_integration.py`; require loopback URL requests to traverse HTTP/SOCKS5 proxies, no DIRECT fallback for unavailable proxies, and exact strict flags at the real launcher boundary. These are not public-network leak tests.
@@ -112,20 +116,19 @@ Use disposable test data outside the shipping folder. Re-check the final ZIP aft
 - Update version/date/download target/hash/size and CHANGELOG; never invent a GitHub repository or release URL.
 - Verify page, download and changelog GET/HEAD behavior and UTF-8 rendering (including Cyrillic).
 - Recheck desktop/mobile layout, system light/dark theme and all release links.
-- Keep product limits visible for the exact downloadable artifact: the bundled Chromium runs new profiles; old Chrome/Edge profiles stay pinned. The proxy WebRTC UDP restriction is not a guarantee against leaks. V5 ordinary profiles keep stock CPU/RAM/system timezone; only opt-in experimental profiles request capped CPU/RAM and UTC. Unsigned preview, sensitive backups and cross-PC encryption limits remain explicit.
+- Keep product limits visible for the exact downloadable artifact: stock bundled Chromium runs new profiles; old Chrome/Edge profiles stay pinned. NeAntik does not modify fingerprint values. The proxy WebRTC UDP restriction is not a guarantee against leaks. Unsigned preview, sensitive backups and cross-PC encryption limits remain explicit.
 
 ## 7. Bundled-browser release gate
 
-- For 0.8.x-preview verify `release-manifest.json` reports `native_core_bundled: true`, `fingerprint_modification: true`, and the same approved privacy-patch SHA-256 as the engine receipt and public patch file; the release tree must contain complete `Engine/Chromium` provenance, licenses and runtime files. Older releases without the patch must continue to report `false`. The final manifest and `build-provenance.json` must agree on clean source state, exact public source commit and source-tree hash; run the ZIP verifier against the exact final archive.
-- Verify new profiles use bundled Chromium and a proxy profile receives the tested WebRTC IP-handling preference. For V5, ordinary mode must match stock on measured CPU/RAM/timezone; opt-in mode requests capped CPU/RAM, UTC and selected Canvas2D changes. Test JavaScript/frame/worker and Device-Memory Client Hint parity in the extracted release, then record untested surfaces explicitly.
-- Test an experimental legacy profile marker: its browser data remains unchanged, and launch/edit/clone actions fail clearly without falling back to stock Chrome/Edge.
-- For a V4b opt-in candidate, require the exact published native patch hash and
-  compiled stage-11 handshake; run the saved-profile two-site Canvas gate and
-  six-context gate on the exact `chrome.dll` from the ZIP, plus Canvas2D/WebGL
-  readback liveness. Record `NOT RUN` for external network observation,
-  second-machine/GPU, WebGL/WebGPU protection and real-site compatibility
-  until actually tested. These narrow PASS results do not permit a claim of
-  general anonymity or completed fingerprint protection.
+- For the 0.8.17 stock preview verify `release-manifest.json` reports
+  `native_core_bundled: true`, `fingerprint_modification: false`, and empty
+  `privacy_patch_sha256`; the archive must contain complete engine provenance,
+  licenses and runtime files. The final manifest and `build-provenance.json`
+  must agree on clean source state, exact source commit and source-tree hash.
+- Verify ordinary launches emit no `--neantik-*` override and use stock
+  Chromium values. Test that a legacy experimental profile remains unchanged,
+  is blocked before process creation and can produce a fresh settings-only copy;
+  never silently launch it with another browser.
 - Test bundled Chromium launch, old Chrome/Edge pinning, data isolation, backup/restore, proxy assignment and update/rollback using disposable data as described above.
 - Reverify the exact portable ZIP after testing, then repeat public-download hash and launch checks.
 

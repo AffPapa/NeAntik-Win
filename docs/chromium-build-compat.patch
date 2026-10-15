@@ -1,5 +1,5 @@
 diff --git a/DEPS b/DEPS
-index 2e028489c8..1571808dda 100644
+index f03389a7c9..4dd0e94738 100644
 --- a/DEPS
 +++ b/DEPS
 @@ -1421,7 +1421,9 @@ deps = {

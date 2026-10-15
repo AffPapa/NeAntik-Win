@@ -45,7 +45,7 @@ from nevision_win import (
     resolve_theme,
 )
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
-from profile_identity import NATIVE_PREVIEW, native_preview_identity
+from profile_identity import native_preview_identity, ordinary_identity
 
 
 class StorageTests(unittest.TestCase):
@@ -83,7 +83,7 @@ class StorageTests(unittest.TestCase):
             "name": "Private proxy", "scheme": "http", "host": "127.0.0.1",
             "port": 8080, "username": proxy_user, "password": proxy_password,
         })
-        original_identity = native_preview_identity()
+        original_identity = ordinary_identity()
         original_id = self.storage.save_profile({
             "name": "QA profile", "group_name": "Research", "tags": "test",
             "notes": note, "proxy_id": proxy_id, "fingerprint": original_identity,
@@ -98,15 +98,15 @@ class StorageTests(unittest.TestCase):
         template = json.loads(encoded.decode("utf-8"))
         self.assertEqual(template, {
             "format": "neantik-profile-template-v1",
-            "profile": {"name": "QA profile", "group_name": "Research", "tags": "test", "mode": NATIVE_PREVIEW},
+            "profile": {"name": "QA profile", "group_name": "Research", "tags": "test", "mode": "ordinary"},
         })
         for forbidden in (proxy_password.encode(), proxy_user.encode(), note.encode(), cookie,
-                          original_id.encode(), original_identity["seed"].encode(), proxy_id.encode()):
+                          original_id.encode(), proxy_id.encode()):
             self.assertNotIn(forbidden, encoded)
 
         destination = Storage(AppPaths(self.root / "other-portable"))
-        first_id = destination.import_profile_template(template_path, native_core_available=True)
-        second_id = destination.import_profile_template(template_path, native_core_available=True)
+        first_id = destination.import_profile_template(template_path)
+        second_id = destination.import_profile_template(template_path)
         self.assertNotEqual(first_id, second_id)
         for new_id in (first_id, second_id):
             imported = destination.get_profile(new_id)
@@ -114,11 +114,8 @@ class StorageTests(unittest.TestCase):
                              ("QA profile", "Research", "test"))
             self.assertEqual(imported["notes"], "")
             self.assertIsNone(imported["proxy_id"])
-            self.assertEqual(imported["fingerprint"]["mode"], NATIVE_PREVIEW)
-            self.assertNotEqual(imported["fingerprint"]["seed"], original_identity["seed"])
+            self.assertEqual(imported["fingerprint"]["mode"], "ordinary")
             self.assertEqual(list(destination.profile_path(new_id).iterdir()), [])
-        self.assertNotEqual(destination.get_profile(first_id)["fingerprint"]["seed"],
-                            destination.get_profile(second_id)["fingerprint"]["seed"])
         self.assertEqual((browser_data / "Cookies").read_bytes(), cookie)
 
     def test_profile_template_rejects_untrusted_fields_without_partial_profile(self):
@@ -151,20 +148,16 @@ class StorageTests(unittest.TestCase):
                 self.assertEqual(destination.list_profiles(), [])
                 self.assertEqual(list(destination.paths.profiles.iterdir()), [])
 
-    def test_profile_template_does_not_downgrade_native_mode_without_core(self):
+    def test_native_profile_template_export_is_disabled(self):
         original_id = self.storage.save_profile({"name": "Native", "fingerprint": native_preview_identity()})
-        template_path = self.storage.export_profile_template(original_id)
-        destination = Storage(AppPaths(self.root / "other-portable"))
-        with self.assertRaisesRegex(NeVisionError, "native-ядро"):
-            destination.import_profile_template(template_path, native_core_available=False)
-        self.assertEqual(destination.list_profiles(), [])
-        self.assertEqual(list(destination.paths.profiles.iterdir()), [])
+        with self.assertRaises(NeVisionError):
+            self.storage.export_profile_template(original_id)
 
     def test_ordinary_profile_template_import_does_not_require_native_core(self):
         original_id = self.storage.save_profile({"name": "Ordinary"})
         template_path = self.storage.export_profile_template(original_id)
         destination = Storage(AppPaths(self.root / "other-portable"))
-        imported_id = destination.import_profile_template(template_path, native_core_available=False)
+        imported_id = destination.import_profile_template(template_path)
         self.assertEqual(destination.get_profile(imported_id)["fingerprint"]["mode"], "ordinary")
         self.assertEqual(list(destination.profile_path(imported_id).iterdir()), [])
 
@@ -207,27 +200,28 @@ class StorageTests(unittest.TestCase):
         prefs = json.loads((restored / "Default" / "Preferences").read_text(encoding="utf-8"))
         self.assertEqual(prefs["download"]["default_directory"], str(restored.resolve() / "Downloads"))
 
-    def test_native_backup_requires_compatible_core_before_creating_profile(self):
+    def test_native_backup_restores_legacy_metadata_without_rewriting_it(self):
+        identity = native_preview_identity()
         source_id = self.storage.save_profile({
             "name": "Native backup fixture",
-            "fingerprint": native_preview_identity(),
+            "fingerprint": identity,
         })
         source_file = self.storage.profile_path(source_id) / "Default" / "state.txt"
         source_file.parent.mkdir(parents=True)
         source_file.write_bytes(b"synthetic-native-profile")
         archive = self.storage.backup_profile(source_id)
 
-        with self.assertRaisesRegex(NeVisionError, "требует совместимого встроенного native-ядра"):
-            self.storage.restore_profile(archive, native_core_available=False)
+        restored_id = self.storage.restore_profile(archive)
 
-        self.assertEqual([profile["id"] for profile in self.storage.list_profiles()], [source_id])
+        self.assertEqual({profile["id"] for profile in self.storage.list_profiles()}, {source_id, restored_id})
+        self.assertEqual(self.storage.get_profile(restored_id)["fingerprint"], identity)
         self.assertEqual(source_file.read_bytes(), b"synthetic-native-profile")
-        self.assertEqual(list(self.storage.paths.operations.glob("*.json")), [])
-        self.assertFalse(any(path.name.startswith(".restore-") for path in self.storage.paths.profiles.iterdir()))
+        self.assertEqual((self.storage.profile_path(restored_id) / "Default" / "state.txt").read_bytes(),
+                         b"synthetic-native-profile")
 
         ordinary_id = self._profile_with_file("Ordinary backup fixture")
         ordinary_archive = self.storage.backup_profile(ordinary_id)
-        restored_id = self.storage.restore_profile(ordinary_archive, native_core_available=False)
+        restored_id = self.storage.restore_profile(ordinary_archive)
         self.assertIsNotNone(self.storage.get_profile(restored_id))
 
     def test_restore_rejects_zip_path_traversal_before_creating_profile(self):
@@ -1303,7 +1297,6 @@ class InterfaceLogicTests(unittest.TestCase):
         app.root = MagicMock()
         app.storage = MagicMock()
         app.launcher = MagicMock()
-        app.launcher.native_persona_capabilities.return_value = None
         app.set_status = MagicMock()
         app.refresh_profiles = MagicMock()
         app.storage.import_profile_template.return_value = "new-synthetic-id"
@@ -1318,7 +1311,7 @@ class InterfaceLogicTests(unittest.TestCase):
             "nevision_win.messagebox.askyesno", return_value=True
         ):
             app.import_profile_template()
-        app.storage.import_profile_template.assert_called_once_with(Path(source), native_core_available=False)
+        app.storage.import_profile_template.assert_called_once_with(Path(source))
         app.refresh_profiles.assert_called_once_with(select_id="new-synthetic-id")
 
     def test_portability_warning_explains_browser_data_and_proxy_limits(self):
@@ -1338,7 +1331,6 @@ class InterfaceLogicTests(unittest.TestCase):
         app.set_status = MagicMock()
         app._run_in_background = MagicMock()
         app.launcher = MagicMock()
-        app.launcher.native_persona_capabilities.return_value = None
         app.storage = MagicMock()
         archive = "C:/synthetic/backup.zip"
         with patch("nevision_win.filedialog.askopenfilename", return_value=archive), patch(
@@ -1355,9 +1347,7 @@ class InterfaceLogicTests(unittest.TestCase):
         app._run_in_background.assert_called_once()
         restore_operation = app._run_in_background.call_args.args[1]
         restore_operation()
-        app.storage.restore_profile.assert_called_once_with(
-            Path(archive), native_core_available=False
-        )
+        app.storage.restore_profile.assert_called_once_with(Path(archive))
         app.set_status.assert_called_once_with("Восстанавливаю backup…")
 
     def test_about_describes_actual_browser_bundle(self):
@@ -1365,19 +1355,14 @@ class InterfaceLogicTests(unittest.TestCase):
         app.root = MagicMock()
         app.launcher = MagicMock()
         app.launcher.has_native_privacy_baseline.return_value = False
-        app.launcher.native_persona_capabilities.return_value = None
         with patch("nevision_win.messagebox.showinfo") as show:
             app.launcher.bundled_browser.return_value = Path("C:/portable/Engine/Chromium/chrome.exe")
             app.show_about()
             self.assertIn("входит Chromium", show.call_args.args[1])
             self.assertIn("установленный Chrome не требуется", show.call_args.args[1])
-            app.launcher.native_persona_capabilities.return_value = {"timezone": True}
-            app.show_about()
-            self.assertIn("В обычном профиле CPU/RAM/UTC штатные", show.call_args.args[1])
-            app.launcher.native_persona_capabilities.return_value = None
             app.launcher.bundled_browser.return_value = None
             app.show_about()
-            self.assertIn("Собственного ядра", show.call_args.args[1])
+            self.assertIn("не задаёт fingerprint-переопределения", show.call_args.args[1])
 
     def test_duplicate_proxy_labels_keep_distinct_ids(self):
         proxies = [
