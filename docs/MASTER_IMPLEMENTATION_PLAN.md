@@ -589,22 +589,26 @@ main frame и двух iframe. Это только базовая линия о�
   доказывает поведение NVDA/MSAA.
   Изолированный source-build spike от 2026-10-15: официальные архивы Tcl/Tk
   9.1.0 x64 собраны MSVC 14.51.36231; `tclsh91` сообщил 9.1.0, `wish91`
-  открыл окно с ttk Label/Entry/Button и Canvas-иконкой. Установленный staging
-  каталог — 195 файлов / 14 165 115 байт (это полный stage с headers/libs,
-  не измерение прироста portable ZIP); SHA-256 архивов, DLL и `wish91.exe` —
-  в [отчёте spike](TK91_SOURCE_BUILD_SPIKE_2026-10-15.md). `_tkinter`, ABI
-  приложения, PyInstaller, startup/memory, лицензии в собранном portable и
-  packaged GUI **NOT RUN**.
+  открыл ttk-окно. CPython 3.12.10 `_tkinter.pyd`, собранный из точного
+  upstream source против этих headers/libs, импортировался; Tcl eval и
+  настоящая Python Tk GUI прошли. PyInstaller 6.22.3 onedir smoke включил
+  Tcl/Tk 9 DLL и данные, ZIP 13 813 544 байта повторно распакован и запущен.
+  Это synthetic packaging gate, не замена runtime приложения; файлы и SHA-256
+  в [отчёте spike](TK91_SOURCE_BUILD_SPIKE_2026-10-15.md). Runtime/ABI именно
+  текущего приложения, сравнение startup/memory и релизная подпись **NOT RUN**.
   Локальный пробник получил `0` для role/name, а UIA не перечислил виджеты;
   NVDA не установлен и не запущен, поэтому screen-reader/MSAA результат —
   **NOT RUN**, не FAIL. Исходник Tk 9.1 показывает, что script accessibility
   layer становится no-op при выключенном/необнаруженном screen reader; это
   согласуется с результатом, но не подменяет проверку реального MSAA-клиента.
-  Продолжать только изолированный runtime-spike: собрать совместимый
-  `_tkinter`, проверить ABI, лицензии, размер/скорость portable и реальные
-  поля/кнопки через MSAA + NVDA; UIA + Narrator тестировать отдельно и не
-  требовать от Tk bridge заявленной поддержки, которой upstream не
-  гарантирует. В параллельном design spike проверить обычные ttk Button/Entry
+  Tcl/Tk `license.terms` присутствуют в синтетическом ZIP; полный аудит
+  notices всех Python/bootloader зависимостей **NOT RUN**. Дальше требуется
+  адаптировать isolated runtime/config для приложения, сравнить startup/memory/
+  размер на реальном portable и пройти реальную keyboard-only форму + MSAA/NVDA;
+  UIA + Narrator тестировать отдельно и не требовать от Tk bridge заявленной
+  поддержки, которой upstream не гарантирует. PyInstaller changelog отмечает
+  Tcl/Tk 9 support для embedded data в 6.22.0; проверена версия 6.22.3.
+  В параллельном design spike проверить обычные ttk Button/Entry
   вместо ключевых Canvas-кнопок: одна замена Tk не сделает Canvas
   семантическим. Не менять runtime и не обещать screen-reader поддержку до
   положительного packaged gate. `focus_force()` и

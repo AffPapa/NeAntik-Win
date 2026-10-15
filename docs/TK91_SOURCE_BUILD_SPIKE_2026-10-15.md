@@ -23,6 +23,18 @@ size delta: it includes Tcl/Tk headers, scripts and support libraries.
 | `tclsh91.exe` | 387,584 | `DB23448674E6EDE055CF3BB02FAC36AE597566C3C5B40F14C20B97AD7EEB6000` |
 | `wish91.exe` | 386,048 | `E382E2276E11F3FEA8A563E9A17260FEE66F7E7F93E53A2F5935CEE2A86A1C84` |
 
+CPython 3.12.10 source (`Python-3.12.10.tar.xz`, 20,520,960 bytes) matched
+the MD5 published on [Python.org](https://www.python.org/downloads/release/python-31210/);
+local SHA-256 was
+`07AB697474595E06F06647417D3C7FA97DED07AFC1A7E4454C5639919B46EAEA`.
+`_tkinter.pyd` was built from that tag's `Modules/_tkinter.c` and `tkappinit.c`
+with the installed matching CPython 3.12.10 headers/import library, Tcl/Tk
+9.1.0 headers/import libraries, and external LibTomMath define/library:
+
+| Built file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `_tkinter.pyd` | 49,664 | `3A25050447F2ACA9B41071BA9518DDE0B3B50E0DB0B1FC8373234E1FC06C8891` |
+
 ## Results
 
 - **PASS — source build smoke:** `tclsh91.exe` reported Tcl 9.1.0 and exited
@@ -30,6 +42,21 @@ size delta: it includes Tcl/Tk headers, scripts and support libraries.
 - **PASS — basic native GUI smoke:** `wish91.exe` opened a visible test window
   containing a ttk label, entry, button, and a Canvas drawing. It was a scratch
   fixture, not NeAntik UI or a packaged Python app.
+- **PASS — isolated Python ABI/runtime smoke:** the custom `_tkinter.pyd`
+  imported in the matching CPython 3.12.10 process; Tcl reported `9.1.0`, and
+  `expr 6*7` returned `42`. A real Python `tkinter.Tk()` window reported Tcl
+  and Tk `9.1.0` on `win32` and rendered ttk Label/Entry/Button controls.
+  This was not a full CPython rebuild or test of NeAntik's current app ABI.
+- **PASS — synthetic PyInstaller portable folder/ZIP:** PyInstaller 6.22.3
+  produced a 997-file onedir folder of 31,327,844 bytes, including the custom
+  `_tkinter.pyd`, Tcl/Tk 9 DLLs, and both library data trees. No Tcl/Tk 8.6
+  files were present. Tcl and Tk `license.terms` were included. The compressed
+  folder ZIP was 13,813,544 bytes, SHA-256
+  `1F291A904C59EB6837D9CB7F9E57D4FFAEA913D4C7B063284E48722BDA0709A5`;
+  after extraction, its EXE opened and reported `frozen=True`, Tcl/Tk `9.1.0`,
+  and internal `_tcl_data`/`_tk_data` paths with no external Tcl/Tk environment
+  variables. EXE SHA-256:
+  `4D24936D14BAA2BE668C1330B793FEBFEFA0F8FFAF9903C255D8ACF48ED52628`.
 - **FAIL — observed UIA widget semantics:** the captured UIA tree showed no
   named Tk child controls. This is scoped to this local test/window and does
   not establish MSAA/screen-reader failure.
@@ -39,20 +66,38 @@ size delta: it includes Tcl/Tk headers, scripts and support libraries.
   screen-reader check is absent/false. Other accessibility clients were not
   audited. This is consistent evidence, not a substitute for an active screen
   reader test.
-- **NOT RUN — application/runtime gates:** CPython `_tkinter` build and ABI,
-  PyInstaller packaging, packaged app launch/resources, licensing in a portable
-  archive, startup/memory/size comparison, keyboard-only workflow, NVDA, and
+- **INCONCLUSIVE — Python frozen UIA capture:** CUA returned no accessibility
+  tree for the packaged test window. The screenshot proved the form rendered;
+  it did not prove its UIA semantics.
+- **NOT RUN — product/release gates:** NeAntik application runtime migration,
+  full dependency-notice audit, size/startup/memory comparison against the
+  production package, keyboard-only profile workflow, MSAA + NVDA, and UIA +
   Narrator.
 
 Upstream references: [Tk TIP 733](https://core.tcl-lang.org/tips/doc/main/tip/733.md),
 [Tk 9.1 accessibility manual](https://www.tcl-lang.org/man/tcl9.1/TkCmd/accessible.html),
-and [official Tcl/Tk downloads](https://www.tcl-lang.org/software/tcltk/download.html).
+[official Tcl/Tk downloads](https://www.tcl-lang.org/software/tcltk/download.html),
+and [PyInstaller changelog](https://pyinstaller.org/en/latest/CHANGES.html).
+
+## CPython source compatibility correction
+
+Follow-up inspection of the exact installed version's upstream source,
+[CPython 3.12.10 `Modules/_tkinter.c`](https://github.com/python/cpython/blob/v3.12.10/Modules/_tkinter.c),
+found Tcl 9 compatibility code (`Tcl_Size` fallback, Tcl 9 object-type
+handling) and an existing `Tcl_FindExecutable` call. An earlier investigation
+had incorrectly treated that call as absent; that concern is withdrawn. The
+source inspection was followed by the focused build and runtime test above.
+`TclZipfs_AppHook` is not present in that source file; this spike therefore used
+the regular external Tcl/Tk library directories during analysis and verified
+that the PyInstaller runtime hook redirected the extracted test app to its
+bundled data trees. That is not a full CPython or application migration test.
 
 ## Next gate
 
 Do not replace production Tk 8.6 or change packaging pins based on this spike.
-First build a matching isolated CPython `_tkinter` against Tcl/Tk 9.1, verify its
-ABI and licenses, package a tiny synthetic app, measure the actual archive and
-startup, then test named controls with MSAA + NVDA. Test UIA + Narrator
-separately; Tk's upstream documentation says its Windows UIA bridge is not
-robust. The Tk Canvas itself still needs a semantic alternative/control.
+Next adapt the isolated build configuration to the actual app and real portable
+layout; audit every bundled license notice; measure startup/memory/size against
+the production baseline; test keyboard-only profile flows and named controls
+with MSAA + NVDA. Test UIA + Narrator separately; Tk's upstream documentation
+says its Windows UIA bridge is not robust. The Tk Canvas itself still needs a
+semantic alternative/control.
