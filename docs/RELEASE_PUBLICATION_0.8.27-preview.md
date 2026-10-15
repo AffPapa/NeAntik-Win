@@ -33,6 +33,25 @@ fingerprint (`fingerprint_modification=false`).
 | Site build | Site source `1979350bb75198664400cf00851fb875b3410e47` | TypeScript + production build PASS |
 | Production Site | version 64, публичный URL | `/`, `/release.json`, `/CHANGELOG.md` HTTP 200; JSON version/source/asset bytes/hash совпали; ZIP HEAD 200, Content-Length 262,390,106 — PASS |
 
+### Дополнительная проверка уже опубликованного бинарника — 15 октября 2026
+
+После публикации точный public ZIP (повторно проверенный SHA-256 выше) прошёл
+`tools/wsl_stun_route_audit.py` с Chromium SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa` и
+локальным STUN-приёмником в отдельном Ubuntu WSL network namespace. Прямой
+контроль: 5 STUN Binding requests получено при 5 NetLog sends; HTTP proxy:
+0 получено / 0 UDP sends; SOCKS5: 0 получено / 0 UDP sends, синтетический
+proxy route control и 4 запроса тестовой страницы подтверждены. Итог обоих
+proxy gate — PASS. Локальный отчёт (с приватным адресом WSL, не для публикации):
+`build/qa-0.8.27-preview-5e1b83b7dcdf2a965a2f53c33aab73522fed6879/wsl-stun-report.json`.
+
+Это независимый от Chromium локальный UDP-счётчик между Windows и WSL, а не
+внешний сетевой наблюдатель. Публичные DNS, IPv6, TURN, другая машина/сеть и
+анонимность не проверяются. После релиза также добавлен Windows-only launch-path
+regression test для junction в Local Storage LevelDB: отдельный тест PASS;
+все 49 `PortableCoreRegressionTests` PASS, один существующий test skipped.
+Эта правка только тестовая/документационная: binary source commit и ZIP не менялись.
+
 GUI smoke именно для 0.8.27 — **NOT RUN**; запуск окна 0.8.26 не переносится
 на этот EXE. Внешние DNS/IPv6/UDP/STUN/TURN, иная физическая машина,
 Windows 10/ARM64 и UIA/MSAA/NVDA — **NOT RUN**. Это не меняет fingerprint и

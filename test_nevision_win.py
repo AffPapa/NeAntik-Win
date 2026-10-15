@@ -947,6 +947,40 @@ class PortableCoreRegressionTests(unittest.TestCase):
             BrowserLauncher(self.storage).ensure_profile_path_is_isolated(profile_id)
 
     @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_launch_rejects_local_storage_leveldb_junction_before_resolve_pin_or_popen(self):
+        profile = self._profile_with_proxy()
+        profile_id = profile["id"]
+        leveldb = self.storage.profile_path(profile_id) / "Default" / "Local Storage" / "leveldb"
+        leveldb.mkdir(parents=True)
+        namespace = leveldb / "synthetic-origin"
+        outside = self.root / "outside-local-storage-leveldb"
+        outside.mkdir()
+        marker = outside / "synthetic-marker"
+        marker.write_bytes(b"synthetic-only")
+        try:
+            result = subprocess.run(
+                ["cmd.exe", "/d", "/c", "mklink", "/J", str(namespace), str(outside)],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode:
+                self.skipTest("Windows junction creation is unavailable in this environment")
+            attrs = getattr(namespace.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            launcher = BrowserLauncher(self.storage)
+            with patch.object(launcher, "resolve_browser") as resolve_browser, \
+                    patch.object(self.storage, "pin_browser_family") as pin_browser, \
+                    patch("nevision_win.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    launcher._launch_locked(profile, profile_id)
+            resolve_browser.assert_not_called()
+            pin_browser.assert_not_called()
+            popen.assert_not_called()
+            self.assertEqual(marker.read_bytes(), b"synthetic-only")
+        finally:
+            if namespace.is_junction():
+                os.rmdir(namespace)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
     def test_isolation_check_rejects_cache_storage_namespace_junction(self):
         profile_id = self.storage.save_profile({"name": "Synthetic CacheStorage junction"})
         cache_storage = (

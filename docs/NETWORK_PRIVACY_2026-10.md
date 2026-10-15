@@ -486,3 +486,27 @@ prompt remain **NOT RUN**. The private report is
 Fixtures and proxy egress were confined to IPv4/IPv6 loopback on this Windows
 host. This is not an independent public egress, DNS, packet capture, TURN or
 second-host result; P2 remains open.
+
+### WSL network-namespace STUN gate on the public 0.8.27-preview ZIP — 15 October 2026
+
+[`wsl_stun_route_audit.py`](../tools/wsl_stun_route_audit.py) ran against the
+exact public 0.8.27-preview ZIP (SHA-256
+`daa9da39bb19428e2989439b6200fbf4d9ee0a5d999f834880e2bbb800ba2eb0`); the
+bundled Chromium `chrome.exe` SHA-256 was
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`. Ubuntu
+WSL hosted a token-gated local STUN receiver that counted datagrams only and
+did not record packet payloads, source addresses or browsing data.
+
+The direct positive control sent/received five STUN Binding requests. In the
+HTTP-proxy case the receiver got zero datagrams and Chromium NetLog recorded
+zero UDP sends. In the SOCKS5 case the receiver and NetLog also recorded zero
+UDP; one synthetic proxy-route control and four local test-page requests
+confirmed that the browser was actually using the SOCKS5 fixture. Both proxy
+gates passed. The retained local report is under the ignored QA build folder
+and contains the private WSL address; it is not a public artifact.
+
+This extends the test to a separate local Windows↔WSL network namespace, but
+both namespaces remain on the same computer and private network. It does not
+measure public DNS, IPv6, TURN, external proxy egress, another host/network,
+other Windows processes or anonymity. P2.2/P2.3 remain open pending their
+independent external-observer and broader route gates.
