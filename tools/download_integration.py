@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -22,6 +23,7 @@ from urllib.parse import parse_qs, urlsplit
 import uuid
 
 from browser_integration import AppPaths, BrowserLauncher, OwnedJob, Storage, spawn_owned_browser
+from native_persona_context_audit import prepare_disposable_engine
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
 
 
@@ -191,6 +193,15 @@ def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="neantik-download-qa-"))
     try:
         try:
+            source_chrome = args.chrome.resolve()
+            if not (source_chrome.parent / "ENGINE_PROVENANCE.json").is_file():
+                raise RuntimeError("Portable engine provenance is required; installed Chrome is not an equivalent runtime")
+            source_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+            chrome = prepare_disposable_engine(source_chrome, root / "engine")
+            if hashlib.sha256(chrome.read_bytes()).hexdigest() != source_hash:
+                raise RuntimeError("Disposable ACL-prepared engine executable hash changed")
+            report["browser_executable_sha256"] = source_hash
+            report["disposable_engine_acl_prepared"] = True
             storage = Storage(AppPaths(root))
             server = DownloadServer()
             thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -200,8 +211,8 @@ def main() -> int:
                 profile_b_id = storage.save_profile({"name": "Disposable download QA B"})
                 a = storage.profile_path(profile_a_id)
                 b = storage.profile_path(profile_b_id)
-                a_name, _ = run_browser(args.chrome, storage, profile_a_id, "A", server, report)
-                b_name, _ = run_browser(args.chrome, storage, profile_b_id, "B", server, report)
+                a_name, _ = run_browser(chrome, storage, profile_a_id, "A", server, report)
+                b_name, _ = run_browser(chrome, storage, profile_b_id, "B", server, report)
                 if (b / "Downloads" / a_name).exists() or (a / "Downloads" / b_name).exists():
                     raise RuntimeError("Synthetic download crossed profiles")
                 storage.ensure_profile_closed(profile_a_id)
@@ -210,13 +221,15 @@ def main() -> int:
                 if (root.resolve().parent != temp_parent or moved_root.resolve().parent != temp_parent
                         or root.is_symlink() or moved_root.exists()):
                     raise RuntimeError("Unsafe disposable portable-root move")
+                chrome_relative = chrome.relative_to(root)
                 shutil.move(root, moved_root)
                 root = moved_root
+                chrome = root / chrome_relative
                 storage = Storage(AppPaths(root))
                 moved = storage.profile_path(profile_a_id)
                 if not ensure_managed_download_directory(moved):
                     raise RuntimeError("Managed download path did not rebase after portable move")
-                moved_name, _ = run_browser(args.chrome, storage, profile_a_id,
+                moved_name, _ = run_browser(chrome, storage, profile_a_id,
                                             "A-after-portable-move", server, report)
                 if not (moved / "Downloads" / a_name).is_file() or not (moved / "Downloads" / moved_name).is_file():
                     raise RuntimeError("Portable move lost or misplaced a download")
