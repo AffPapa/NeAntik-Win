@@ -77,10 +77,15 @@ release test matrix or authorize publishing a candidate that failed a gate.
 
 After deployment succeeds, check the live homepage, `/release.json`, and
 `/CHANGELOG.md` over HTTP. Require the page and metadata to name the new version;
-the live metadata's archive filename, URL, size and SHA-256 must match the
-verified GitHub asset. Check a public ZIP HEAD response and content length, and
-retain the fresh download/hash evidence. Record the browser binary source
-commit separately from the Site source commit and the Sites version number.
+read the current `neantik-release-v1` JSON schema rather than assuming artifact
+fields are top-level. Compare `version` and `source_commit` at the root, then
+`archive.filename`, `archive.download_url`, `archive.size_bytes`, and
+`archive.sha256` with the verified GitHub asset. A missing top-level alias is
+not a mismatch if the nested canonical field is present; an absent or unequal
+canonical field is a failed gate. Check a public ZIP HEAD response and content
+length, and retain the fresh download/hash evidence. Record the browser binary
+source commit separately from the Site source commit and the Sites version
+number.
 
 Never describe successful deployment or a checksum as proof of complete
 anonymity, fingerprint resistance, or independent network-route behavior.
