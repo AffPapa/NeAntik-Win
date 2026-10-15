@@ -587,10 +587,23 @@ main frame и двух iframe. Это только базовая линия о�
   альтернативные controls/описания. Поэтому 0.8.19 UIA observation (**FAIL
   для наблюдаемой UIA-семантики**) согласуется с известным ограничением, но не
   доказывает поведение NVDA/MSAA.
-  Следующий шаг остаётся отдельным изолированным runtime-spike: проверить
-  Tk 9.1.0/`_tkinter`/PyInstaller, ABI, лицензии, размер/скорость portable и
-  реальные поля/кнопки через MSAA + NVDA; UIA + Narrator тестировать отдельно
-  и не требовать от Tk bridge заявленной поддержки, которой upstream не
+  Изолированный source-build spike от 2026-10-15: официальные архивы Tcl/Tk
+  9.1.0 x64 собраны MSVC 14.51.36231; `tclsh91` сообщил 9.1.0, `wish91`
+  открыл окно с ttk Label/Entry/Button и Canvas-иконкой. Установленный staging
+  каталог — 195 файлов / 14 165 115 байт (это полный stage с headers/libs,
+  не измерение прироста portable ZIP); SHA-256 архивов, DLL и `wish91.exe` —
+  в [отчёте spike](TK91_SOURCE_BUILD_SPIKE_2026-10-15.md). `_tkinter`, ABI
+  приложения, PyInstaller, startup/memory, лицензии в собранном portable и
+  packaged GUI **NOT RUN**.
+  Локальный пробник получил `0` для role/name, а UIA не перечислил виджеты;
+  NVDA не установлен и не запущен, поэтому screen-reader/MSAA результат —
+  **NOT RUN**, не FAIL. Исходник Tk 9.1 показывает, что script accessibility
+  layer становится no-op при выключенном/необнаруженном screen reader; это
+  согласуется с результатом, но не подменяет проверку реального MSAA-клиента.
+  Продолжать только изолированный runtime-spike: собрать совместимый
+  `_tkinter`, проверить ABI, лицензии, размер/скорость portable и реальные
+  поля/кнопки через MSAA + NVDA; UIA + Narrator тестировать отдельно и не
+  требовать от Tk bridge заявленной поддержки, которой upstream не
   гарантирует. В параллельном design spike проверить обычные ttk Button/Entry
   вместо ключевых Canvas-кнопок: одна замена Tk не сделает Canvas
   семантическим. Не менять runtime и не обещать screen-reader поддержку до
