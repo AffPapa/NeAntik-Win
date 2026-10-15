@@ -117,6 +117,18 @@ independently below.
   `C:\N155\wsl-stun-0.8.18-preview-provenance-20261015.json`.
   Same-host namespace control only; external egress, DNS, public IPv6, TURN,
   proxy authentication and GUI are not covered.
+- `tools/websocket_route_integration.py` on the exact public Chromium:
+  **PASS**, 16/16 loopback cases. WS and WSS succeeded through direct, HTTP,
+  HTTPS and SOCKS5 routes; unavailable HTTP/HTTPS/SOCKS5 proxies and an
+  untrusted HTTPS-proxy certificate produced no target message or proxy
+  connection. Profiles used `Data/Profiles`, production path checks ran before
+  each Popen, and source/prepared Chromium SHA-256 values both matched the
+  exact release executable. Harness source commit
+  `9baae953bf38d169b7c768c4a83558bd94e69806`, SHA-256
+  `08c51b6810da7072028754832c559b83cb036de66d9fd50b24b9ff1e009d759f`.
+  Private report: `C:\N155\websocket-route-0.8.18-preview-20261015.json`.
+  This is loopback-only source-harness evidence, not external WebSocket,
+  proxy-authentication, GUI or anonymity proof.
 
 Not rerun on this exact archive: proxy-auth success and broader browser/network
 integration suites. Migration coverage is same-account, synthetic and limited

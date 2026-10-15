@@ -295,6 +295,12 @@ main frame и двух iframe. Это только базовая линия о�
   regression прошёл непосредственно перед прогоном. Это отдельный source
   harness, не проверка GUI/auth или внешней DNS/IPv6/UDP privacy. Точные
   provenance и ограничения — в release evidence и route matrix.
+  На точном Chromium 0.8.18 WS/WSS transport matrix прошёл 16/16 loopback
+  случаев: direct, HTTP, HTTPS и SOCKS5 success, плюс недоступные proxy и
+  недоверенный TLS certificate отказали без target/proxy соединений. Это
+  подтверждает только перечисленные same-host маршруты; внешний DNS/IPv6,
+  proxy auth и GUI остаются **NOT RUN**. Доказательства и hash harness — в
+  [route matrix](ROUTE_MATRIX_2026-10.md) и release evidence.
   [Доказательства](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.2 Наблюдение на внешнем стенде:** контролируемые серверы в другой
   сети, packet capture и серверные логи только для одноразовых профилей.

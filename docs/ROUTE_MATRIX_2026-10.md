@@ -11,10 +11,10 @@ runs, not a new execution of every test on the current commit. Bounded public
 STUN and external HTTPS route audits were rerun against the exact downloaded
 0.8.7-preview Chromium; local HTTPS proxy TLS/CONNECT and HTTP/SOCKS5 loopback
 gates were rerun on the exact public 0.8.18-preview Chromium in dated addenda
-below. Other
-historical routes were not rerun on 0.8.18. Local
-HTTPS-proxy and WebSocket supplements below were rerun against the unpacked
-0.8.6-preview candidate-3 ZIP
+below. Other historical routes were not rerun on 0.8.18. The older local
+HTTPS-proxy/WebSocket supplements were run against the unpacked
+0.8.6-preview candidate-3 ZIP; a newer full WS/WSS matrix is separately
+recorded below for exact public 0.8.18-preview
 (SHA-256 `bab9097883830edda661d64ee4d8a18f07bec57415f5c611173b960aabb138a9`),
 whose `chrome.exe` SHA-256 is
 `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
@@ -189,3 +189,24 @@ Private report:
 This is a same-machine cross-network-namespace control, not an independent
 public egress/packet observer. External DNS, public IPv6, TURN, another host,
 proxy authentication and anonymity remain **NOT RUN**; P2 remains **OPEN**.
+
+### Exact public 0.8.18-preview WebSocket route controls — 15 October 2026
+
+The exact downloaded Chromium (`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`) passed
+**16/16 loopback cases**: `ws` and `wss` over direct, HTTP, HTTPS and SOCKS5;
+unavailable HTTP/HTTPS/SOCKS5 proxies; and an untrusted HTTPS-proxy certificate.
+All successful cases observed exactly one expected target message and the
+selected proxy route. All unavailable/untrusted cases observed no target
+message and no proxy connection. The target, proxies, DNS mapping, and DevTools
+endpoint were local fixtures; generated certificate keys were disposable.
+Profiles were stored in `Data/Profiles`, production profile-path isolation was
+checked before each Popen, and the ACL-prepared Chromium copy matched the
+release executable hash. The Windows junction regression passed immediately
+before this run.
+
+Harness source commit `9baae953bf38d169b7c768c4a83558bd94e69806`, SHA-256
+`08c51b6810da7072028754832c559b83cb036de66d9fd50b24b9ff1e009d759f`.
+Private report: `C:\N155\websocket-route-0.8.18-preview-20261015.json`.
+This establishes only the listed same-host loopback routes. External
+WebSocket/proxy/DNS/IPv6 and proxy-auth success remain **NOT RUN**.
