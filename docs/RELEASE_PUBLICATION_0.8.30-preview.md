@@ -25,7 +25,7 @@ fingerprint нет.
 | Тесты storage/path isolation | PASS, 37 тестов |
 | Release tooling | PASS, 58 проверок |
 | Packaged-style self-test в build-каталоге | PASS, exit 0 |
-| Public-source guard | PASS, 231 файл; staged evidence-файл требует финальной сверки после добавления |
+| Public-source guard | PASS, 231 файл на source commit; staged release evidence после добавления — PASS, 1 файл |
 | Локальный portable archive verifier | PASS, 1,066 файлов |
 | Fresh extraction точного ZIP и packaged `--self-test` | PASS, exit 0; пользовательские Data/Profiles отсутствуют |
 | GUI-smoke кандидата 0.8.30 | NOT RUN: отдельное action-time подтверждение для запуска этой сборки не получено |
