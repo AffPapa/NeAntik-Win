@@ -3440,7 +3440,23 @@ class NeVisionApp:
 
         def completed(archive: Path) -> None:
             self.set_status(f"Backup создан: {archive.name}")
-            messagebox.showinfo(APP_NAME, f"Backup создан:\n{archive}", parent=self.root)
+            try:
+                details = filesystem_path(archive).stat()
+                created_at = display_datetime(
+                    datetime.fromtimestamp(details.st_mtime).astimezone().isoformat(timespec="seconds")
+                )
+                size = human_size(details.st_size)
+            except OSError:
+                created_at, size = "недоступна", "недоступен"
+            summary = (
+                f"Backup создан:\n{archive}\n\n"
+                f"Дата: {created_at}\nРазмер: {size}\n"
+                "Состав: данные браузерного профиля; там могут быть cookies, история и активные сессии сайтов.\n"
+                "Пароли из Proxy vault не включены. ZIP не зашифрован.\n\n"
+                "Открыть папку резервных копий?"
+            )
+            if messagebox.askyesno(APP_NAME, summary, parent=self.root, default="no"):
+                self.open_backup_folder()
 
         def failed(exc: Exception) -> None:
             self.set_status("Ошибка backup")

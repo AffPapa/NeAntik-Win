@@ -71,6 +71,7 @@ class GuiControllerTests(unittest.TestCase):
             _is_profile_active=lambda _id: False,
             _allow_profile_mutation=lambda _profile: True,
             set_status=MagicMock(),
+            open_backup_folder=MagicMock(),
         )
 
         def run_now(key, operation, completed, failed):
@@ -90,12 +91,17 @@ class GuiControllerTests(unittest.TestCase):
         (profile_dir / "synthetic.txt").write_text("safe test content", encoding="utf-8")
         app = self.backup_controller(profile_id)
 
-        with patch("nevision_win.messagebox.askyesno", return_value=True) as confirm, patch(
+        with patch("nevision_win.messagebox.askyesno", side_effect=[True, False]) as confirm, patch(
             "nevision_win.messagebox.showinfo"
         ) as show_info, patch("nevision_win.messagebox.showerror") as show_error:
             NeVisionApp.backup_selected(app)
 
-        confirm.assert_called_once()
+        self.assertEqual(confirm.call_count, 2)
+        self.assertIn("Дата:", confirm.call_args_list[1].args[1])
+        self.assertIn("Размер:", confirm.call_args_list[1].args[1])
+        self.assertIn("cookies", confirm.call_args_list[1].args[1])
+        self.assertEqual(confirm.call_args_list[1].kwargs["default"], "no")
+        app.open_backup_folder.assert_not_called()
         app._run_in_background.assert_called_once()
         archives = list(self.storage.paths.backups.glob("*.zip"))
         self.assertEqual(len(archives), 1)
@@ -105,7 +111,7 @@ class GuiControllerTests(unittest.TestCase):
             self.assertTrue(manifest["browser_session_data_included"])
             self.assertEqual(archive.read("profile/synthetic.txt"), b"safe test content")
         self.assertIn("Backup создан", app.set_status.call_args.args[0])
-        show_info.assert_called_once()
+        show_info.assert_not_called()
         show_error.assert_not_called()
 
     def test_backup_cancel_does_not_schedule_or_create_archive(self):

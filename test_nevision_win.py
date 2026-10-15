@@ -1488,6 +1488,47 @@ class InterfaceLogicTests(unittest.TestCase):
         self.assertIn("CONNECT", dialog_text)
         self.assertIn("DNS", dialog_text)
 
+    def test_backup_success_reports_date_size_contents_and_offers_backup_folder(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "synthetic-profile-backup.zip"
+            archive.write_bytes(b"x" * 4096)
+            fixed_time = datetime(2026, 10, 15, 12, 0, 0).timestamp()
+            os.utime(archive, (fixed_time, fixed_time))
+
+            app = object.__new__(NeVisionApp)
+            app.root = MagicMock()
+            app.selected_profile = MagicMock(return_value={
+                "id": "synthetic-profile", "name": "Synthetic profile"
+            })
+            app._is_profile_active = MagicMock(return_value=False)
+            app._allow_profile_mutation = MagicMock(return_value=True)
+            app.storage = MagicMock()
+            app.set_status = MagicMock()
+            app._run_in_background = MagicMock()
+            app.open_backup_folder = MagicMock()
+
+            with patch("nevision_win.messagebox.askyesno", side_effect=[True, True]) as confirm:
+                app.backup_selected()
+                completed = app._run_in_background.call_args.args[2]
+                completed(archive)
+
+            self.assertEqual(confirm.call_count, 2)
+            self.assertEqual(confirm.call_args.kwargs["default"], "no")
+            summary = confirm.call_args_list[1].args[1]
+            expected_date = datetime.fromtimestamp(fixed_time).astimezone().strftime("%d.%m.%Y %H:%M")
+            for expected in (
+                expected_date,
+                "Размер: 4.0 KB",
+                "cookies",
+                "история",
+                "активные сессии",
+                "Пароли из Proxy vault не включены",
+                "ZIP не зашифрован",
+            ):
+                with self.subTest(expected=expected):
+                    self.assertIn(expected, summary)
+            app.open_backup_folder.assert_called_once_with()
+
     def test_file_menu_exposes_backup_folder_action(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
