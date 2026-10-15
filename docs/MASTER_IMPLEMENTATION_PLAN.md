@@ -466,6 +466,13 @@ main frame и двух iframe. Это только базовая линия о�
   сохранён. Это source harness на одном ПК, не GUI и не внешний сайт; точные
   commit, hash и ограничения — в [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md)
   и [протоколе загрузок](DOWNLOAD_ISOLATION_2026-10.md).
+  На source commit `b88abd061ef35fbafa288bc3473c5abda9040646` добавлен
+  Windows-only regression для настоящего вложенного directory junction во
+  время backup: операция отказывает до создания ZIP/partial и не меняет
+  synthetic target снаружи профиля. Новый сценарий и три соседние проверки
+  symlink/reparse-file/hardlink прошли **4/4** на Windows-хосте. Это source
+  unit coverage, не packaged GUI, не защита от TOCTOU или другого процесса
+  той же учётной записи; поведение продукта и публичный ZIP не менялись.
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после
