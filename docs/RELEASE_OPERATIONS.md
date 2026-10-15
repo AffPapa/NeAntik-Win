@@ -1,7 +1,7 @@
 # Release operations: GitHub + public Site
 
 This is the repeatable publication path validated on the Windows host through
-2026-10-15 (including browser v0.8.25-preview and public Site version 61). It supplements the per-version evidence; it does not replace the
+2026-10-15 (including browser v0.8.25-preview and public Site version 62). It supplements the per-version evidence; it does not replace the
 release test matrix or authorize publishing a candidate that failed a gate.
 
 ## 1. Prepare the immutable browser release

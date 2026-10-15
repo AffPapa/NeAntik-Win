@@ -56,3 +56,7 @@ complete anonymity.
 - The live release metadata and changelog refer to the exact public ZIP above;
   version 0.8.24 attestation metadata was not carried forward to this unattested
   archive.
+- After hosted Windows 2022 second-host QA passed, Site version **62** was
+  deployed from Site source commit
+  `9039bfce0109276d990a184e233d9f0513b50535`. It adds the post-release QA result
+  and this report link; `/release.json` still identifies the same verified ZIP.
