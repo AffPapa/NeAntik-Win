@@ -369,3 +369,42 @@ The raw report remains only in the ignored QA build folder. This is one Windows
 11 host/account and headless source integration—not GUI, Windows 10, another
 host/account, cross-machine DPAPI, arbitrary extensions, or external routing;
 P3 remains open.
+
+## Post-publication exact 0.8.29-preview → 0.8.30-preview session migration — 16 October 2026
+
+`tools/upgrade_browser_session_integration.py` passed against the exact
+repeat-downloaded public ZIPs on this Windows host/account. Old ZIP
+`NeAntikWin-portable-v0.8.29-preview.zip` is 262,392,554 bytes, SHA-256
+`c14d4b9295d9daf1bfe490a02043bd6f62781612dddc3f332ae1bc868f506d84`, source
+commit `c6f46c50b92ac3931d9ba6a7bd066d5793b5342b`; candidate ZIP
+`NeAntikWin-portable-v0.8.30-preview.zip` is 262,393,616 bytes, SHA-256
+`07766ee6edc251c5d7a512cd056da41e5f2ae8994f63a7cd6c2d724e6bf7be6a`, source
+commit `09f516f6dc340c126f1d1f8615d68a9f9251b734`. Both archives contain the
+same `chrome.exe` (4,144,128 bytes; SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`).
+
+Three real headless Chromium visits passed on one loopback origin: old-version
+write, old-version read after restart, and candidate read after copying the
+synthetic `Data/`. Cookies, localStorage, IndexedDB, Cache Storage, and
+service-worker state were present and agreed between page DOM and fixture
+server; the synthetic notification permission changed from denied to granted
+and persisted into the candidate. A synthetic managed Downloads file and its
+rebased path were preserved, the old Data snapshot remained unchanged, and 12
+background proxy requests were rejected. The targeted migration-fixture suite
+passed 9/9; Python compilation and `git diff --check` passed. Harness source was
+tested from a dirty working tree at HEAD `a92f38eddab7f1ba63cd06fbf0d34d04849948dd`;
+its local SHA-256 was `6818cee3bfb93b14fc38581a0ca68a4b299b01beba804e8af4427882584be0f8`.
+
+The first attempts failed before any migration assertion because Cache Storage
+reported `Entry already exists`. A baseline control passed on a short profile
+path and failed at the migration harness's deeper extraction path; compacting
+each validated ZIP root to a one-character disposable folder fixed the exact
+pair run. This isolates a test-path-length/layout problem; it does not establish
+the internal Chromium filesystem failure mechanism or prove behavior at every
+user-selected portable path. The archives and product code were not changed.
+
+This is same-account, same-machine, synthetic side-by-side migration—not the
+packaged GUI updater, another account/PC, extension/password/history migration,
+actual browser-download flow, cross-machine DPAPI portability, or external
+network-leak testing. It is not a release of new product code and does not
+change the public site. P3 remains open.

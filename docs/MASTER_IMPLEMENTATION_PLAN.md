@@ -619,6 +619,14 @@ main frame и двух iframe. Это только базовая линия о�
   backup/restore и configuration-only clone. Это hosted CI account, не GUI,
   другая пользовательская учётная запись или физический consumer PC; backup
   ZIP остаётся незашифрованным. [Точный release evidence](RELEASE_PUBLICATION_0.8.30-preview.md).
+  Post-publication exact public ZIP migration 0.8.29-preview → 0.8.30-preview
+  также прошла на этом Windows host/account: три Chromium visits сохранили
+  cookie, localStorage, IndexedDB, Cache Storage, service-worker state и
+  synthetic notification choice; managed Downloads fixture и старый snapshot
+  сохранены. Для harness требуется короткий временный extraction root, иначе
+  глубокий путь сам вызывает ошибку Chromium/CacheStorage. Это не GUI-updater,
+  не другая учётная запись/машина и не реальный download flow; подробности и
+  exact hashes — в [P3.1 protocol](PROFILE_ISOLATION_2026-10.md). P3 открыт.
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после

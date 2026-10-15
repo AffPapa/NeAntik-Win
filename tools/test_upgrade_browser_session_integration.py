@@ -11,8 +11,12 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import zipfile
 
-from upgrade_browser_session_integration import FixtureServer, validate_profile_root
+from upgrade_browser_session_integration import (
+    PAGE, SERVICE_WORKER, STATE_FIELDS, FixtureServer, extract_compact_archive_root,
+    validate_profile_root,
+)
 
 
 class ProfileBoundaryTests(unittest.TestCase):
@@ -87,8 +91,20 @@ class MigrationFixtureTests(unittest.TestCase):
         status, body = self.request("GET", "/case?token=synthetic-token&phase=write")
         self.assertEqual(status, 200)
         self.assertIn(b"Max-Age=86400", body)
+        for api in (b"indexedDB.open", b"caches.open", b"serviceWorker.register", b"Notification.permission"):
+            self.assertIn(api, body)
+        self.assertIn(b"caches.open('nevision_qa_cache')", body)
+        self.assertIn(b"'/nevision-qa-cache-entry'", body)
         self.assertEqual(self.server.page_hits["write"], 1)
         status, _ = self.request("GET", "/case?token=wrong&phase=write")
+        self.assertEqual(status, 404)
+
+    def test_service_worker_script_is_loopback_token_scoped(self) -> None:
+        status, body = self.request("GET", "/sw.js?token=synthetic-token")
+        self.assertEqual(status, 200)
+        self.assertIn(b"skipWaiting", body)
+        self.assertIn(b"clients.claim", body)
+        status, _ = self.request("GET", "/sw.js?token=wrong")
         self.assertEqual(status, 404)
 
     def test_absolute_proxy_request_is_rejected(self) -> None:
@@ -100,16 +116,50 @@ class MigrationFixtureTests(unittest.TestCase):
         self.assertEqual(self.server.rejected_proxy_requests, 2)
 
     def test_report_rejects_duplicate_and_wrong_phase(self) -> None:
-        payload = {"token": "synthetic-token", "phase": "write", "cookie": True,
-                   "localStorage": True, "origin": "http://127.0.0.1"}
+        payload = {"token": "synthetic-token", "phase": "write",
+                   **{field: True for field in STATE_FIELDS},
+                   "notification": "denied",
+                   "origin": f"http://127.0.0.1:{self.server.server_port}"}
         status, _ = self.request("POST", "/report?token=synthetic-token", json.dumps(payload).encode())
         self.assertEqual(status, 200)
         self.assertTrue(self.server.ready.is_set())
         status, _ = self.request("POST", "/report?token=synthetic-token", json.dumps(payload).encode())
         self.assertEqual(status, 400)
-        self.server.phase = "read"
+        self.server.phase = "old-read"
         status, _ = self.request("POST", "/report?token=synthetic-token", json.dumps(payload).encode())
         self.assertEqual(status, 400)
+
+    def test_report_rejects_missing_storage_assertions(self) -> None:
+        payload = {"token": "synthetic-token", "phase": "write",
+                   "cookie": True, "localStorage": True,
+                   "notification": "denied",
+                   "origin": f"http://127.0.0.1:{self.server.server_port}"}
+        status, _ = self.request("POST", "/report?token=synthetic-token", json.dumps(payload).encode())
+        self.assertEqual(status, 400)
+
+    def test_page_failure_report_is_token_and_phase_scoped(self) -> None:
+        payload = {"token": "synthetic-token", "phase": "write", "message": "synthetic failure"}
+        status, _ = self.request("POST", "/failure?token=synthetic-token", json.dumps(payload).encode())
+        self.assertEqual(status, 200)
+        self.assertEqual(self.server.failures["write"], "synthetic failure")
+        self.assertTrue(self.server.ready.is_set())
+        status, _ = self.request("POST", "/failure?token=wrong", json.dumps(payload).encode())
+        self.assertEqual(status, 404)
+
+
+class ArchivePathTests(unittest.TestCase):
+    def test_archive_root_is_compacted_before_browser_profile_creation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="na-") as temporary:
+            root = Path(temporary)
+            archive_path = root / "synthetic.zip"
+            archive_root = "NeAntikWin-portable-v9.9.9-preview"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr(f"{archive_root}/Engine/Chromium/chrome.exe", b"synthetic")
+            portable = extract_compact_archive_root(archive_path, root, archive_root, "o")
+            self.assertEqual((portable / "Engine" / "Chromium" / "chrome.exe").read_bytes(), b"synthetic")
+            self.assertFalse((root / "o-extract").exists())
+            self.assertLess(len(str(portable / "Data" / "Profiles" / ("a" * 32) / "Default")),
+                            len(str(root / "o-extract" / archive_root / "Data" / "Profiles" / ("a" * 32) / "Default")))
 
 
 if __name__ == "__main__":
