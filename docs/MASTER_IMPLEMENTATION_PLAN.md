@@ -601,6 +601,11 @@ junction внутри `Default/Local Storage/leveldb`: до `Popen`, browser res
 каталогов, не TOCTOU и не намеренный tampering тем же Windows-пользователем.
 Тест не меняет product code или публичный бинарник; точное доказательство — в
 [release evidence](RELEASE_PUBLICATION_0.8.27-preview.md).
+На том же exact public ZIP .27 `browser_integration.py` прошёл 21/21 storage
+assertion за 7 headless Chromium visits для A/B, restart, backup/restore и
+configuration clone. Проверялись только синтетические данные через localhost;
+GUI, cross-account/PC и DPAPI portability остаются вне этого gate. Полный
+протокол и hashes — в [P3.1 evidence](PROFILE_ISOLATION_2026-10.md).
 
 ### P4 — простой интерфейс и скорость
 

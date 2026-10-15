@@ -52,6 +52,14 @@ regression test для junction в Local Storage LevelDB: отдельный т�
 все 49 `PortableCoreRegressionTests` PASS, один существующий test skipped.
 Эта правка только тестовая/документационная: binary source commit и ZIP не менялись.
 
+Также exact public ZIP .27 прошёл `tools/browser_integration.py`:
+**21/21 assertions, семь Chromium visits**. Проверены синтетическая изоляция и
+перезапуск cookies/localStorage/IndexedDB/Cache Storage/service workers,
+разрешения A/B, backup/restore и чистый configuration clone. Только localhost;
+28 фоновых HTTP(S) запросов заблокированы rejecting proxy. Это source-level
+headless integration на одном Windows 11 account, не GUI/cross-PC тест.
+Хеши и ограничения — в [P3.1 протоколе](PROFILE_ISOLATION_2026-10.md).
+
 GUI smoke именно для 0.8.27 — **NOT RUN**; запуск окна 0.8.26 не переносится
 на этот EXE. Внешние DNS/IPv6/UDP/STUN/TURN, иная физическая машина,
 Windows 10/ARM64 и UIA/MSAA/NVDA — **NOT RUN**. Это не меняет fingerprint и

@@ -342,3 +342,30 @@ the restored profile/data and its source while clearing the journal. The entire
 source-level deterministic crash-window test, not a power-loss/filesystem
 durability test, packaged GUI restore, or cross-account/PC verification; no
 browser process or user `Data/` was used and product code/binary were unchanged.
+
+## Post-publication exact 0.8.27-preview ZIP storage check — 15 October 2026
+
+`tools/browser_integration.py` ran against Chromium extracted from the exact
+public 0.8.27-preview ZIP (ZIP SHA-256
+`daa9da39bb19428e2989439b6200fbf4d9ee0a5d999f834880e2bbb800ba2eb0`;
+`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`). The
+release product/storage harness files are unchanged from binary source commit
+`5e1b83b7dcdf2a965a2f53c33aab73522fed6879`. The gate passed **21/21
+assertions across seven Chromium visits**: synthetic cookie, localStorage,
+IndexedDB, Cache Storage and service-worker separation/persistence for profiles
+A/B; permission defaults and an A-only synthetic notification fixture; real
+backup/restore to a new profile; and configuration-only clone starting empty.
+Backup correctly disclaimed encryption and omitted proxy credentials. Exactly
+28 background HTTP(S) requests were blocked by the local rejecting proxy; only
+the local test origin was navigated.
+
+Harness SHA-256 `3df6060a830cfcaa29b97210e02995258e3cd7af71c4d8730cf4d3c147f05830`;
+product `nevision_win.py` SHA-256
+`24f8e7c238a0efd015bb416417fb935e99eecc2521bf47040caf2c5f26049914`;
+local report SHA-256
+`1b64857fec84cf7c8475c83deead9e6a18a1a02403301acf7cc8bed4e6886a23`.
+The raw report remains only in the ignored QA build folder. This is one Windows
+11 host/account and headless source integration—not GUI, Windows 10, another
+host/account, cross-machine DPAPI, arbitrary extensions, or external routing;
+P3 remains open.
