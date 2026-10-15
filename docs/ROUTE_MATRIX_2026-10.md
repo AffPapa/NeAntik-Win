@@ -291,3 +291,22 @@ ignored local `build/` artifacts, not in the public repository.
 This adds no evidence about public DNS, external IPv6/UDP/STUN/TURN, another
 host, or independent egress/packet observations. Overall network privacy gate
 remains **OPEN** and those checks remain **NOT RUN**; no anonymity claim follows.
+
+### Exact public 0.8.27-preview WSL WebRTC route repeat — 15 October 2026
+
+The repeat-verified public 0.8.27-preview ZIP (SHA-256
+`daa9da39bb19428e2989439b6200fbf4d9ee0a5d999f834880e2bbb800ba2eb0`) was
+tested by `wsl_stun_route_audit.py`; bundled Chromium `chrome.exe` SHA-256 was
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`. Ubuntu
+WSL ran a private, token-gated UDP counter. Direct positive control: 5 STUN
+Binding requests received / 5 NetLog sends. HTTP proxy: 0 received / 0 NetLog
+UDP sends. SOCKS5 proxy: 0 received / 0 NetLog UDP sends; the local SOCKS5
+fixture observed one synthetic route-control request and four test-page
+requests. Both proxy gates **PASS**.
+
+This is a same-machine cross-namespace repeat, not an independent egress
+observer. The local raw report contains a private WSL address and remains
+outside GitHub. Public DNS, IPv6, TURN, another host/network, external proxy
+egress and anonymity remain **NOT RUN**; P2 remains **OPEN**. See the
+[release-specific evidence](RELEASE_PUBLICATION_0.8.27-preview.md) and
+[network protocol](NETWORK_PRIVACY_2026-10.md).
