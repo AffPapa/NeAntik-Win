@@ -110,9 +110,11 @@ independently below.
   controls confirmed one synthetic route-control and four proxied page
   requests. Both proxy-policy evaluators passed. Harness profiles use
   `Data/Profiles` and the product path isolation check before each Popen.
-  Harness source commit `9b406be691f2ed3bc34528e70a601594855e483c`; source
-  Chromium SHA-256 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
-  Private report: `C:\N155\wsl-stun-0.8.18-preview-20261015.json`.
+  Harness source commit `251aebca3e67208af758a71e6bcbca64e1babfad`; source and
+  ACL-prepared Chromium SHA-256 both
+  `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+  Private report:
+  `C:\N155\wsl-stun-0.8.18-preview-provenance-20261015.json`.
   Same-host namespace control only; external egress, DNS, public IPv6, TURN,
   proxy authentication and GUI are not covered.
 

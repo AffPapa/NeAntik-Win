@@ -177,12 +177,14 @@ used disposable profiles under `Data/Profiles`, production
 byte-identical sandbox-ACL prepared copy. The Windows junction regression
 passed immediately before the run.
 
-Harness source commit `9b406be691f2ed3bc34528e70a601594855e483c`;
+Harness source commit `251aebca3e67208af758a71e6bcbca64e1babfad`;
 `webrtc_udp_integration.py` SHA-256
 `7a4c56340b806028a686797fc88bbbeed0c81b4c40cf6bd108d4c68e9e8d64db`;
 `wsl_stun_route_audit.py` SHA-256
-`10c97c0c8dccb9b5a00a8796c025872fd8a686964bec5abd436717b4fd0d0dba`.
-Private report: `C:\N155\wsl-stun-0.8.18-preview-20261015.json`.
+`89c63d91b382e322f4006c22b499c6cc0d8919de40a073b418ef10f99f768be1`.
+The harness verified the source and sandbox-prepared executable hashes match.
+Private report:
+`C:\N155\wsl-stun-0.8.18-preview-provenance-20261015.json`.
 
 This is a same-machine cross-network-namespace control, not an independent
 public egress/packet observer. External DNS, public IPv6, TURN, another host,
