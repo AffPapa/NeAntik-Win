@@ -68,6 +68,12 @@ sidecars, checks the GitHub asset digests and source commit, and runs the full
 portable archive verifier before creating a short-lived OIDC/Sigstore
 attestation with the custom predicate
 `https://affpapa.org/attestations/neantik-release-review/v1`.
+This is a publisher/repository trust statement, not an independent approval:
+the GitHub API reported no classic branch protection on `main` and no visible
+repository rulesets when checked on 2026-10-15. Recheck that state before
+relying on the attestation; anyone able to change repository workflows is
+inside the publisher trust boundary. Enabling required review/status checks
+and restricting workflow changes is a separate repository-administration task.
 
 After the workflow succeeds, download that same ZIP and verify it with a recent
 GitHub CLI:
