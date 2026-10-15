@@ -33,12 +33,20 @@ independently below.
   **PASS**, rejected before browser process/profile mutation.
 - Exact extracted portable EXE `--self-test`: **PASS**, exit code 0; no `Data/`
   was created. Packaged launcher integration: **PASS**, 2 cases.
+- After publication, `tools/fingerprint_surface_audit.py` on the extracted
+  public ZIP's exact Chromium binary (SHA-256
+  `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`):
+  **PASS**, 170 consistency checks, two disposable profiles, two launches per
+  profile, loopback-only observers; all 8 attempted external requests were
+  blocked. The private device-traits report stays outside Git at
+  `C:\N155\audit-0.8.18-preview-20261015.json`.
 
 Not rerun on this exact archive: proxy, migration, storage, download and broader
 browser/network integration suites. Manual visible GUI, another Windows machine,
-external DNS/IPv6/UDP/STUN/TURN observers and fingerprint-spoofing checks are
-**NOT RUN** (fingerprint spoofing is intentionally absent). These limitations
-must not be represented as release PASS.
+independent external DNS/IPv6/UDP/STUN/TURN observers and fingerprint-spoofing
+checks are **NOT RUN** (fingerprint spoofing is intentionally absent). Loopback
+blocking does not prove external-route privacy. These limitations must not be
+represented as release PASS.
 
 ## Production Site
 
