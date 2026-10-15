@@ -1,7 +1,7 @@
 # Release operations: GitHub + public Site
 
-This is the repeatable publication path validated on the Windows host on
-2026-10-14. It supplements the per-version evidence; it does not replace the
+This is the repeatable publication path validated on the Windows host through
+2026-10-15 (including browser v0.8.19-preview and public Site version 53). It supplements the per-version evidence; it does not replace the
 release test matrix or authorize publishing a candidate that failed a gate.
 
 ## 1. Prepare the immutable browser release
@@ -63,11 +63,23 @@ release test matrix or authorize publishing a candidate that failed a gate.
    Confirm the archive contains `dist/.openai/hosting.json` and the built
    release metadata. Preserve the package bytes until `save_site_version`
    succeeds.
+   On this Windows host, first resolve Node inside the selected WSL distro with
+   `wsl.exe -d Ubuntu --exec bash -lc 'command -v node'`. The Site workflow's
+   nested non-login Bash inherits the caller's environment; invoking the
+   workflow with Node by absolute path alone can therefore fail later with
+   `node: command not found`. Start it with a PATH that includes the resolved
+   Node directory so both the workflow and nested `package-site.sh` can run.
+   Use only POSIX checkout/archive paths inside WSL.
 4. Important retry rule: `site-workflow.mjs` saves/pushes the source commit
    before it packages the deployment archive. If the helper fails during
    packaging, first inspect branch, HEAD, working tree and remote state. The
    exact source commit may already have been pushed; do not blindly repeat the
    edit or create another commit. Complete packaging for that same commit.
+   If packaging fails on nested `node` resolution, inspect local HEAD/status
+   and reconcile the remote with the open-source workflow first; then reuse
+   that same pushed commit and package it again with the corrected PATH. Do not
+   repeat source edits, issue a second commit, or generate a new version solely
+   to recover the package step.
 5. Save the Site version with the helper's exact pushed `commit_sha` and
    matching deployment archive. For the existing public Site use
    `deploy_site_version` with the exact saved `version_id`; do not use the
