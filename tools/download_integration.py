@@ -156,10 +156,10 @@ def run_browser(chrome: Path, storage: Storage, profile_id: str, label: str,
         actual_size = path.stat().st_size
     except OSError:
         actual_size = None
-    stderr_excerpt = (stderr.decode("utf-8", errors="replace")
-                      .replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")[-1200:])
-    stdout_excerpt = (stdout.decode("utf-8", errors="replace")
-                      .replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")[-1200:])
+    stderr_text = stderr.decode("utf-8", errors="replace").replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")
+    stdout_text = stdout.decode("utf-8", errors="replace").replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")
+    stderr_excerpt = stderr_text if len(stderr_text) <= 2400 else stderr_text[:1200] + "\n...[middle omitted]...\n" + stderr_text[-1200:]
+    stdout_excerpt = stdout_text if len(stdout_text) <= 2400 else stdout_text[:1200] + "\n...[middle omitted]...\n" + stdout_text[-1200:]
     attempt = {"profile": label, "process_return_code": process.returncode if process else None,
                "server_completed_download": server.cases[token].is_set(),
                "download_file_present": actual_size is not None,
@@ -171,7 +171,7 @@ def run_browser(chrome: Path, storage: Storage, profile_id: str, label: str,
             "Synthetic download was not verified in the managed profile folder "
             f"(process_exit={attempt['process_return_code']}, "
             f"server_completed={attempt['server_completed_download']}, "
-            f"file_bytes={actual_size}, stderr={stderr_excerpt[-500:]!r})"
+            f"file_bytes={actual_size}, stderr={stderr_excerpt[:900]!r})"
         )
     report["cases"].append({"profile": label, "bytes": len(expected),
                             "download_in_managed_folder": True})
@@ -225,6 +225,9 @@ def main() -> int:
                 shutil.move(root, moved_root)
                 root = moved_root
                 chrome = root / chrome_relative
+                qa_portable_root = chrome.parent.parent.parent
+                BrowserLauncher(Storage(AppPaths(qa_portable_root))).ensure_bundled_sandbox_access(chrome.parent)
+                report["sandbox_acl_reapplied_after_portable_move"] = True
                 storage = Storage(AppPaths(root))
                 moved = storage.profile_path(profile_a_id)
                 if not ensure_managed_download_directory(moved):
