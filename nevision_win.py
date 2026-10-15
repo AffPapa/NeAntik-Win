@@ -2862,7 +2862,17 @@ class NeVisionApp:
 
     def _request_close(self) -> None:
         self._closing = True
-        self._clear_copied_password()
+        if not self._clear_copied_password():
+            close_anyway = messagebox.askyesno(
+                APP_NAME,
+                "Windows временно не дала проверить буфер обмена. Скопированный proxy-пароль "
+                "может остаться в буфере и его истории. Закрыть приложение всё равно?",
+                parent=self.root,
+                default=messagebox.NO,
+            )
+            if not close_anyway:
+                self._closing = False
+                return
         if self._background_operations:
             self.set_status("Завершаю текущие операции… Не отключайте накопитель.")
             return
@@ -3713,17 +3723,39 @@ class NeVisionApp:
         self.storage.log("proxy.password_copied", str(profile["id"]), proxy["name"])
         self.set_status("Пароль скопирован; очистка через 30 с. Историю/синхронизацию буфера Windows это не очищает.")
 
-    def _clear_copied_password(self, expected: str | None = None, generation: int | None = None) -> None:
-        if generation is not None and generation != self._clipboard_generation:
-            return
-        value = expected if expected is not None else self._clipboard_secret
-        if value is None:
+    def _schedule_clipboard_cleanup_retry(self, value: str, generation: int | None,
+                                         retry_count: int) -> None:
+        if generation is None or retry_count >= 3 or getattr(self, "_closing", False):
             return
         with contextlib.suppress(tk.TclError):
-            if self.root.clipboard_get() == value:
+            self.root.after(
+                1_000,
+                lambda: self._clear_copied_password(value, generation, retry_count + 1),
+            )
+
+    def _clear_copied_password(self, expected: str | None = None,
+                               generation: int | None = None,
+                               retry_count: int = 0) -> bool:
+        if generation is not None and generation != self._clipboard_generation:
+            return True
+        value = expected if expected is not None else self._clipboard_secret
+        if value is None:
+            return True
+        try:
+            clipboard_value = self.root.clipboard_get()
+        except tk.TclError:
+            # Keep state and make a few bounded retries after the expiry timer.
+            self._schedule_clipboard_cleanup_retry(value, generation, retry_count)
+            return False
+        if clipboard_value == value:
+            try:
                 self.root.clipboard_clear()
+            except tk.TclError:
+                self._schedule_clipboard_cleanup_retry(value, generation, retry_count)
+                return False
         if self._clipboard_secret == value:
             self._clipboard_secret = None
+        return True
 
     def open_profile_folder(self) -> None:
         profile = self.selected_profile()

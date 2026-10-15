@@ -8,6 +8,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import tkinter as tk
 import unittest
 import uuid
 import warnings
@@ -2059,6 +2060,56 @@ class InterfaceLogicTests(unittest.TestCase):
         app.root.clipboard_clear.assert_not_called()
         app._clear_copied_password("same-password", 2)
         app.root.clipboard_clear.assert_called_once_with()
+
+    def test_clipboard_cleanup_keeps_retry_state_after_temporary_read_error(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.root.clipboard_get.side_effect = [tk.TclError("clipboard busy"), "same-password"]
+        app._clipboard_secret = "same-password"
+        app._clipboard_generation = 1
+
+        self.assertFalse(app._clear_copied_password("same-password", 1))
+        self.assertEqual(app._clipboard_secret, "same-password")
+        app.root.clipboard_clear.assert_not_called()
+        self.assertEqual(app.root.after.call_args.args[0], 1_000)
+
+        app.root.after.call_args.args[1]()
+        app.root.clipboard_clear.assert_called_once_with()
+        self.assertIsNone(app._clipboard_secret)
+
+    def test_clipboard_clear_error_keeps_retry_state(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.root.clipboard_get.return_value = "same-password"
+        app.root.clipboard_clear.side_effect = [tk.TclError("clipboard busy"), None]
+        app._clipboard_secret = "same-password"
+        app._clipboard_generation = 1
+
+        self.assertFalse(app._clear_copied_password("same-password", 1))
+        self.assertEqual(app._clipboard_secret, "same-password")
+        app.root.after.call_args.args[1]()
+        app.root.clipboard_clear.assert_called_with()
+        self.assertEqual(app.root.clipboard_clear.call_count, 2)
+        self.assertIsNone(app._clipboard_secret)
+
+    def test_close_warns_and_stays_open_if_clipboard_cannot_be_checked(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.root.clipboard_get.side_effect = tk.TclError("clipboard busy")
+        app._clipboard_secret = "synthetic-password"
+        app._clipboard_generation = 1
+        app._background_operations = set()
+        app._closing = False
+        app._executor = MagicMock()
+
+        with patch("nevision_win.messagebox.askyesno", return_value=False) as confirm:
+            app._request_close()
+
+        self.assertIn("может остаться в буфере", confirm.call_args.args[1])
+        self.assertFalse(app._closing)
+        self.assertEqual(app._clipboard_secret, "synthetic-password")
+        app.root.destroy.assert_not_called()
+        app._executor.shutdown.assert_not_called()
 
 
 if __name__ == "__main__":
