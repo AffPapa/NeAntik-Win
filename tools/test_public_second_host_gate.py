@@ -60,7 +60,7 @@ class SecondHostGateTests(unittest.TestCase):
                                             expected)
 
     def test_runner_source_must_match_release_build_inputs(self) -> None:
-        names = ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "release-version.json")
+        names = ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "proxy_diagnostics.py", "release-version.json")
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repository, portable = root / "source", root / "portable"

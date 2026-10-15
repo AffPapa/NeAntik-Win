@@ -90,7 +90,7 @@ def assert_runner_source_matches_release(repository: Path, portable_root: Path) 
                      if isinstance(item, dict)}
     # The harness is from the trusted workflow checkout (never an arbitrary
     # dispatch-supplied ref). Product modules must match release build inputs.
-    for filename in ("nevision_win.py", "profile_identity.py", "privacy_defaults.py",
+    for filename in ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "proxy_diagnostics.py",
                      "release-version.json"):
         expected = source_hashes.get(filename)
         if not isinstance(expected, str) or sha256(repository / filename) != expected:

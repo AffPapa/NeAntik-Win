@@ -49,7 +49,7 @@ if (-not $PackageOnly) {
     $metadataRoot = Join-Path $buildRoot 'metadata'
     New-Item -ItemType Directory -Path $sourceRoot, $workRoot -Force | Out-Null
     Write-Output "Isolated build workspace: $buildRoot"
-    $sourceItems = @('nevision_win.py', 'profile_identity.py', 'privacy_defaults.py', 'release-version.json', 'requirements-build.txt', 'assets',
+    $sourceItems = @('nevision_win.py', 'profile_identity.py', 'privacy_defaults.py', 'proxy_diagnostics.py', 'release-version.json', 'requirements-build.txt', 'assets',
         'README.md', 'SECURITY_AND_SCOPE.md', 'ARCHITECTURE.md', 'RELEASE_CHECKLIST.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE')
     foreach ($relative in $sourceItems) {
         $source = Join-Path $projectRoot $relative

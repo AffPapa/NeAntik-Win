@@ -13,7 +13,7 @@ Use Windows, PowerShell and Python 3.12.
 ```powershell
 python -m pip install -r requirements-build.txt
 python -m pip install -r requirements-dev.txt
-python -m unittest -v test_nevision_win.py
+python -m unittest -v test_nevision_win.py test_proxy_diagnostics.py
 python .\nevision_win.py --self-test
 ```
 

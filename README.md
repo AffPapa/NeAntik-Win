@@ -33,7 +33,7 @@ This unsigned preview has been tested on **Windows 11 x64, build 26200**. Other 
 
 The portable edition provides profile isolation, local proxy assignment, locally protected proxy credentials, backup/restore, groups, tags, notes and activity history. It does not impersonate browser/device values or provide a complete leak-protection boundary. Chromium security updates require a new portable release; this bundle has no automatic updater.
 
-Proxy diagnostics check TCP reachability, not authentication, exit IP or absence of leaks. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication is entered in the browser's own prompt. Proxy credentials are not put in process arguments.
+Proxy diagnostics send a short no-credential protocol probe: HTTP(S) uses `OPTIONS *`, HTTPS additionally validates its TLS certificate, and SOCKS5 offers only the no-auth method. A 407 is reported without sending saved credentials. This does not verify CONNECT, opening a site, exit IP or absence of leaks; the proxy hostname is resolved by Windows. Authenticated SOCKS5 is rejected before launch; HTTP(S) authentication remains a manual browser prompt. Proxy credentials are not put in process arguments or diagnostic requests.
 
 Copied proxy passwords are cleared after 30 seconds, or on normal close, only if the clipboard still contains that password. Windows clipboard history, synchronization and copies made by other apps are not erased.
 

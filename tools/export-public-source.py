@@ -14,8 +14,8 @@ import re
 import stat
 
 ROOT_FILES = {
-    '.gitattributes', '.gitignore', 'nevision_win.py', 'neantik_win.py',
-    'test_nevision_win.py', 'test_neantik_win.py', 'profile_identity.py',
+    '.gitattributes', '.gitignore', 'nevision_win.py', 'neantik_win.py', 'proxy_diagnostics.py',
+    'test_nevision_win.py', 'test_neantik_win.py', 'test_proxy_diagnostics.py', 'profile_identity.py',
     'test_profile_identity.py',
     'release-version.json', 'requirements-build.txt',
     'requirements-dev.txt', 'requirements-engine.txt', 'requirements.txt', 'build.ps1', 'LICENSE',

@@ -21,6 +21,8 @@ class PublicExportTests(unittest.TestCase):
         self.root = self.parent / 'source'
         self.root.mkdir()
         self.write('nevision_win.py', '# application fixture\n')
+        self.write('proxy_diagnostics.py', '# imported application module fixture\n')
+        self.write('test_proxy_diagnostics.py', '# synthetic loopback tests fixture\n')
         self.write('release-version.json', '{"version":"0.3.0-preview"}\n')
         self.write('tools/check-public-repo.ps1', SCRIPT.with_name('check-public-repo.ps1').read_text(encoding='utf-8-sig'))
         self.destination = self.parent / 'export'
@@ -42,6 +44,8 @@ class PublicExportTests(unittest.TestCase):
             self.write(name, 'must never export\n')
         result = MODULE.export(self.root, self.destination)
         paths = {item['path'] for item in result['files']}
+        self.assertIn('proxy_diagnostics.py', paths)
+        self.assertIn('test_proxy_diagnostics.py', paths)
         self.assertNotIn('browser_engine.py', paths)
         self.assertNotIn('tests/fixtures/fingerprint.html', paths)
         self.assertNotIn('core/patches/003-canvas.patch', paths)

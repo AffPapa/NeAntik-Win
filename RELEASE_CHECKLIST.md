@@ -13,6 +13,7 @@ This is a gate, not a record claiming every item already passed. Record commands
 
 ```powershell
 python -m unittest -v test_nevision_win.py
+python -m unittest -v test_proxy_diagnostics.py
 python -m unittest -v test_profile_identity.py
 python -m unittest -v test_privacy_defaults.py
 python -m unittest discover -s tools -p 'test_*integration.py' -v

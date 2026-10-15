@@ -60,7 +60,7 @@ Proxy host validation handles IPv4, IPv6 and IDNA hostnames and rejects URL/list
 
 Saved proxy passwords use current-user Windows DPAPI. The clipboard helper clears a copied password after 30 seconds or normal close only if the clipboard still matches; it does not remove history or synchronized copies.
 
-The diagnostic opens a TCP connection only. It does not negotiate the proxy protocol, authenticate, prove an exit IP or guarantee no DNS/WebRTC/UDP leaks. There is no local proxy broker.
+The explicit diagnostic contacts only the selected proxy endpoint. It offers no-auth SOCKS5 or sends HTTP `OPTIONS *`; HTTPS first uses default TLS certificate and hostname verification. It never reads saved proxy credentials, sends a CONNECT request, or contacts a destination site. It can report a protocol response or 407 challenge, but cannot prove forwarding, exit IP or absence of DNS/WebRTC/UDP leaks. Proxy-host DNS uses Windows. Chromium's supported proxy behavior is documented in its [proxy support reference](https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md). There is no local proxy broker.
 
 ## Backups and restore
 

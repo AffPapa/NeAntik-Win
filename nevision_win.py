@@ -39,6 +39,7 @@ from typing import Any, Iterable
 from profile_identity import (CoreError, NATIVE_PREVIEW, identity_arguments,
                               ordinary_identity, serialize_identity, validate_identity)
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
+from proxy_diagnostics import diagnose_proxy
 
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox, ttk
@@ -3141,8 +3142,8 @@ class NeVisionApp:
         operations_heading.pack(fill="x")
         VectorIcon(operations_heading, "health", 18, self.colors["cyan"], self.colors["card"]).pack(side="left")
         tk.Label(operations_heading, text="ОПЕРАЦИИ", bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(7, 0))
-        IconButton(right, "TCP-проверка proxy", "proxy", self.test_selected_proxy, self.colors, self.colors["card"], width=224,
-                   tooltip="Проверить только TCP-соединение. Это не проверяет внешний IP, DNS, WebRTC или UDP.").pack(fill="x", pady=(10, 0))
+        IconButton(right, "Проверить proxy", "proxy", self.test_selected_proxy, self.colors, self.colors["card"], width=224,
+                   tooltip="Отправляет короткий протокольный запрос выбранному proxy. Без сохранённого пароля и запроса сайта.").pack(fill="x", pady=(10, 0))
         IconButton(right, "Скопировать пароль", "vault", self.copy_selected_proxy_password, self.colors, self.colors["card"], width=244,
                    tooltip="Скопировать сохранённый proxy-пароль на 30 секунд. Доступно только для текущего Windows-пользователя.").pack(fill="x", pady=(8, 0))
         IconButton(right, "Удалить профиль", "trash", self.delete_selected, self.colors, self.colors["card"], kind="danger", width=244,
@@ -3512,31 +3513,24 @@ class NeVisionApp:
         if not proxy:
             messagebox.showerror(APP_NAME, "Назначенный proxy не найден.", parent=self.root)
             return
-        self.set_status(f"Проверяю TCP: {proxy['host']}:{proxy['port']}…")
-
-        def check() -> tuple[bool, str]:
-            try:
-                with socket.create_connection((proxy["host"], int(proxy["port"])), timeout=6):
-                    return True, "TCP-подключение успешно"
-            except OSError as exc:
-                return False, f"TCP-подключение не удалось: {exc}"
+        self.set_status("Проверяю ответ proxy без передачи пароля…")
 
         self._run_in_background(
             f"proxy-test:{profile['id']}",
-            check,
+            lambda: diagnose_proxy(proxy),
             lambda result: self._proxy_test_result(profile, proxy, result),
-            lambda exc: self._proxy_test_result(profile, proxy, (False, str(exc))),
+            lambda _exc: self._proxy_test_result(profile, proxy, (False, "Внутренняя ошибка диагностики proxy.")),
         )
 
     def _proxy_test_result(self, profile: dict[str, Any], proxy: dict[str, Any], result: tuple[bool, str]) -> None:
         success, message = result
         try:
-            self.storage.log("proxy.tcp_check", str(profile["id"]), f"{proxy['name']}: {message}")
+            self.storage.log("proxy.protocol_check", str(profile["id"]), f"{proxy['name']}: {message}")
         except NeVisionError as exc:
             self.set_status(str(exc))
         self.set_status(message)
         dialog = messagebox.showinfo if success else messagebox.showwarning
-        dialog(APP_NAME, f"{proxy['name']}\n{message}\n\nПроверка подтверждает доступность TCP-порта; она не подтверждает учётные данные или правила внешнего сервиса.", parent=self.root)
+        dialog(APP_NAME, f"{proxy['name']}\n{message}\n\nHTTP(S): отправляется OPTIONS *. SOCKS5: предлагается только режим без авторизации. Запрос адресуется выбранному proxy; сохранённые учётные данные и адрес сайта не отправляются. Имя proxy разрешает Windows. Ответ не доказывает поддержку CONNECT или успешное открытие сайта, внешний IP, DNS, WebRTC, UDP или анонимность.", parent=self.root)
 
     def copy_selected_proxy_password(self) -> None:
         profile = self.selected_profile()

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 
-from upgrade_rollback_integration import file_hash, inspect_archive, validate_release_pair
+from upgrade_rollback_integration import file_hash, git_source, inspect_archive, validate_release_pair
 
 
 class UpgradeArchiveTests(unittest.TestCase):
@@ -59,6 +61,25 @@ class UpgradeArchiveTests(unittest.TestCase):
             validate_release_pair("0.8.6-preview", "bad", "0.8.7-preview", "b" * 64)
         with self.assertRaisesRegex(ValueError, "candidate preview version"):
             validate_release_pair("0.8.6-preview", "a" * 64, "0.8.7-dev", "b" * 64)
+
+    def test_source_extraction_allows_proxy_module_absent_from_previous_release(self) -> None:
+        destination = Path(self.temporary.name) / "source"
+        required = [name for name in ("nevision_win.py", "profile_identity.py", "privacy_defaults.py",
+                                      "proxy_diagnostics.py", "release-version.json")]
+        outcomes = [subprocess.CompletedProcess([], 0, stdout=f"synthetic:{name}".encode())
+                    for name in required]
+        outcomes[3] = subprocess.CalledProcessError(128, ["git", "show"])
+        with patch("upgrade_rollback_integration.subprocess.run", side_effect=outcomes):
+            git_source(Path(self.temporary.name), "a" * 40, destination)
+        self.assertTrue((destination / "nevision_win.py").is_file())
+        self.assertFalse((destination / "proxy_diagnostics.py").exists())
+
+    def test_source_extraction_still_requires_other_product_modules(self) -> None:
+        destination = Path(self.temporary.name) / "source"
+        with patch("upgrade_rollback_integration.subprocess.run",
+                   side_effect=subprocess.CalledProcessError(128, ["git", "show"])):
+            with self.assertRaises(subprocess.CalledProcessError):
+                git_source(Path(self.temporary.name), "a" * 40, destination)
 
 
 if __name__ == "__main__":

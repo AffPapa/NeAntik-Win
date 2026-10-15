@@ -25,7 +25,7 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-SOURCE_FILES = ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "release-version.json")
+SOURCE_FILES = ("nevision_win.py", "profile_identity.py", "privacy_defaults.py", "proxy_diagnostics.py", "release-version.json")
 
 
 def validate_release_pair(old_version: str, old_sha256: str,
@@ -137,8 +137,16 @@ def inspect_archive(path: Path, expected_hash: str, expected_version: str) -> tu
 def git_source(repo: Path, commit: str, destination: Path) -> None:
     destination.mkdir()
     for name in SOURCE_FILES:
-        result = subprocess.run(["git", "show", f"{commit}:{name}"], cwd=repo,
-                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True)
+        try:
+            result = subprocess.run(["git", "show", f"{commit}:{name}"], cwd=repo,
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True)
+        except subprocess.CalledProcessError:
+            # Earlier published releases predate this optional split module; their
+            # nevision_win.py does not import it. Candidate imports fail naturally
+            # in the worker if its exact commit is missing the required module.
+            if name == "proxy_diagnostics.py":
+                continue
+            raise
         (destination / name).write_bytes(result.stdout)
 
 

@@ -1453,6 +1453,41 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_proxy_diagnostic_uses_protocol_probe_without_reading_vault_secret(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.selected_profile = MagicMock(return_value={
+            "id": "synthetic-profile", "name": "Synthetic", "proxy_id": "synthetic-proxy"
+        })
+        app.storage = MagicMock()
+        proxy = {
+            "id": "synthetic-proxy", "name": "Loopback fixture", "scheme": "http",
+            "host": "127.0.0.1", "port": 8080,
+            "username": "synthetic-user", "password_protected": "synthetic-protected-marker",
+        }
+        app.storage.get_proxy.return_value = proxy
+        app.set_status = MagicMock()
+        app._run_in_background = MagicMock()
+
+        with patch("nevision_win.SecretVault.decrypt", side_effect=AssertionError("vault must not be read")), \
+             patch("nevision_win.diagnose_proxy", return_value=(True, "HTTP-ответ получен (код 200).")) as diagnose:
+            app.test_selected_proxy()
+            self.assertIn("без передачи пароля", app.set_status.call_args.args[0])
+            work = app._run_in_background.call_args.args[1]
+            result = work()
+            diagnose.assert_called_once_with(proxy)
+            with patch("nevision_win.messagebox.showinfo") as show:
+                app._run_in_background.call_args.args[2](result)
+
+        logged = " ".join(str(part) for call_args in app.storage.log.call_args.args for part in call_args)
+        dialog_text = show.call_args.args[1]
+        for value in ("synthetic-user", "synthetic-protected-marker"):
+            self.assertNotIn(value, logged)
+            self.assertNotIn(value, dialog_text)
+        self.assertIn("OPTIONS *", dialog_text)
+        self.assertIn("CONNECT", dialog_text)
+        self.assertIn("DNS", dialog_text)
+
     def test_file_menu_exposes_backup_folder_action(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
