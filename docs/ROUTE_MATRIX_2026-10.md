@@ -43,6 +43,31 @@ outside Git. This is a one-host loopback result only; HTTPS-proxy, successful
 proxy authentication, external DNS/IPv6/UDP/STUN/TURN, independent egress
 observation and anonymity remain **NOT RUN**.
 
+### Exact public 0.8.30-preview HTTPS, WS/WSS and proxy-loss controls — 16 October 2026
+
+Using the same verified ZIP and bundled `chrome.exe` identity above, three
+additional loopback-only harnesses passed:
+
+| Gate | Result | Scope |
+| --- | --- | --- |
+| HTTPS proxy | **10/10 cases PASS** | IPv4/IPv6 TLS CONNECT; untrusted certificate; unavailable endpoints; 407 refusal with direct positive controls and no target request. Successful authentication is not covered. |
+| WebSocket | **16/16 cases PASS** | `ws`/`wss` direct, HTTP, HTTPS and SOCKS5; unavailable-proxy and untrusted TLS cases; synthetic target/proxy listeners only. |
+| Proxy loss/recovery | **10/10 checks PASS** | Same browser process; route before failure, no target during outage, proxy route restored; NetLog showed loopback TCP only and zero UDP sends. |
+
+The current harnesses used source commit
+`412c79da1f833f4bf27c77c7624b2bd43aff8a2b`; release-source `nevision_win.py`
+remained byte-identical to the release provenance. Harness SHA-256 values:
+`https_proxy_integration.py` `2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`,
+`websocket_route_integration.py` `08c51b6810da7072028754832c559b83cb036de66d9fd50b24b9ff1e009d759f`, and
+`proxy_loss_recovery_gate.py` `2b5350167d7aefc7a5dcf2829d45a85830532f57a0cdeb748baa5ddf64a500ea`.
+Raw reports remain outside Git; their SHA-256 values, in the same order, are
+`d337dd84ddac26569c566c1a12fc2eee08baf89548124b287f0c68e4ee4d5939`,
+`04d12493ba1c49a6baab65df4a37c79895fa60daced95f86bc0e042f7c90c60e`, and
+`eb815be0476c5b0458dfd39c76d1b1fe6c687533e657057836c1f459d8512a33`.
+These results do not cover external DNS/IPv6/UDP/STUN/TURN, successful proxy
+authentication, independent egress/packet observation, another consumer PC or
+anonymity; P2 remains **OPEN**.
+
 Additional 2026-10-14 local evidence on the exact 0.8.12 public Chromium core:
 the HTTPS-proxy fixture passed 10/10 cases, including a 407 authentication
 challenge. A positive direct control first reached the same IP-literal HTTPS

@@ -378,6 +378,9 @@ main frame и двух iframe. Это только базовая линия о�
   72/72 assertions за 19 запусков; `nevision_win.py` harness совпадает по SHA
   с release provenance. Это актуализирует только перечисленные локальные route
   checks; external DNS/IPv6/UDP/STUN/TURN, auth success и GUI не покрыты.
+  На том же exact ZIP дополнительно прошли HTTPS proxy 10/10, WS/WSS 16/16 и
+  proxy loss/recovery 10/10: только локальные фикстуры, успешная авторизация и
+  внешние DNS/IPv6/UDP/STUN/TURN не проверялись. Это не закрывает P2.2.
   Точные SHA и метод — в [route matrix](ROUTE_MATRIX_2026-10.md).
   [Доказательства](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.2 Наблюдение на внешнем стенде:** контролируемые серверы в другой
