@@ -375,6 +375,11 @@ main frame и двух iframe. Это только базовая линия о�
   тест. Первая сырая попытка до assertions не имела AppContainer ACL; после
   product-equivalent ACL в одноразовой распаковке тест прошёл. См. подробный
   [сетевой протокол](NETWORK_PRIVACY_2026-10.md).
+  15 октября точный публичный ZIP 0.8.27-preview прошёл обновлённый WSL
+  network-namespace STUN gate: direct 5/5 UDP/STUN; HTTP и SOCKS5 proxy —
+  0 received/0 NetLog UDP, SOCKS5 route controls положительные. Это отдельный
+  локальный сетевой стек той же машины, не контролируемая сеть другого
+  оператора; P2.2 остаётся открытым. [Точное evidence](RELEASE_PUBLICATION_0.8.27-preview.md).
 - **P2.3 Fail-closed:** назначенный маршрут не может тихо стать direct
   после ошибки DNS, IPv6, QUIC, локального адреса или сбоя аутентификации.
   Пользователь получает одну короткую понятную ошибку и технические детали.
@@ -410,6 +415,10 @@ main frame и двух iframe. Это только базовая линия о�
   остаются **NOT RUN**. Хеши и ограничения — в
   [точной route matrix](ROUTE_MATRIX_2026-10.md) и
   [отчёте 0.8.19](RELEASE_PUBLICATION_0.8.19-preview.md).
+  На точном public ZIP 0.8.27-preview WSL STUN gate вновь подтвердил ноль UDP
+  и на локальном receiver, и в Chromium NetLog для HTTP/SOCKS5 proxy; direct
+  positive-control принял 5 пакетов. Внешние DNS/IPv6/TURN/egress остаются
+  NOT RUN.
 - **P2.4 Анонимная сеть:** отдельно принять архитектурное решение на основе
   Tor Browser / Tor спецификаций и лицензий. Нельзя переименовать proxy
   в «Tor-режим». Нужны независимое ревью, план обновлений и UX предупреждений.
@@ -584,6 +593,14 @@ main frame и двух iframe. Это только базовая линия о�
   сообщает о совместимом встроенном ядре; source regression и полный набор
   manager-тестов прошли (91, 1 SKIP). Это не packaged-GUI/cross-install тест;
   публичные 0.8.16-preview и сайт ещё не содержат изменения.
+
+После публикации 0.8.27 добавлен Windows launch-path regression test для
+junction внутри `Default/Local Storage/leveldb`: до `Popen`, browser resolution
+и family pin проверка останавливает запуск; все 49 `PortableCoreRegressionTests`
+прошли (один существующий skip). Покрыты только прямые записи чувствительных
+каталогов, не TOCTOU и не намеренный tampering тем же Windows-пользователем.
+Тест не меняет product code или публичный бинарник; точное доказательство — в
+[release evidence](RELEASE_PUBLICATION_0.8.27-preview.md).
 
 ### P4 — простой интерфейс и скорость
 
