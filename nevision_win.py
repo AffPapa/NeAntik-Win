@@ -2245,6 +2245,7 @@ class IconButton(tk.Canvas):
         self.hovered = False
         self.focused = False
         self._pressed_keys: set[str] = set()
+        self._space_armed = False
         super().__init__(parent, width=self.width, height=height, bg=canvas_bg, highlightthickness=0, borderwidth=0, cursor="hand2", takefocus=1)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
@@ -2296,6 +2297,7 @@ class IconButton(tk.Canvas):
     def _on_focus_out(self, _event: tk.Event[Any]) -> None:
         self.focused = False
         self._pressed_keys.clear()
+        self._space_armed = False
         self._render()
 
     def _on_click(self, _event: tk.Event[Any]) -> None:
@@ -2308,11 +2310,21 @@ class IconButton(tk.Canvas):
             return "break"
         if key not in self._pressed_keys:
             self._pressed_keys.add(key)
-            self.command()
+            if key == "Return":
+                self.command()
+            else:
+                # Match a standard button: Space arms on key-down and invokes
+                # only on key-up. FocusOut cancels the armed activation.
+                self._space_armed = True
         return "break"
 
     def _on_key_release(self, event: tk.Event[Any]) -> str:
-        self._pressed_keys.discard(str(event.keysym))
+        key = str(event.keysym)
+        was_pressed = key in self._pressed_keys
+        self._pressed_keys.discard(key)
+        if key == "space" and was_pressed and self._space_armed:
+            self._space_armed = False
+            self.command()
         return "break"
 
 

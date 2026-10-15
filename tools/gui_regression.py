@@ -126,7 +126,7 @@ class GuiTests(unittest.TestCase):
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
 
-    def test_icon_button_ignores_keyboard_repeat_until_release(self):
+    def test_icon_button_keyboard_activation_matches_button_timing(self):
         buttons = []
 
         def walk(widget):
@@ -138,20 +138,51 @@ class GuiTests(unittest.TestCase):
                       if isinstance(widget, nv.IconButton))
         button.command = lambda: buttons.append("activated")
 
-        for keysym in ("Return", "space"):
-            with self.subTest(key=keysym):
-                event = SimpleNamespace(keysym=keysym)
-                button._on_key(event)
-                button._on_key(event)
-                self.assertEqual(len(buttons), 1)
-                button._on_key_release(event)
-                button._on_key(event)
-                self.assertEqual(len(buttons), 2)
-                button._on_key_release(event)
-                buttons.clear()
+        return_event = SimpleNamespace(keysym="Return")
+        button._on_key(return_event)
+        button._on_key(return_event)
+        self.assertEqual(buttons, ["activated"])
+        button._on_key_release(return_event)
+        button._on_key(return_event)
+        self.assertEqual(buttons, ["activated", "activated"])
+        button._on_key_release(return_event)
+
+        buttons.clear()
+        space_event = SimpleNamespace(keysym="space")
+        button._on_key(space_event)
+        button._on_key(space_event)
+        self.assertEqual(buttons, [])
+        button._on_key_release(space_event)
+        self.assertEqual(buttons, ["activated"])
+        button._on_key_release(space_event)
+        self.assertEqual(buttons, ["activated"])
+        button._on_key(space_event)
+        button._on_key_release(space_event)
+        self.assertEqual(buttons, ["activated", "activated"])
 
         button._on_key(SimpleNamespace(keysym="a"))
+        self.assertEqual(buttons, ["activated", "activated"])
+
+    def test_icon_button_space_activation_is_cancelled_on_focus_loss(self):
+        buttons = []
+
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+
+        button = next(widget for widget in walk(self.app.root)
+                      if isinstance(widget, nv.IconButton))
+        button.command = lambda: buttons.append("activated")
+        event = SimpleNamespace(keysym="space")
+
+        button._on_key(event)
+        button._on_focus_out(SimpleNamespace())
+        button._on_key_release(event)
+
         self.assertEqual(buttons, [])
+        self.assertFalse(button._space_armed)
+        self.assertNotIn("space", button._pressed_keys)
 
     def test_icon_button_focus_loss_clears_pressed_key_latch(self):
         buttons = []
@@ -305,7 +336,7 @@ class GuiTests(unittest.TestCase):
             for child in widget.winfo_children():
                 yield from walk(child)
         buttons = {widget.text: widget for widget in walk(self.app.root) if isinstance(widget, nv.IconButton)}
-        for label in ("Резервная копия", "Чистая копия", "Диагностика", "TCP-проверка proxy", "Удалить профиль"):
+        for label in ("Резервная копия", "Чистая копия", "Диагностика", "Проверить proxy", "Удалить профиль"):
             self.assertIsNotNone(buttons[label].hint)
             self.assertGreater(len(buttons[label].hint.text), 20)
         hint = buttons["Чистая копия"].hint

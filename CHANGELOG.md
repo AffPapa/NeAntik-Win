@@ -2,6 +2,12 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## Unreleased
+
+- Кнопки интерфейса активируются по стандартной клавиатурной модели: Enter —
+  при нажатии, Space — при отпускании; потеря фокуса отменяет незавершённое
+  нажатие Space.
+
 ## 0.8.25-preview — ограниченная проверка вложенных хранилищ (2026-10-15)
 
 - Перед запуском Chromium дополнительно отклоняются reparse points среди
