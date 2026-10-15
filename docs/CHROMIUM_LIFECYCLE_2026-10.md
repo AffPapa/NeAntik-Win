@@ -4,6 +4,28 @@ This is a dated **P5.1 decision record**, not a standing claim that the
 portable browser is current or secure. Check the live release channel again
 before each new release and after a security advisory.
 
+## 15 October checkpoint for 0.8.18-preview
+
+The current public portable release is `v0.8.18-preview`; its bundled Chromium
+is `155.0.8059.79` (engine source commit
+`a49e2e3d4addfd84e765b52afe230bedb81096db`). The official Chrome Releases
+[Stable Channel update of 13 October 2026](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_01668083673.html)
+announced `155.0.8059.79/.80` for Windows and Mac and `155.0.8059.79` for
+Linux, with a rollout over the following days/weeks. It reports 37 security
+fixes, including critical issues in ANGLE, the browser, PDF, network, core,
+SVG and media. Thus the shipped engine version matches the announced general
+Stable version on this checkpoint date. This version match is not a per-patch
+backport audit, proof of byte-for-byte source correspondence, or a guarantee
+that every device has received the Chrome rollout. The NeAntik portable core
+still has no automatic updater.
+
+**Decision:** do not start a Chromium rebuild solely because a later Early
+Stable build exists. For a new binary release, first check the latest general
+Stable announcement and relevant advisories, then verify upstream source
+provenance and the exact bundled binary before release. Existing 0.8.18 ZIP,
+tests and site metadata remain tied to their recorded hashes and are not
+relabelled by this documentation checkpoint.
+
 ## 14 October checkpoint for 0.8.13-preview
 
 The exact 0.8.13 portable ZIP still bundles Chromium `155.0.8059.40`, with
