@@ -2860,6 +2860,7 @@ class NeVisionApp:
         file_menu.add_command(label="Новый профиль", command=lambda: ProfileDialog(self))
         file_menu.add_command(label="Импортировать настройки профиля…", command=self.import_profile_template)
         file_menu.add_command(label="Импортировать backup…", command=self.restore_backup)
+        file_menu.add_command(label="Открыть папку резервных копий", command=self.open_backup_folder)
         file_menu.add_separator()
         file_menu.add_command(label="Выход", command=self._request_close)
         menu.add_cascade(label="Файл", menu=file_menu)
@@ -3548,6 +3549,14 @@ class NeVisionApp:
             os.startfile(str(path))
         except OSError as exc:
             messagebox.showerror(APP_NAME, f"Не удалось открыть папку: {exc}", parent=self.root)
+
+    def open_backup_folder(self) -> None:
+        path = filesystem_path(self.storage.paths.backups)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(path))
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, f"Не удалось открыть папку резервных копий: {exc}", parent=self.root)
 
     def delete_selected(self) -> None:
         profile = self.selected_profile()

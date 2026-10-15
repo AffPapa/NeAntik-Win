@@ -1404,6 +1404,58 @@ class ThemeTests(unittest.TestCase):
 
 
 class InterfaceLogicTests(unittest.TestCase):
+    def test_file_menu_exposes_backup_folder_action(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app.colors = {
+            "menu_bg": "#111111",
+            "menu_text": "#eeeeee",
+            "menu_active": "#222222",
+            "menu_active_text": "#ffffff",
+        }
+        menus = [MagicMock() for _ in range(5)]
+        with patch("nevision_win.tk.Menu", side_effect=menus):
+            app._make_menu()
+
+        commands = [call.kwargs for call in menus[1].add_command.call_args_list]
+        backup_command = next(item for item in commands if item["label"] == "Открыть папку резервных копий")
+        self.assertEqual(backup_command["command"].__self__, app)
+        self.assertEqual(backup_command["command"].__name__, "open_backup_folder")
+
+    def test_open_backup_folder_creates_and_opens_portable_backup_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            backup_path = Path(temporary) / "Data" / "Backups"
+            app = object.__new__(NeVisionApp)
+            app.root = MagicMock()
+            app.storage = MagicMock()
+            app.storage.paths.backups = backup_path
+
+            with patch("nevision_win.os.startfile", create=True) as startfile, patch(
+                "nevision_win.messagebox.showerror"
+            ) as showerror:
+                app.open_backup_folder()
+
+            self.assertTrue(backup_path.is_dir())
+            startfile.assert_called_once_with(str(filesystem_path(backup_path)))
+            showerror.assert_not_called()
+
+    def test_open_backup_folder_reports_shell_open_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            backup_path = Path(temporary) / "Data" / "Backups"
+            app = object.__new__(NeVisionApp)
+            app.root = MagicMock()
+            app.storage = MagicMock()
+            app.storage.paths.backups = backup_path
+
+            with patch("nevision_win.os.startfile", create=True, side_effect=OSError("synthetic shell error")), patch(
+                "nevision_win.messagebox.showerror"
+            ) as showerror:
+                app.open_backup_folder()
+
+            self.assertTrue(backup_path.is_dir())
+            self.assertIn("synthetic shell error", showerror.call_args.args[1])
+            showerror.assert_called_once()
+
     def test_privacy_diagnostics_requires_explicit_consent_and_discloses_limits(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
