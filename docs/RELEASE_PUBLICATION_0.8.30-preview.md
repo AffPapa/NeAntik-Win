@@ -24,6 +24,7 @@ fingerprint нет.
 | --- | --- |
 | Source branch `main`, clean tree, commit `09f516f` | PASS |
 | Windows CI для точного source commit `09f516f` (run `38775059588`) | PASS |
+| GitHub OIDC/Sigstore review-attestation for exact published ZIP (run `38779920430`) | PASS; workflow validated release/tag/assets/manifest/archive and attested ZIP SHA-256; local `gh attestation verify` also exited 0 with repository, predicate, signer workflow, and `refs/heads/main` constrained |
 | Локальный полный unittest suite | PASS, 301 тест, 3 skipped |
 | Тесты storage/path isolation | PASS, 37 тестов |
 | Release tooling | PASS, 58 проверок |
@@ -40,6 +41,9 @@ Hosted second-host gate подтверждает только скачивани
 self-test и synthetic storage на отдельной CI-машине; он не заменяет ручной GUI,
 cross-account migration, проверку разных CPU/GPU или независимое сетевое
 наблюдение.
+Review-attestation подтверждает лишь, что доверенный workflow проверил уже
+опубликованный ZIP и связал его с annotated tag; она не удостоверяет сборку,
+не является независимым аудитом и не заменяет Authenticode.
 Проверка junction для `Data`/`Profiles` подтверждает защиту конкретных корневых
 путей до открытия SQLite; не заявляется защита от same-user TOCTOU или всех
 вложенных ссылок Chromium.
