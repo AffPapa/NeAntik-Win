@@ -14,12 +14,13 @@ import hashlib
 import http.client
 import json
 import os
-from pathlib import Path
+import stat
 import socket
 import subprocess
 import tempfile
 import threading
 import time
+from pathlib import Path
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, ProxyHandler, build_opener
 import uuid
@@ -34,6 +35,24 @@ from websocket_route_integration import cdp_frame, cdp_receive
 
 class Inconclusive(RuntimeError):
     pass
+
+
+def require_plain_profile_directory(root: Path, profile: Path) -> None:
+    """Ensure the owned QA data directory cannot redirect Chromium to another path."""
+    root, profile = Path(root), Path(profile)
+    if profile.parent != root:
+        raise RuntimeError("profile_path_boundary")
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    for label, path in (("root", root), ("profile", profile)):
+        try:
+            details = path.lstat()
+        except OSError as exc:
+            raise RuntimeError(f"profile_path_missing:{label}") from exc
+        attributes = getattr(details, "st_file_attributes", 0)
+        if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+            raise RuntimeError(f"profile_path_reparse_point:{label}")
+        if not stat.S_ISDIR(details.st_mode):
+            raise RuntimeError(f"profile_path_not_directory:{label}")
 
 
 def sha256(path: Path) -> str:
@@ -151,6 +170,7 @@ def measure(chrome: Path) -> dict:
         port = None
         checks: dict[str, bool] = {}
         try:
+            require_plain_profile_directory(root, profile)
             endpoint = {"scheme": "http", "host": "127.0.0.1", "port": proxy_port}
             args = [str(chrome), "--headless=new", "--remote-debugging-address=127.0.0.1",
                     "--remote-debugging-port=0", "--remote-allow-origins=http://127.0.0.1",

@@ -61,8 +61,16 @@ independently below.
   coexisted and were released; operations on a busy profile were rejected.
   Private report:
   `C:\N155\concurrent-profile-0.8.18-preview-20261015.json`.
+- `tools/proxy_loss_recovery_gate.py` on the exact public 0.8.18 Chromium
+  (`chrome.exe` SHA-256 above): **PASS**, 10/10 loopback-only assertions. With
+  the proxy stopped, the target got no request; after recovery, the same live
+  Chromium process sent exactly two probes through the synthetic proxy. NetLog
+  saw only `127.0.0.1` TCP and zero UDP sends. Local harness and actual junction
+  launch controls passed (3/3 and product launch-junction regression). Private
+  report: `C:\N155\proxy-loss-0.8.18-preview-20261015.json`.
 
-Not rerun on this exact archive: proxy, download and broader browser/network
+Not rerun on this exact archive: HTTPS/SOCKS5 route matrix, proxy-auth success,
+download and broader browser/network
 integration suites. Migration coverage is same-account, synthetic and limited
 to one cookie/localStorage origin; it is not an interactive update or a check
 of another Windows account or machine.

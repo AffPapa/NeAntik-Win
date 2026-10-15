@@ -340,7 +340,13 @@ main frame и двух iframe. Это только базовая линия о�
   локальный HTTP loss/recovery gate прошёл 10/10: при остановленном proxy
   target не получил запросов, тот же процесс после восстановления снова пошёл
   через proxy; NetLog видел loopback TCP и ноль UDP. Внешний IPv6 и DNS этим
-  не подтверждены; [протокол и границы](NETWORK_PRIVACY_2026-10.md).
+  не подтверждены; [протокол и границы](NETWORK_PRIVACY_2026-10.md). Тот же
+  loopback gate повторён на exact public Chromium из 0.8.18-preview: 10/10,
+  target молчал во время proxy outage, тот же process после recovery передал
+  ровно два probe через proxy, NetLog содержал только loopback TCP и 0 UDP.
+  Это подтверждает только локальную fail-closed конфигурацию; внешний DNS,
+  IPv6, TURN и второй egress observer по-прежнему **NOT RUN**. Точный отчёт —
+  [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.4 Анонимная сеть:** отдельно принять архитектурное решение на основе
   Tor Browser / Tor спецификаций и лицензий. Нельзя переименовать proxy
   в «Tor-режим». Нужны независимое ревью, план обновлений и UX предупреждений.

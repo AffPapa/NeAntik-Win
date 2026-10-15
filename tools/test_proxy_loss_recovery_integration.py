@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +16,31 @@ import proxy_loss_recovery_gate as gate
 
 
 class ProxyLossRecoveryGateTests(unittest.TestCase):
+    def test_plain_temp_profile_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="neantik-loss-profile-test-") as temporary:
+            root = Path(temporary)
+            profile = root / "Profile"
+            profile.mkdir()
+            gate.require_plain_profile_directory(root, profile)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_profile_junction_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="neantik-loss-junction-test-") as temporary:
+            root = Path(temporary)
+            target = root / "outside"
+            target.mkdir()
+            profile = root / "Profile"
+            result = subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", str(profile), str(target)],
+                                    capture_output=True, text=True, timeout=10)
+            if result.returncode:
+                self.skipTest("Windows junction creation is unavailable in this environment")
+            try:
+                self.assertTrue(profile.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                with self.assertRaisesRegex(RuntimeError, "profile_path_reparse_point:profile"):
+                    gate.require_plain_profile_directory(root, profile)
+            finally:
+                profile.rmdir()
+
     def test_public_core_is_prepared_in_disposable_copy_before_measurement(self) -> None:
         with tempfile.TemporaryDirectory(prefix="neantik-loss-gate-test-") as temporary:
             root = Path(temporary)
