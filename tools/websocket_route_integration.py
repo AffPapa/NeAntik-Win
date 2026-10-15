@@ -27,8 +27,11 @@ import time
 from urllib.parse import quote, urlsplit
 import uuid
 
-from browser_integration import OwnedJob, spawn_owned_browser
+from browser_integration import (AppPaths, BrowserLauncher, OwnedJob, Storage,
+                                 await_profile_closed, spawn_owned_browser)
 from nevision_win import bundled_proxy_privacy_arguments
+from native_persona_context_audit import prepare_disposable_engine
+from privacy_defaults import initialize_privacy_defaults
 
 HOST = "nevision-qa.invalid"
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -384,12 +387,17 @@ def browser_arguments(chrome: Path, profile: Path, protocol: str, route: str,
 
 def run_browser(chrome: Path, root: Path, protocol: str, route: str, port: int,
                 proxy_port: int | None, token: str, spki_pin: str) -> tuple[str, bool]:
-    profile = root / f"profile-{protocol}-{route}"
-    profile.mkdir()
+    storage = Storage(AppPaths(root))
+    profile_id = storage.save_profile({"name": f"Disposable WebSocket QA {protocol} {route}"})
+    profile = storage.profile_path(profile_id)
+    storage.ensure_profile_closed(profile_id)
+    if not initialize_privacy_defaults(profile):
+        raise RuntimeError("Could not initialize disposable WebSocket profile defaults")
     arguments = browser_arguments(chrome, profile, protocol, route, port, proxy_port, token, spki_pin)
     job = OwnedJob()
     process = None
     try:
+        BrowserLauncher(storage).ensure_profile_path_is_isolated(profile_id)
         process = spawn_owned_browser(arguments, root, job)
         if process.stdin:
             process.stdin.write(b"G")
@@ -403,9 +411,11 @@ def run_browser(chrome: Path, root: Path, protocol: str, route: str, port: int,
                 process.communicate(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
+                process.communicate(timeout=5)
             for stream in (process.stdin, process.stdout, process.stderr):
                 if stream:
                     stream.close()
+        await_profile_closed(storage, profile_id)
 
 
 def run_case(chrome: Path, root: Path, cert: Path, key: Path, spki_pin: str,
@@ -476,7 +486,8 @@ def main() -> int:
     parser.add_argument("--chrome", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    chrome = args.chrome.resolve()
+    source_chrome = args.chrome.resolve()
+    chrome = source_chrome
     output = args.output.resolve()
     if not chrome.is_file() or chrome.name.lower() != "chrome.exe":
         parser.error("--chrome must be an existing chrome.exe")
@@ -496,6 +507,16 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-ws-route-qa-") as temporary:
             root = Path(temporary)
+            if not (source_chrome.parent / "ENGINE_PROVENANCE.json").is_file():
+                raise RuntimeError("Portable engine provenance is required; installed Chrome is not equivalent")
+            source_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+            chrome = prepare_disposable_engine(source_chrome, root / "engine")
+            prepared_hash = hashlib.sha256(chrome.read_bytes()).hexdigest()
+            if prepared_hash != source_hash:
+                raise RuntimeError("Disposable ACL-prepared engine executable hash changed")
+            report["source_chrome_sha256"] = source_hash
+            report["prepared_chrome_sha256"] = prepared_hash
+            report["disposable_engine_acl_prepared"] = True
             cert, key = root / "fixture.crt", root / "fixture.key"
             subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                             "-keyout", str(key), "-out", str(cert), "-subj", f"/CN={HOST}",
