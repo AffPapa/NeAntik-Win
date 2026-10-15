@@ -17,6 +17,14 @@
 - Окно `NeAntik Win 0.8.24-preview` успешно отрисовало стартовое локальное рабочее пространство без профилей и пользовательских данных — PASS.
 - Создание профиля и ручной сценарий резервного копирования в GUI этим smoke не проверялись; регрессия нового диалога backup покрыта unit/controller tests. Не переносить PASS с source tests на ручной GUI backup.
 
+## Post-release update/rollback check (MR-034)
+
+- На точных публичных ZIP 0.8.23 → 0.8.24 выполнен side-by-side перенос в новую portable-папку под тем же Windows-пользователем; хеши архивов совпали с GitHub Release.
+- `tools/upgrade_rollback_integration.py`: **PASS**. Синтетические SQLite profile metadata, каталог профиля, browser-family pin, HTTP proxy binding и DPAPI-защищённое test credential прочитаны обеими версиями. Кандидатная копия `Data/` изменилась, исходный старый snapshot остался побайтно неизменным и по-прежнему читается приложением 0.8.23 при проверке rollback.
+- `tools/upgrade_browser_session_integration.py`: **PASS**, same-account loopback-only. Точный Chromium 0.8.23 записал synthetic cookie + localStorage; после копирования `Data/` точный Chromium 0.8.24 прочитал их из того же profile ID. Обе controlled visits совпали между DOM и fixture server; старый snapshot остался неизменным.
+- Targeted unittest для обоих harness: 14 tests PASS. Это подтверждает side-by-side перенос между указанными ZIP, не GUI/in-place upgrade.
+- **Не проверено:** Chrome/Edge legacy profile миграция, другая Windows-учётная запись/машина, история, сохранённые пароли, extensions, service workers, IndexedDB, весь cache, реальные сайты и внешняя сетевая анонимность.
+
 ## Публичный сайт
 
 - Существующий публичный Site сохранён публичным; сохранена версия 58 и выполнен deploy: статус `succeeded`.

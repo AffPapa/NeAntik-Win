@@ -53,7 +53,9 @@ Portable means the app runs from a folder; it does not mean all secrets can move
 4. Copy the old `Data/` into the new folder before first launch. Keep the old folder unchanged.
 5. Launch the new executable and check profiles, proxy settings and a test backup.
 
-For rollback, close the new app and its profile browsers, then use the preserved old folder with its pre-update data snapshot. Do not assume an older browser can safely read a profile already upgraded by a newer browser.
+Existing profiles may stay pinned to the Chrome or Edge family they used before. If that browser is unavailable, NeAntik stops rather than opening the profile with a different engine; use “Чистая копия” only if you accept that cookies, history and sessions are not carried over.
+
+For rollback, close the new app and its profile browsers, then launch the untouched old folder with its pre-update `Data/` snapshot. Do not copy `Data/` from the updated folder back into the old one: a newer browser may have changed its profile format, and older engines are not guaranteed to read it.
 
 ## Build and verify from source
 

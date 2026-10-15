@@ -2,6 +2,11 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.24-preview — проверка обновления/отката (2026-10-15)
+
+- Точные публичные ZIP 0.8.23 → 0.8.24 прошли синтетическую side-by-side проверку профиля, proxy/DPAPI и Chromium cookie + localStorage под той же учётной записью Windows; старый snapshot сохранился.
+- Проверка не покрывает обновление на месте, другие типы browser data, другую Windows-учётную запись/машину или сетевую анонимность. Подробности: [отчёт MR-034](docs/RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
+
 ## 0.8.24-preview — сведения о созданном backup (2026-10-15)
 
 - После создания backup показываются дата и размер архива, краткое описание
