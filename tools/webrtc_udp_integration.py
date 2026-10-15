@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import html
 import ipaddress
@@ -26,7 +27,10 @@ import time
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
-from browser_integration import OwnedJob, spawn_owned_browser
+from browser_integration import (AppPaths, BrowserLauncher, OwnedJob, Storage,
+                                 await_profile_closed, spawn_owned_browser)
+from native_persona_context_audit import prepare_disposable_engine
+from privacy_defaults import initialize_privacy_defaults
 from proxy_integration import receive_exact
 
 
@@ -312,7 +316,12 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
     process: subprocess.Popen[bytes] | None = None
     try:
         profile_name = ("proxy-socks5" if proxy_scheme == "socks5" else "proxy") if proxy_bound else "direct"
-        profile = root / profile_name
+        storage = Storage(AppPaths(root))
+        profile_id = storage.save_profile({"name": f"Disposable WebRTC QA {profile_name}"})
+        profile = storage.profile_path(profile_id)
+        storage.ensure_profile_closed(profile_id)
+        if not initialize_privacy_defaults(profile):
+            raise RuntimeError("Could not initialize disposable WebRTC profile defaults")
         log_dir = net_log_dir or root
         net_log_path = log_dir / f"{profile_name}.json"
         url = f"http://127.0.0.1:{server.server_port}/case?token={token}"
@@ -332,6 +341,7 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
             arguments += ["--no-proxy-server"]
             if force_default_policy:
                 arguments += ["--force-webrtc-ip-handling-policy=default"]
+        BrowserLauncher(storage).ensure_profile_path_is_isolated(profile_id)
         process = spawn_owned_browser([*arguments, url], root, job)
         stdout, stderr = process.communicate(input=b"G", timeout=45)
         if process.returncode != 0 or not isinstance(server.result, dict):
@@ -364,6 +374,9 @@ def run_case(chrome: Path, root: Path, proxy_bound: bool, stun_host: str,
                 process.communicate(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
+                process.communicate(timeout=5)
+        if "storage" in locals() and "profile_id" in locals():
+            await_profile_closed(storage, profile_id)
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
@@ -413,10 +426,19 @@ def main() -> int:
     try:
         with tempfile.TemporaryDirectory(prefix="neantik-webrtc-udp-qa-") as temporary:
             root = Path(temporary)
-            report["cases"].append(run_case(args.chrome, root, False, args.stun_host,
+            source_chrome = args.chrome.resolve()
+            if not (source_chrome.parent / "ENGINE_PROVENANCE.json").is_file():
+                raise RuntimeError("Portable engine provenance is required; installed Chrome is not equivalent")
+            chrome_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+            chrome = prepare_disposable_engine(source_chrome, root / "engine")
+            if hashlib.sha256(chrome.read_bytes()).hexdigest() != chrome_hash:
+                raise RuntimeError("Disposable ACL-prepared engine executable hash changed")
+            report["browser_executable_sha256"] = chrome_hash
+            report["disposable_engine_acl_prepared"] = True
+            report["cases"].append(run_case(chrome, root, False, args.stun_host,
                                             args.force_default_policy, args.net_log_dir,
                                             args.diagnostic_disable_network_sandbox))
-            report["cases"].append(run_case(args.chrome, root, True, args.stun_host,
+            report["cases"].append(run_case(chrome, root, True, args.stun_host,
                                             net_log_dir=args.net_log_dir,
                                             diagnostic_disable_network_sandbox=args.diagnostic_disable_network_sandbox))
         direct, proxy = report["cases"]
