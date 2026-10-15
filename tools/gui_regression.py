@@ -153,6 +153,25 @@ class GuiTests(unittest.TestCase):
         button._on_key(SimpleNamespace(keysym="a"))
         self.assertEqual(buttons, [])
 
+    def test_icon_button_focus_loss_clears_pressed_key_latch(self):
+        buttons = []
+
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+
+        button = next(widget for widget in walk(self.app.root)
+                      if isinstance(widget, nv.IconButton))
+        button.command = lambda: buttons.append("activated")
+        event = SimpleNamespace(keysym="Return")
+
+        button._on_key(event)
+        button._on_focus_out(SimpleNamespace())
+        button._on_key(event)
+
+        self.assertEqual(buttons, ["activated", "activated"])
+
     def test_duplicate_proxy_choices_do_not_change_assignment(self):
         payload = {"name": "Same", "scheme": "http", "host": "127.0.0.1", "port": 8080}
         first = self.storage.save_proxy(payload)
