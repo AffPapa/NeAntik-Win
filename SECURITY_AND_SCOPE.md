@@ -1,6 +1,6 @@
 # Security, privacy and scope
 
-The published 0.8.24-preview release described below bundles stock Chromium and does not
+The published 0.8.25-preview release described below bundles stock Chromium and does not
 modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
 builds are historical and do not describe this release. Check the official
 download page and checksum for the current artifact; local tests alone are not
@@ -47,7 +47,7 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-The published 0.8.24-preview manages local directories and bundles unbranded
+The published 0.8.25-preview manages local directories and bundles unbranded
 stock Chromium `155.0.8059.79`, built from pinned upstream source with a
 build-compatibility patch only. `fingerprint_modification` is explicitly
 `false`; NeAntik does not override browser/device fingerprint values. New
@@ -63,12 +63,18 @@ Before launch, the manager rejects reparse points at the portable `Data`,
 `Profiles` and selected profile roots. It also `lstat`s a fixed set of
 high-sensitivity Chromium paths (for example cookies, local storage,
 IndexedDB, service-worker storage, preferences and login data), without
-recursively scanning the whole profile. This catches selected pre-existing
-redirects; it is not protection against TOCTOU or same-user tampering, and
-unlisted nested paths are not covered. These checks do not isolate a profile
-from another process running as the same Windows account. The bundled
-Chromium has no automatic updater; install newer portable releases for security
-fixes.
+recursively scanning the whole profile. In addition, it inspects direct
+children only in `Default/IndexedDB` and
+`Default/Service Worker/CacheStorage`, with a limit of 10,000 entries per
+directory; a directory that exceeds the limit or cannot be inspected fails
+closed. Descendants below those direct children and other unlisted nested paths
+are not covered. These checks catch selected pre-existing redirects; they are
+not protection against TOCTOU or same-user tampering and do not isolate a
+profile from another process running as the same Windows account. On one
+Windows 11 host, a synthetic profile at both 10,000-entry limits took 27.7 ms
+median / 29.7 ms p95 over 15 checks; this is a local measurement, not a startup
+guarantee for other PCs or storage devices. The bundled Chromium has no
+automatic updater; install newer portable releases for security fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, disable network prediction/preloading, and open a blank new-tab document. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. The blank document does not stop Chromium's other background requests. Existing profiles, installed Chrome and Edge do not receive them retroactively.
 

@@ -1702,6 +1702,15 @@ class BrowserLauncher:
         Path("Default/Preferences"), Path("Default/Secure Preferences"),
         Path("Default/Login Data"), Path("Default/Web Data"),
     )
+    # Chromium stores per-origin databases below these roots. Inspect one
+    # namespace level so a junction at an origin directory cannot silently
+    # redirect that profile's storage into another profile or external path.
+    # Keep this deliberately bounded; do not walk caches or the full profile.
+    PROFILE_REPARSE_SCAN_ROOTS = (
+        Path("Default/IndexedDB"),
+        Path("Default/Service Worker/CacheStorage"),
+    )
+    PROFILE_REPARSE_SCAN_ENTRY_LIMIT = 10_000
 
     KNOWN_BROWSERS = (
         ("Google Chrome", Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")),
@@ -1755,6 +1764,39 @@ class BrowserLauncher:
                     "В ключевом хранилище Chromium обнаружена ссылка/junction. "
                     "Профиль не запущен; восстановите обычную структуру данных."
                 )
+        for relative in self.PROFILE_REPARSE_SCAN_ROOTS:
+            directory = profile / relative
+            try:
+                with os.scandir(directory) as entries:
+                    for index, entry in enumerate(entries):
+                        if index >= self.PROFILE_REPARSE_SCAN_ENTRY_LIMIT:
+                            raise NeVisionError(
+                                "В хранилище Chromium слишком много элементов для быстрой проверки. "
+                                "Сократите его размер или проверьте профиль вручную перед запуском."
+                            )
+                        try:
+                            details = entry.stat(follow_symlinks=False)
+                        except FileNotFoundError:
+                            continue
+                        except OSError as exc:
+                            raise NeVisionError(
+                                "Не удалось проверить вложенное хранилище Chromium перед запуском."
+                            ) from exc
+                        attributes = getattr(details, "st_file_attributes", 0)
+                        reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+                        if stat.S_ISLNK(details.st_mode) or (
+                            reparse_flag and attributes & reparse_flag
+                        ):
+                            raise NeVisionError(
+                                "Во вложенном хранилище Chromium обнаружена ссылка/junction. "
+                                "Профиль не запущен; восстановите обычную структуру данных."
+                            )
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise NeVisionError(
+                    "Не удалось просмотреть вложенное хранилище Chromium перед запуском."
+                ) from exc
         try:
             resolved_profiles = profiles.resolve(strict=True)
             resolved_profile = profile.resolve(strict=False)

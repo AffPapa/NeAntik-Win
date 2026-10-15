@@ -886,6 +886,82 @@ class PortableCoreRegressionTests(unittest.TestCase):
         finally:
             cookie_store.rmdir()
 
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_launch_rejects_indexeddb_namespace_junction_before_resolve_pin_or_popen(self):
+        profile = self._profile_with_proxy()
+        profile_id = profile["id"]
+        indexeddb = self.storage.profile_path(profile_id) / "Default" / "IndexedDB"
+        indexeddb.mkdir(parents=True)
+        origin_store = indexeddb / "https_example.test_0.indexeddb.leveldb"
+        outside = self.root / "outside-indexeddb"
+        outside.mkdir()
+        marker = outside / "synthetic-marker"
+        marker.write_bytes(b"synthetic-only")
+        try:
+            result = subprocess.run(
+                ["cmd.exe", "/d", "/c", "mklink", "/J", str(origin_store), str(outside)],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode:
+                self.skipTest("Windows junction creation is unavailable in this environment")
+            attrs = getattr(origin_store.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            launcher = BrowserLauncher(self.storage)
+            with patch.object(launcher, "resolve_browser") as resolve_browser, \
+                    patch.object(self.storage, "pin_browser_family") as pin_browser, \
+                    patch("nevision_win.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    launcher._launch_locked(profile, profile_id)
+            resolve_browser.assert_not_called()
+            pin_browser.assert_not_called()
+            popen.assert_not_called()
+            self.assertEqual(marker.read_bytes(), b"synthetic-only")
+        finally:
+            origin_store.rmdir()
+
+    def test_indexeddb_reparse_scan_fails_closed_at_entry_limit(self):
+        profile_id = self.storage.save_profile({"name": "Synthetic bounded scan"})
+        indexeddb = self.storage.profile_path(profile_id) / "Default" / "IndexedDB"
+        indexeddb.mkdir(parents=True)
+        (indexeddb / "origin-one").write_bytes(b"synthetic")
+        (indexeddb / "origin-two").write_bytes(b"synthetic")
+        launcher = BrowserLauncher(self.storage)
+        launcher.PROFILE_REPARSE_SCAN_ENTRY_LIMIT = 1
+
+        with self.assertRaisesRegex(NeVisionError, "слишком много элементов"):
+            launcher.ensure_profile_path_is_isolated(profile_id)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_isolation_check_rejects_cache_storage_namespace_junction(self):
+        profile_id = self.storage.save_profile({"name": "Synthetic CacheStorage junction"})
+        cache_storage = (
+            self.storage.profile_path(profile_id) / "Default" / "Service Worker" / "CacheStorage"
+        )
+        cache_storage.mkdir(parents=True)
+        namespace = cache_storage / "synthetic-origin"
+        outside = self.root / "outside-cache-storage"
+        outside.mkdir()
+        try:
+            result = subprocess.run(
+                ["cmd.exe", "/d", "/c", "mklink", "/J", str(namespace), str(outside)],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode:
+                self.skipTest("Windows junction creation is unavailable in this environment")
+            attrs = getattr(namespace.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            with self.assertRaisesRegex(NeVisionError, "junction"):
+                BrowserLauncher(self.storage).ensure_profile_path_is_isolated(profile_id)
+        finally:
+            namespace.rmdir()
+
+    def test_nested_reparse_scan_fails_closed_when_directory_cannot_be_scanned(self):
+        profile_id = self.storage.save_profile({"name": "Synthetic scan error"})
+        launcher = BrowserLauncher(self.storage)
+        with patch("nevision_win.os.scandir", side_effect=PermissionError("synthetic access denial")):
+            with self.assertRaisesRegex(NeVisionError, "Не удалось просмотреть вложенное хранилище"):
+                launcher.ensure_profile_path_is_isolated(profile_id)
+
     def test_invalid_proxy_host_is_not_persisted(self):
         with self.assertRaises(NeVisionError):
             self.storage.save_proxy({"name": "Injected", "scheme": "http", "host": "example.com,direct://", "port": 8080})
