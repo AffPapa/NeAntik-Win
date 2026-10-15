@@ -1,11 +1,11 @@
 # Security, privacy and scope
 
-The published 0.8.28-preview release described below bundles stock Chromium and does not
+The 0.8.30-preview candidate described below bundles stock Chromium and does not
 modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
 builds are historical and do not describe this release. Check the official
 download page and checksum for the current artifact; local tests alone are not
 public-release proof. Exact source, ZIP identity, test evidence and known gaps for
-this release are recorded in [release evidence](docs/RELEASE_PUBLICATION_0.8.28-preview.md).
+this release are recorded in [release evidence](docs/RELEASE_PUBLICATION_0.8.30-preview.md) after release gates pass.
 
 The published 0.8.7-preview rejects hardlinked files during backup to avoid
 copying data outside a profile into the unencrypted ZIP. The exact public
@@ -13,7 +13,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## Historical 0.8.6-preview V4b boundary (not included in 0.8.28-preview)
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.30-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
@@ -48,7 +48,7 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-The published 0.8.28-preview manages local directories and bundles unbranded
+The 0.8.30-preview candidate manages local directories and bundles unbranded
 stock Chromium `155.0.8059.79`, built from pinned upstream source with a
 build-compatibility patch only. `fingerprint_modification` is explicitly
 `false`; NeAntik does not override browser/device fingerprint values. New
@@ -60,7 +60,12 @@ empty profile and carries only settings; it does not copy cookies, history or
 sessions. Separate directories isolate normal profile storage; they are not a
 security sandbox against malware running as the same Windows user.
 
-Before launch, the manager rejects reparse points at the portable `Data`,
+At application startup, the manager rejects pre-existing reparse points in the
+portable root, `Data`, `Profiles`, `Backups`, `Logs`, `Operations`, the SQLite
+database and its journal/WAL/SHM sidecar paths before opening SQLite. Existing
+database files and sidecars must be regular files without additional hardlinks.
+This startup check reduces accidental path redirection but does not prevent
+TOCTOU or same-user tampering. Before launch, the manager also rejects reparse points at the portable `Data`,
 `Profiles` and selected profile roots. It also `lstat`s a fixed set of
 high-sensitivity Chromium paths (for example cookies, local storage,
 IndexedDB, service-worker storage, preferences and login data), without
@@ -115,7 +120,7 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.28-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
+This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.30-preview candidate. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|

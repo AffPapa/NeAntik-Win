@@ -1,6 +1,6 @@
 # NeAntik Win — полный план реализации приватного portable-браузера
 
-Статус: рабочая инженерная программа, обновлено 2026-10-15. Владелец продукта хочет
+Статус: рабочая инженерная программа, обновлено 2026-10-16. Владелец продукта хочет
 открытый браузер для всех, с независимыми локальными профилями, понятным
 интерфейсом и сильной защитой приватности. Этот документ — очередь конкретных
 работ, тестов и условий выпуска; он **не** утверждает, что текущий браузер
@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.28-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.28-preview), binary source commit `fb8029b00b94f750f1daae6cf788ecc268b4b1b0`, ZIP 262,391,330 байт, SHA-256 `82d7baa19c01432ec59bdf35b67d101395080ea82f6a03799c1d8dc13bba482c`, EXE SHA-256 `94d35858e127fefc23cb27668bba449307f980ababb61ef4f415c4a2dd2f2ac0`. Полный source suite 297 PASS/3 skipped, GUI regression 22/22, release tools 58 checks, public-source guard 229 файлов, CI run `38758749558`, local/fresh-public ZIP verifier на 1,066 файлах и packaged EXE self-test — PASS. При публикации ручной GUI smoke .28 не запускался; отдельная пострелизная попытка 2026-10-15 — **INCONCLUSIVE**: точный EXE запущен из чистой QA-копии, но UI-инструмент не предоставил целевое окно .28 и не смог проверить меню/клавиатуру. UIA/MSAA/NVDA, внешние DNS/IPv6/UDP/STUN/TURN, Windows 10/ARM64 и вторая физическая машина — NOT RUN. Точный отчёт — [evidence .28](RELEASE_PUBLICATION_0.8.28-preview.md). GitHub ZIP повторно скачан и совпал по размеру/SHA с локальным и API digest. При публикации binary-релиза Site version 65 был развёрнут из `25a70c9ecdb93af34b78da35afd1740bcabd8467`; **после QA-дополнения** Site version 66 из `5f195f989c1742ed42636912824ac791b28bc33a` тоже задеплоен, live `/`, `/CHANGELOG.md`, `/release.json` и ZIP HEAD подтвердили обновлённый статус, неизменный .28 source/SHA/размер — PASS. Fingerprint не модифицируется; анонимность не гарантируется.
+**Текущий публичный выпуск:** [0.8.29-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.29-preview), binary-source commit `c6f46c50b92ac3931d9ba6a7bd066d5793b5342b`; ZIP 262,392,554 байта, SHA-256 `c14d4b9295d9daf1bfe490a02043bd6f62781612dddc3f332ae1bc868f506d84`; packaged EXE SHA-256 `235824ffb3751f83efaeaa0ea59f0e0e7e86f72a3c6afb3bd8c3861a55b1df86`. Source CI, public-source guard, локальный и повторно скачанный ZIP verifier, packaged EXE self-test и точный P1.5 GUI warning/cancel smoke — PASS. Создание профиля через UI bridge — INCONCLUSIVE; keyboard-only/UIA/MSAA/NVDA, Windows 10/ARM64, другая машина и внешние DNS/IPv6/UDP/STUN/TURN — NOT RUN. Публичный сайт Sites version 67 указывает на тот же binary source и совпавшие ZIP size/SHA; homepage, `release.json`, changelog и GitHub asset HEAD проверены live (HTTP 200). Текущий source HEAD `4bf88b9d2deaced6fa45a4951576cc365e272dbc`, Windows CI run `38773202817` — PASS. Полная матрица PASS/INCONCLUSIVE/NOT RUN — в [evidence 0.8.29](RELEASE_PUBLICATION_0.8.29-preview.md). Chromium fingerprint не модифицируется; анонимность не гарантируется.
 
 **Дополнение после релиза (2026-10-15):** MR-034 прошёл на точных публичных ZIP 0.8.23 → 0.8.24 для side-by-side переноса synthetic storage, proxy/DPAPI и Chromium cookie + localStorage под тем же Windows-пользователем; старый snapshot не изменился. Это не проверка in-place, иных browser stores или межмашинного переноса. Отчёт опубликован в Site version 60 (source commit `7a43740ab687fd2ce8a4fd63873e42aba7fc3a9f`); новая версия продукта — Site version 61, описанная в release evidence ниже. Полный протокол — в [MR-034 evidence](RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
 
@@ -63,20 +63,23 @@ fingerprint в продукте допускаются только если и�
 
 ## 2. Текущая база и правила разработки
 
-- Текущий публичный portable Windows 11 x64 выпуск — **0.8.28-preview** со stock
+- Текущий публичный portable Windows 11 x64 выпуск — **0.8.29-preview** со stock
   Chromium 155.0.8059.79, независимыми локальными профилями, Proxy Vault,
   backup/restore, управляемыми загрузками новых профилей, privacy defaults,
   proxy routing для bundled Chromium и ограниченной диагностикой proxy.
-  Публичная версия 0.8.28 добавила быстрые native-команды меню профиля; ZIP
+  Публичная версия 0.8.28 добавила быстрые native-команды меню профиля, а 0.8.29 —
+  предупреждение о влиянии расширений на видимые сайтам параметры и данные профиля; ZIP
   незашифрован и может содержать cookies, историю и сессии, Proxy Vault пароли
   в него не включаются. Точный состав, SHA-256 и проверки зафиксированы в
-  [evidence 0.8.28](RELEASE_PUBLICATION_0.8.28-preview.md). Не переносить PASS
+  [evidence 0.8.29](RELEASE_PUBLICATION_0.8.29-preview.md). Не переносить PASS
   между сборками или машинами; фоновый трафик Chromium остаётся.
 - Fingerprint spoofing/persona-патчи не входят в текущую сборку. Не доказаны
   полный сетевой маршрут через внешний proxy, отсутствие всех DNS/IPv6/
   WebRTC/UDP/TURN утечек, Windows 10/ARM64 и межмашинная приватность;
   автообновления Chromium и подписи EXE нет. Старые CPU/RAM/UTC и Canvas
-  эксперименты описывают историю разработки, а не возможности 0.8.28.
+  эксперименты описывают историю разработки, а не возможности 0.8.29. Версия
+  0.8.30-preview — локальный кандидат с дополнительной проверкой путей
+  portable-хранилища до SQLite; она ещё не является публичным релизом.
 - Дополнительный локальный STUN/UDP-стенд имеет положительный контроль на
   установленном Chrome. Точный Chromium из ZIP 0.8.2 и чистый Chromium 155
   без нашего патча оба показали в NetLog пять попыток прямой STUN-отправки,

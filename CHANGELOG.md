@@ -2,6 +2,16 @@
 
 All notable changes to NeAntik Win (previously NeVision Win) are documented here.
 
+## 0.8.30-preview — проверка portable-хранилища при старте (2026-10-16)
+
+- До создания каталогов и открытия SQLite проверяются существующие `Data`,
+  `Profiles`, `Backups`, `Logs`, `Operations`, сама база и её sidecar-файлы.
+  Junction/reparse points и hardlink-файлы хранилища отклоняются; проверка
+  снижает риск случайного перенаправления данных за пределы portable-папки.
+- Добавлены реальные Windows-junction regression-тесты для `Data` и `Profiles`.
+- Это не защита от TOCTOU или действий того же Windows-пользователя; браузерный
+  fingerprint не меняется, гарантия анонимности не заявляется.
+
 ## 0.8.29-preview — предупреждение о расширениях (2026-10-15)
 
 - Перед первым действием с расширениями за запуск приложения показывается

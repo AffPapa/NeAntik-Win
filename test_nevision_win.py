@@ -56,6 +56,64 @@ class StorageTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
 
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_startup_rejects_data_junction_before_sqlite_opens_outside_database(self):
+        portable_root = self.root / "isolated-portable"
+        portable_root.mkdir()
+        outside = self.root / "outside-data-target"
+        outside.mkdir()
+        data = portable_root / "Data"
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(data), str(outside)],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode:
+            self.skipTest("Windows junction creation is unavailable in this environment")
+
+        try:
+            attributes = getattr(data.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            with patch("nevision_win.sqlite3.connect") as connect:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    Storage(AppPaths(portable_root))
+            connect.assert_not_called()
+            self.assertFalse((outside / "nevision.db").exists())
+            self.assertEqual(list(outside.iterdir()), [])
+        finally:
+            if data.is_junction():
+                os.rmdir(data)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_startup_rejects_profiles_junction_before_sqlite_opens(self):
+        portable_root = self.root / "profiles-portable"
+        Storage(AppPaths(portable_root))
+        profiles = portable_root / "Data" / "Profiles"
+        held = portable_root / "Data" / "Profiles-before-junction"
+        outside = self.root / "outside-profiles-target"
+        outside.mkdir()
+        os.replace(profiles, held)
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(profiles), str(outside)],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode:
+            os.replace(held, profiles)
+            self.skipTest("Windows junction creation is unavailable in this environment")
+
+        try:
+            attributes = getattr(profiles.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            with patch("nevision_win.sqlite3.connect") as connect:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    Storage(AppPaths(portable_root))
+            connect.assert_not_called()
+            self.assertEqual(list(outside.iterdir()), [])
+        finally:
+            if profiles.is_junction():
+                os.rmdir(profiles)
+            if held.exists():
+                os.replace(held, profiles)
+
     def test_shared_proxy_count_uses_id_and_updates_after_reassignment(self):
         shared = self.storage.save_proxy({"name": "same", "scheme": "http", "host": "127.0.0.1", "port": 8080})
         other = self.storage.save_proxy({"name": "same", "scheme": "http", "host": "127.0.0.2", "port": 8080})

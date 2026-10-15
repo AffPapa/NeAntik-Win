@@ -431,9 +431,53 @@ class AppPaths:
     def database(self) -> Path:
         return self.data / DB_NAME
 
+    @staticmethod
+    def _validate_storage_path(path: Path, *, directory: bool) -> None:
+        """Reject pre-existing reparse points before portable storage touches them."""
+        try:
+            details = path.lstat()
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            raise NeVisionError("Не удалось проверить путь локального хранилища.") from exc
+
+        attributes = getattr(details, "st_file_attributes", 0)
+        reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+            raise NeVisionError(
+                "Путь portable-хранилища является ссылкой/junction; приложение не будет открывать его."
+            )
+        if directory and not stat.S_ISDIR(details.st_mode):
+            raise NeVisionError("Вместо каталога portable-хранилища найден файл.")
+        if not directory and not stat.S_ISREG(details.st_mode):
+            raise NeVisionError("Файл локального хранилища имеет неподдерживаемый тип.")
+        if not directory and details.st_nlink > 1:
+            raise NeVisionError("Файл локального хранилища имеет несколько hardlink-ссылок.")
+
     def prepare(self) -> None:
-        for folder in (self.root, self.data, self.profiles, self.backups, self.logs, self.operations):
+        folders = (self.root, self.data, self.profiles, self.backups, self.logs, self.operations)
+        # Validate the complete existing chain before mkdir/SQLite can follow an
+        # already-present junction into a directory outside the portable bundle.
+        for folder in folders:
+            self._validate_storage_path(folder, directory=True)
+        for database_file in (
+            self.database,
+            Path(f"{self.database}-journal"),
+            Path(f"{self.database}-wal"),
+            Path(f"{self.database}-shm"),
+        ):
+            self._validate_storage_path(database_file, directory=False)
+
+        for folder in folders:
             folder.mkdir(parents=True, exist_ok=True)
+            self._validate_storage_path(folder, directory=True)
+        for database_file in (
+            self.database,
+            Path(f"{self.database}-journal"),
+            Path(f"{self.database}-wal"),
+            Path(f"{self.database}-shm"),
+        ):
+            self._validate_storage_path(database_file, directory=False)
 
 
 class SecretVault:
