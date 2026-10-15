@@ -38,6 +38,10 @@ release test matrix or authorize publishing a candidate that failed a gate.
   auth is genuinely absent, stop and use GitHub's supported secure sign-in
   outside chat. Never request or print a token, use `--show-token`, or put a
   token in a remote URL.
+- Run `gh.exe` from the canonical source checkout or pass `--repo
+  AffPapa/NeAntik-Win` explicitly. The Sites source checkout may have no Git
+  remote, so implicit repository detection can fail even while GitHub auth is
+  valid; do not respond by changing credentials.
 - Create the release against the exact tag and upload the portable ZIP, its
   `.sha256` sidecar, and the build manifest. Keep the release prerelease when
   the channel is preview.
@@ -82,6 +86,13 @@ release test matrix or authorize publishing a candidate that failed a gate.
    `node: command not found`. Start it with a PATH that includes the resolved
    Node directory so both the workflow and nested `package-site.sh` can run.
    Use only POSIX checkout/archive paths inside WSL.
+   When the workflow runs under WSL, convert only the returned opening
+   result's Windows `checkout_path` to its equivalent POSIX path
+   (for example `C:\\Users\\...` to `/mnt/c/Users/...`); preserve the other
+   opening-result fields unchanged. Give the workflow a POSIX absolute
+   `archivePath`; convert that resulting file path back to its Windows host
+   path only for the native Sites save call. This is a path representation
+   conversion, not a second opening or a new source state.
 4. Important retry rule: `site-workflow.mjs` saves/pushes the source commit
    before it packages the deployment archive. If the helper fails during
    packaging, first inspect branch, HEAD, working tree and remote state. The
