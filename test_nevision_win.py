@@ -982,7 +982,8 @@ class PortableCoreRegressionTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
     def test_isolation_check_rejects_cache_storage_namespace_junction(self):
-        profile_id = self.storage.save_profile({"name": "Synthetic CacheStorage junction"})
+        profile = self._profile_with_proxy()
+        profile_id = profile["id"]
         cache_storage = (
             self.storage.profile_path(profile_id) / "Default" / "Service Worker" / "CacheStorage"
         )
@@ -999,10 +1000,18 @@ class PortableCoreRegressionTests(unittest.TestCase):
                 self.skipTest("Windows junction creation is unavailable in this environment")
             attrs = getattr(namespace.lstat(), "st_file_attributes", 0)
             self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
-            with self.assertRaisesRegex(NeVisionError, "junction"):
-                BrowserLauncher(self.storage).ensure_profile_path_is_isolated(profile_id)
+            launcher = BrowserLauncher(self.storage)
+            with patch.object(launcher, "resolve_browser") as resolve_browser, \
+                    patch.object(self.storage, "pin_browser_family") as pin_browser, \
+                    patch("nevision_win.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    launcher._launch_locked(profile, profile_id)
+            resolve_browser.assert_not_called()
+            pin_browser.assert_not_called()
+            popen.assert_not_called()
         finally:
-            namespace.rmdir()
+            if namespace.is_junction():
+                os.rmdir(namespace)
 
     def test_nested_reparse_scan_fails_closed_when_directory_cannot_be_scanned(self):
         profile_id = self.storage.save_profile({"name": "Synthetic scan error"})
