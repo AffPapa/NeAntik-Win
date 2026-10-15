@@ -444,6 +444,14 @@ main frame и двух iframe. Это только базовая линия о�
   перезапуска, backup/restore и configuration-only clone. Только один Windows
   11 host; произвольные расширения, вредоносный код, другое устройство и
   незашифрованные backup остаются за пределами теста. [Протокол P3.1](PROFILE_ISOLATION_2026-10.md).
+  На точном публичном Chromium 0.8.18-preview download gate прошёл 3/3
+  синтетических загрузки по 4,880 байт: раздельные папки A/B и сохранение
+  загрузок профиля A после переноса всего одноразового portable-root.
+  Перед каждым Popen harness вызывает production reparse/path check; ядро
+  копируется в disposable QA-каталог с sandbox ACL, SHA исходного `chrome.exe`
+  сохранён. Это source harness на одном ПК, не GUI и не внешний сайт; точные
+  commit, hash и ограничения — в [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md)
+  и [протоколе загрузок](DOWNLOAD_ISOLATION_2026-10.md).
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после

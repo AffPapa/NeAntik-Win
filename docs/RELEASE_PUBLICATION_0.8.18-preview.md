@@ -91,9 +91,19 @@ independently below.
   Private report: `C:\N155\proxy-integration-0.8.18-preview-20261015.json`.
   These are loopback source-harness results, not packaged GUI/authentication or
   external DNS/IPv6/UDP/TURN evidence.
+- `tools/download_integration.py` on the exact public 0.8.18 Chromium:
+  **PASS**, 3/3 synthetic 4,880-byte downloads. Files stayed in separate A/B
+  managed folders; profile A retained its prior file and accepted another after
+  moving the entire disposable portable root. The harness uses the production
+  profile reparse/path check before each Popen and a byte-identical sandbox-ACL
+  prepared engine copy. Junction regression passed immediately before the run.
+  Harness commit `7fb6240baa736e71821d9317d729cb08f170f67e`, SHA-256
+  `7038d05d7b88a2a6555aa968d7fd8f713136a7b020f4c16e28585f3f567f981e`; exact
+  source engine SHA-256 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+  Private report: `C:\N155\download-integration-final-diagnostic-0.8.18-preview-20261015.json`.
+  Source harness only; it is not packaged GUI or cross-machine/cross-account proof.
 
-Not rerun on this exact archive: proxy-auth success,
-download and broader browser/network
+Not rerun on this exact archive: proxy-auth success and broader browser/network
 integration suites. Migration coverage is same-account, synthetic and limited
 to one cookie/localStorage origin; it is not an interactive update or a check
 of another Windows account or machine.
