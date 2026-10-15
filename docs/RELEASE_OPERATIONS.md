@@ -82,7 +82,6 @@ GitHub CLI:
 gh attestation verify .\NeAntikWin-portable-vX.Y.Z.zip `
   --repo AffPapa/NeAntik-Win `
   --predicate-type https://affpapa.org/attestations/neantik-release-review/v1 `
-  --signer-repo AffPapa/NeAntik-Win `
   --signer-workflow AffPapa/NeAntik-Win/.github/workflows/attest-existing-release.yml `
   --source-ref refs/heads/main
 ```
