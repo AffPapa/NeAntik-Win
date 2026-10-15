@@ -51,3 +51,24 @@ The native «Профиль» menu now exposes edit, proxy-check, copy-proxy-pas
 - UI Automation / MSAA / NVDA and full keyboard-only interaction: **NOT RUN**.
 - External DNS, IPv6, UDP, STUN/TURN and independent egress observation; Windows 10/ARM64; another physical machine/account: **NOT RUN**.
 - The release does not claim anonymity, fingerprint spoofing, or evasion of anti-bot controls. Backups remain unencrypted and may contain browser data; proxy routing does not establish anonymity.
+
+## Post-release GUI smoke attempt (2026-10-15)
+
+This is a follow-up observation after the immutable `v0.8.28-preview` release; it
+does not change the tagged source, ZIP, EXE, or release metadata.
+
+| Check | Result |
+| --- | --- |
+| Fresh extraction of the redownloaded public ZIP, verified at 262,391,330 bytes and SHA-256 `82d7baa19c01432ec59bdf35b67d101395080ea82f6a03799c1d8dc13bba482c` | PASS |
+| Extracted EXE SHA-256 `94d35858e127fefc23cb27668bba449307f980ababb61ef4f415c4a2dd2f2ac0` | PASS |
+| Launch via Windows Computer Use and selection of a uniquely returned .28 window | **INCONCLUSIVE** — launch created a live process, but the UI enumerator exposed only pre-existing NeAntik .21/.23/.24/.26 windows; after one refreshed window listing no .28 window was targetable |
+| Profile menu and keyboard navigation | NOT RUN — no uniquely identified .28 window was available, so no UI actions were sent |
+| QA data isolation | PASS — only the fresh extracted copy was used; its `Data` directory was created on launch, and no `Profiles` directory was created |
+| Cleanup | PASS — only the exact isolated .28 process started for this attempt was stopped; no older app window or user profile was touched |
+
+This observation does not establish a product failure: process lifetime and
+window enumeration were not captured together at the first snapshot, and the
+UI automation layer may have omitted or mis-associated the window. It also does
+not establish that the UI works. Do not repeat the launch without a new,
+specific diagnostic hypothesis and a process-ID-bound way to identify the
+window; UIA/MSAA/NVDA remain separate untested gates.
