@@ -1,6 +1,6 @@
 # NeAntik Win — полный план реализации приватного portable-браузера
 
-Статус: рабочая инженерная программа, 2026-10-14. Владелец продукта хочет
+Статус: рабочая инженерная программа, обновлено 2026-10-15. Владелец продукта хочет
 открытый браузер для всех, с независимыми локальными профилями, понятным
 интерфейсом и сильной защитой приватности. Этот документ — очередь конкретных
 работ, тестов и условий выпуска; он **не** утверждает, что текущий браузер
@@ -9,44 +9,9 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.16-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.16-preview), бинарный source commit `3fd8777de5d04f6e1cf706756096df950f60d98c`, ZIP SHA-256 `8b9099f20dce636966e8bfac358e7c4bc1c616c204e4da128a7d41b81db42116`. Публичный ZIP повторно скачан и проверен архивным валидатором; production-сайт показывает тот же размер и SHA. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.16-preview.md). Следующая инженерная очередь остаётся P0; старые контрольные точки не считать актуальным бинарным статусом. Для быстрого выбора тестов и воспроизводимой публикации см. [матрицу выбора тестов](QA_TEST_SELECTION.md) и [операционный регламент GitHub + Sites](RELEASE_OPERATIONS.md).
+**Текущий публичный выпуск:** [0.8.18-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.18-preview), бинарный source commit `85580d07b28cd8d795576481b3119f04dd1ba6dd`, ZIP 262,377,848 байт, SHA-256 `62c73096470c62a9bfacefbfee30753e99def38bdc22aba1c90e222bd22af095`. Публичная копия архива повторно скачана и сверена с локальной. Production Site version 52 развернут; живые `/`, `/release.json` и `/CHANGELOG.md` дали HTTP 200, а версия, source commit, размер и SHA совпали с GitHub Release. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.18-preview.md).
 
-**Security freshness gate, 14 октября 2026:** живая публикация `release.json` и
-GitHub asset metadata подтверждают 0.8.16-preview и SHA-256 выше; metadata
-указывает на bundled Chromium `155.0.8059.40`. Google Chrome Stable для desktop
-обновлён до `155.0.8059.79/.80` 13 октября и содержит 37 security fixes
-([официальная запись Chrome Releases](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_01668083673.html?amp=1)).
-Поэтому следующий бинарный выпуск **не должен повторно использовать ядро
-0.8.16** без проверки и обновления Chromium. Локальный Chromium source checkout
-на `cfaadc5a132d78e1828635aa8405a499f3e14864` содержит незакоммиченные патчи
-NeAntik и пользовательские untracked source-файлы; его не синхронизировать и не
-перезаписывать. Обновлять ядро в отдельном чистом checkout, переносить патчи с
-review и сверять их с upstream; затем выполнить полный exact-ZIP release gate.
-Точный Chromium Gitiles tag `155.0.8059.79` указывает на source commit
-[`a49e2e3d4addfd84e765b52afe230bedb81096db`](https://chromium.googlesource.com/chromium/src/+/a49e2e3d4addfd84e765b52afe230bedb81096db/); исходник находится в отдельном checkout `C:\N155\src`.
-Синхронизация зависимостей, hooks и GN generation прошли; для Windows применён
-только build-compat patch из `docs/chromium-build-compat.patch`, SHA-256
-`2992c690bd16fd3f7196a52b018cdc0a2556f4148959fb7f3b7072803fe81a3d`.
-Сборка `chrome` завершена: `autoninja -C out\NeAntik155-079-ninja-v1 -j1 chrome`
-вернул `ninja: no work to do`; `chrome.exe` имеет версию `155.0.8059.79`, размер
-4,144,128 байт и SHA-256
-`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
-Одноразовый headless smoke на `about:blank` завершился с кодом 0 и выдал HTML
-(`PASS`, одна Windows-машина; это только проверка запуска). Это чистый Chromium
-без runtime-патча NeAntik и **не кандидат на выпуск**: интеграция в менеджер,
-совместимость, portable ZIP и все продуктовые/сетевые ворота — **NOT RUN**.
-Сборочные изменения ограничены файлами `DEPS` и `build/toolchain/win/midl.py`;
-checkout не является чистым upstream, его не синхронизировать и не публиковать
-как продуктовый бинарник. Выбран безопасный кандидатный маршрут `0.8.17-preview`:
-portable-менеджер профилей с обычным Chromium 155 и явным отсутствием изменений
-fingerprint. Это не обещание анонимности и не эквивалент антидетект-браузера.
-До сборки релиза требуется убрать активируемый native-persona режим, сохранить
-старые данные профилей без их запуска в обычном режиме, настроить release guard
-на строго проверяемое stock-происхождение и `fingerprint_modification: false`,
-затем пройти тесты точного portable ZIP. Только после появления проверенного
-ZIP разрешено выполнять последовательную публикацию GitHub → повторное скачивание
-и SHA-256 → обновление/deploy существующего сайта → проверка живого `release.json`
-и URL. Ни guard, ни публичные заявления не ослаблять и не подменять provenance.
+0.8.18 использует Chromium `155.0.8059.79` с build-compat patch, но без изменений fingerprint: в release manifest `fingerprint_modification: false`, privacy patch отсутствует. Добавлена валидация идентификатора профиля на границе путей/backup/delete; это не полноценная анонимность и не обход антибот-защиты. Приоритеты приватности остаются открытыми: fingerprint spoofing не реализован; внешние DNS/IPv6/UDP/STUN/TURN и cross-machine проверки **NOT RUN**; ручной GUI на этой сборке **NOT RUN**. Не переносить PASS между релизами. Следующая очередь — P0/P1 из раздела 4 и оставшиеся P2 сетевые проверки с точной фиксацией ограничений. Для выбора короткого набора тестов и публикации см. [матрицу QA](QA_TEST_SELECTION.md) и [операционный регламент GitHub + Sites](RELEASE_OPERATIONS.md).
 
 ## 1. Что именно защищаем
 
