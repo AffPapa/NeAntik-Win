@@ -683,6 +683,50 @@ class PortableCoreRegressionTests(unittest.TestCase):
         profile_id = self.storage.save_profile({"name": "Test profile", "proxy_id": proxy_id})
         return self.storage.get_profile(profile_id)
 
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_launch_path_rejects_real_data_profiles_and_profile_junctions(self):
+        profile_id = self.storage.save_profile({"name": "Synthetic junction boundary"})
+        launcher = BrowserLauncher(self.storage)
+        command = Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "cmd.exe"
+        launcher.ensure_profile_path_is_isolated(profile_id)
+
+        for redirected in ("Data", "Profiles", "profile"):
+            with self.subTest(path=redirected):
+                if redirected == "Data":
+                    link = self.storage.paths.data
+                    target = self.root / "outside-Data"
+                    held = self.root / "Data-before-junction"
+                    (target / "Profiles" / profile_id).mkdir(parents=True)
+                elif redirected == "Profiles":
+                    link = self.storage.paths.profiles
+                    target = self.root / "outside-Profiles"
+                    held = self.root / "Profiles-before-junction"
+                    (target / profile_id).mkdir(parents=True)
+                else:
+                    link = self.storage.profile_path(profile_id)
+                    target = self.root / "outside-profile"
+                    held = self.root / "profile-before-junction"
+                    target.mkdir()
+
+                os.replace(link, held)
+                try:
+                    result = subprocess.run(
+                        [str(command), "/d", "/c", "mklink", "/J", str(link), str(target)],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if result.returncode:
+                        self.skipTest("Windows junction creation is unavailable in this environment")
+                    self.assertTrue(
+                        link.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+                    )
+                    with self.assertRaisesRegex(NeVisionError, "junction"):
+                        launcher.ensure_profile_path_is_isolated(profile_id)
+                finally:
+                    if link.exists():
+                        link.rmdir()
+                    if held.exists():
+                        os.replace(held, link)
+
     def test_invalid_proxy_host_is_not_persisted(self):
         with self.assertRaises(NeVisionError):
             self.storage.save_proxy({"name": "Injected", "scheme": "http", "host": "example.com,direct://", "port": 8080})
