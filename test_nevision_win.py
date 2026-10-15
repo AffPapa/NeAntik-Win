@@ -535,6 +535,82 @@ class StorageTests(unittest.TestCase):
         self.assertFalse(target.exists())
         self.assertEqual(list(recovered.paths.operations.glob("*.json")), [])
 
+    def test_startup_reconciles_committed_delete_before_journal_cleanup_idempotently(self):
+        profile_id = self._profile_with_file("Committed delete")
+        unrelated_id = self._profile_with_file("Unrelated survivor")
+        source = self.storage.profile_path(profile_id)
+        marker = source / "Default" / "state.txt"
+        expected_state = marker.read_bytes()
+
+        class SimulatedPowerLoss(BaseException):
+            pass
+
+        # Interrupt the real delete operation after its SQLite commit, at the
+        # last journal-cleanup step. BaseException models abrupt process loss.
+        with patch.object(self.storage, "_discard_operation_journal", side_effect=SimulatedPowerLoss):
+            with self.assertRaises(SimulatedPowerLoss):
+                self.storage.delete_profile(profile_id)
+
+        journals = list(self.storage.paths.operations.glob("*.json"))
+        self.assertEqual(len(journals), 1)
+        payload = json.loads(journals[0].read_text(encoding="utf-8"))
+        target = self.storage.data_deleted_root() / payload["deleted_dir"]
+        self.assertEqual(payload["operation"], "delete")
+        self.assertFalse(source.exists())
+        self.assertTrue(target.is_dir())
+        self.assertIsNone(self.storage.get_profile(profile_id))
+
+        recovered = Storage(AppPaths(self.root))
+        self.assertIsNone(recovered.get_profile(profile_id))
+        self.assertEqual((target / "Default" / "state.txt").read_bytes(), expected_state)
+        self.assertIsNotNone(recovered.get_profile(unrelated_id))
+        self.assertTrue((recovered.profile_path(unrelated_id) / "Default" / "state.txt").is_file())
+        self.assertEqual(list(recovered.paths.operations.glob("*.json")), [])
+
+        restarted = Storage(AppPaths(self.root))
+        self.assertIsNone(restarted.get_profile(profile_id))
+        self.assertEqual((target / "Default" / "state.txt").read_bytes(), expected_state)
+        self.assertIsNotNone(restarted.get_profile(unrelated_id))
+
+    def test_startup_reconciles_committed_restore_before_journal_cleanup_idempotently(self):
+        source_id = self._profile_with_file("Restore commit source")
+        source_state = self.storage.profile_path(source_id) / "Default" / "state.txt"
+        expected_state = source_state.read_bytes()
+        archive = self.storage.backup_profile(source_id)
+
+        class SimulatedPowerLoss(BaseException):
+            pass
+
+        # Interrupt the real restore after its SQLite commit, before its journal
+        # is removed, so startup exercises the committed-state recovery branch.
+        with patch.object(self.storage, "_discard_operation_journal", side_effect=SimulatedPowerLoss):
+            with self.assertRaises(SimulatedPowerLoss):
+                self.storage.restore_profile(archive, "Committed restore")
+
+        journals = list(self.storage.paths.operations.glob("*.json"))
+        self.assertEqual(len(journals), 1)
+        payload = json.loads(journals[0].read_text(encoding="utf-8"))
+        restored_id = payload["profile"]["id"]
+        restored_path = self.storage.profile_path(restored_id)
+        marker = restored_path / "Default" / "state.txt"
+        self.assertEqual(payload["operation"], "restore")
+        self.assertTrue(restored_path.is_dir())
+        self.assertIsNotNone(self.storage.get_profile(restored_id))
+        self.assertEqual(marker.read_bytes(), expected_state)
+
+        recovered = Storage(AppPaths(self.root))
+        self.assertEqual(recovered.get_profile(restored_id)["name"], "Committed restore")
+        self.assertEqual(marker.read_bytes(), expected_state)
+        self.assertEqual(source_state.read_bytes(), expected_state)
+        self.assertIsNotNone(recovered.get_profile(source_id))
+        self.assertEqual(len(recovered.list_profiles()), 2)
+        self.assertEqual(list(recovered.paths.operations.glob("*.json")), [])
+
+        restarted = Storage(AppPaths(self.root))
+        self.assertEqual(restarted.get_profile(restored_id)["name"], "Committed restore")
+        self.assertEqual(marker.read_bytes(), expected_state)
+        self.assertEqual(len(restarted.list_profiles()), 2)
+
     def test_startup_reconciles_interrupted_restore(self):
         profile_id = uuid.uuid4().hex
         staging = self.storage.paths.profiles / ".restore-interrupted.partial"
