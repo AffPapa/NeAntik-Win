@@ -124,7 +124,7 @@ and report hashes and the route/storage matrices are recorded in
 
 ## NOT RUN / INCONCLUSIVE
 
-- Physical keyboard held-key behavior, manual profile create/edit, Windows UI Automation/MSAA tree, and NVDA/Narrator: NOT RUN. Synthetic callback tests do not prove operating-system key delivery or screen-reader semantics.
+- Exact published manager EXE manual smoke test on 2026-10-15 (SHA-256 `316a4a6b707eefcd58a923f6c9fb1ea85d1797436e0363c52f157800ce0cc7ab`): window opened and rendered; blank “Новый профиль” form opened; Tab visibly advanced through name, group, tags, proxy, and notes; Escape closed it without saving; app then closed. No profile or browser was launched. This is **PASS** for window/form rendering, observed focus traversal, and safe cancel only. UI Automation exposed the dialog title but represented its contents as generic panels and did not identify the focused control (**FAIL for observed UIA semantics**). Ctrl+N remained **INCONCLUSIVE** after one refreshed-state retry. Physical keyboard/key-repeat, successful data entry/save/edit, backup/restore via GUI, NVDA/Narrator, and a full keyboard-only workflow: **NOT RUN**.
 - Browser-storage cases beyond the listed synthetic APIs/origin (including extension/download state and arbitrary sites); external DNS, public IPv6/UDP/STUN/TURN, independent egress/packet observer, another Windows account/PC, and Windows 10: NOT RUN on this exact ZIP. The local route checks above do not imply those results.
 - No claim of fingerprint spoofing, passing anti-bot checks, complete anonymity, or universal privacy is made. Profiles isolate local browser storage; they are not separate network identities.
 
