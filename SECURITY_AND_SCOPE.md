@@ -1,10 +1,11 @@
 # Security, privacy and scope
 
-The published 0.8.25-preview release described below bundles stock Chromium and does not
+The published 0.8.27-preview release described below bundles stock Chromium and does not
 modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
 builds are historical and do not describe this release. Check the official
 download page and checksum for the current artifact; local tests alone are not
-public-release proof.
+public-release proof. Exact source, ZIP identity, test evidence and known gaps for
+this release are recorded in [release evidence](docs/RELEASE_PUBLICATION_0.8.27-preview.md).
 
 The published 0.8.7-preview rejects hardlinked files during backup to avoid
 copying data outside a profile into the unencrypted ZIP. The exact public
@@ -12,7 +13,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## Historical 0.8.6-preview V4b boundary (not included in 0.8.24-preview)
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.26-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
@@ -47,7 +48,7 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-The published 0.8.25-preview manages local directories and bundles unbranded
+The published 0.8.27-preview manages local directories and bundles unbranded
 stock Chromium `155.0.8059.79`, built from pinned upstream source with a
 build-compatibility patch only. `fingerprint_modification` is explicitly
 `false`; NeAntik does not override browser/device fingerprint values. New
@@ -64,17 +65,21 @@ Before launch, the manager rejects reparse points at the portable `Data`,
 high-sensitivity Chromium paths (for example cookies, local storage,
 IndexedDB, service-worker storage, preferences and login data), without
 recursively scanning the whole profile. In addition, it inspects direct
-children only in `Default/IndexedDB` and
-`Default/Service Worker/CacheStorage`, with a limit of 10,000 entries per
-directory; a directory that exceeds the limit or cannot be inspected fails
+children only in `Default/IndexedDB`,
+`Default/Service Worker/CacheStorage`, and
+`Default/Local Storage/leveldb`, with a limit of 10,000 entries per directory.
+Reparse points and regular files with multiple hardlinks are rejected; direct
+`os.stat` is used for the hardlink count because Windows `DirEntry.stat()` may
+report zero. A directory that exceeds the limit or cannot be inspected fails
 closed. Descendants below those direct children and other unlisted nested paths
-are not covered. These checks catch selected pre-existing redirects; they are
-not protection against TOCTOU or same-user tampering and do not isolate a
-profile from another process running as the same Windows account. On one
-Windows 11 host, a synthetic profile at both 10,000-entry limits took 27.7 ms
-median / 29.7 ms p95 over 15 checks; this is a local measurement, not a startup
-guarantee for other PCs or storage devices. The bundled Chromium has no
-automatic updater; install newer portable releases for security fixes.
+are not covered. These checks catch selected pre-existing redirects/sharing;
+they are not protection against TOCTOU or same-user tampering and do not
+isolate a profile from another process running as the same Windows account. On
+one Windows 11 host, the earlier 10,000-entry IndexedDB/CacheStorage scan took
+27.7 ms median / 29.7 ms p95 over 15 checks; the added LevelDB scan has not been
+included in that timing, so this is not a startup guarantee for other PCs or
+storage devices. The bundled Chromium has no automatic updater; install newer
+portable releases for security fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, disable network prediction/preloading, and open a blank new-tab document. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. The blank document does not stop Chromium's other background requests. Existing profiles, installed Chrome and Edge do not receive them retroactively.
 
@@ -110,7 +115,7 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.24-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
+This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.26-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|

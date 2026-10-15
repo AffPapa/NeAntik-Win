@@ -931,6 +931,21 @@ class PortableCoreRegressionTests(unittest.TestCase):
         with self.assertRaisesRegex(NeVisionError, "слишком много элементов"):
             launcher.ensure_profile_path_is_isolated(profile_id)
 
+    def test_isolation_check_rejects_local_storage_hardlink(self):
+        profile_id = self.storage.save_profile({"name": "Synthetic Local Storage hardlink"})
+        leveldb = self.storage.profile_path(profile_id) / "Default" / "Local Storage" / "leveldb"
+        leveldb.mkdir(parents=True)
+        linked_file = leveldb / "000003.log"
+        linked_file.write_bytes(b"synthetic-only")
+        outside = self.root / "synthetic-shared-log"
+        try:
+            os.link(linked_file, outside)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"hardlink creation is unavailable in this environment: {exc}")
+
+        with self.assertRaisesRegex(NeVisionError, "hardlink"):
+            BrowserLauncher(self.storage).ensure_profile_path_is_isolated(profile_id)
+
     @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
     def test_isolation_check_rejects_cache_storage_namespace_junction(self):
         profile_id = self.storage.save_profile({"name": "Synthetic CacheStorage junction"})

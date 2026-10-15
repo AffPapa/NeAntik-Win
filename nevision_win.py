@@ -1702,11 +1702,11 @@ class BrowserLauncher:
         Path("Default/Preferences"), Path("Default/Secure Preferences"),
         Path("Default/Login Data"), Path("Default/Web Data"),
     )
-    # Chromium stores per-origin databases below these roots. Inspect one
-    # namespace level so a junction at an origin directory cannot silently
-    # redirect that profile's storage into another profile or external path.
-    # Keep this deliberately bounded; do not walk caches or the full profile.
+    # Inspect one bounded level inside Chromium's sensitive storage roots.
+    # Local Storage/leveldb also needs direct-entry checks for linked files.
+    # Do not walk caches or the full profile.
     PROFILE_REPARSE_SCAN_ROOTS = (
+        Path("Default/Local Storage/leveldb"),
         Path("Default/IndexedDB"),
         Path("Default/Service Worker/CacheStorage"),
     )
@@ -1791,6 +1791,20 @@ class BrowserLauncher:
                                 "Во вложенном хранилище Chromium обнаружена ссылка/junction. "
                                 "Профиль не запущен; восстановите обычную структуру данных."
                             )
+                        if stat.S_ISREG(details.st_mode):
+                            # Windows DirEntry.stat() can report st_nlink=0;
+                            # query the path directly before relying on it.
+                            try:
+                                file_details = os.stat(entry.path, follow_symlinks=False)
+                            except OSError as exc:
+                                raise NeVisionError(
+                                    "Не удалось проверить файл вложенного хранилища Chromium."
+                                ) from exc
+                            if file_details.st_nlink > 1:
+                                raise NeVisionError(
+                                    "Во вложенном хранилище Chromium обнаружен файл с несколькими hardlink. "
+                                    "Профиль не запущен; восстановите отдельную копию данных."
+                                )
             except FileNotFoundError:
                 continue
             except OSError as exc:
