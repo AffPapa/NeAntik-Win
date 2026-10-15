@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -25,6 +26,10 @@ import uuid
 
 from browser_integration import OwnedJob, spawn_owned_browser
 from privacy_defaults import initialize_privacy_defaults
+
+# The audit must launch profiles through the same bounded path guard as the app.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from nevision_win import AppPaths, BrowserLauncher, Storage  # noqa: E402
 
 
 class AuditTimeoutError(RuntimeError):
@@ -447,7 +452,11 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
                   primary_hostname: str = "127.0.0.1") -> dict:
     if primary_hostname not in ("127.0.0.1", "localhost"):
         raise ValueError("Only the two synthetic loopback sites are allowed")
-    profile = root / "Profile"
+    # The caller uses one fresh temporary root per independent profile. Keep
+    # its synthetic ID stable so the second pass truly reopens the same profile.
+    profile_id = "0" * 32
+    storage = Storage(AppPaths(root))
+    profile = storage.profile_path(profile_id)
     if reuse_existing:
         if not profile.is_dir() or not (profile / "Default" / "Preferences").is_file():
             raise RuntimeError("Existing disposable profile is missing")
@@ -472,6 +481,9 @@ def audit_profile(chrome: Path, root: Path, native_flags: tuple[str, ...] = (),
                      "--proxy-bypass-list=127.0.0.1;localhost",
                      "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost",
                      *native_flags, url]
+        # Match production's Data/Profiles/<id> reparse-point gate directly
+        # before every Chromium process creation, including repeat launches.
+        BrowserLauncher(storage).ensure_profile_path_is_isolated(profile_id)
         process = spawn_owned_browser(arguments, root, job)
         try:
             stdout, stderr = process.communicate(input=b"G", timeout=45)

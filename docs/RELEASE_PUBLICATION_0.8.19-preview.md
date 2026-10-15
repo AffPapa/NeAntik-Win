@@ -74,6 +74,26 @@ the same PC.
   before process creation. Full unit suite on that commit: **266 PASS, 3
   skipped**.
 
+### Exact-ZIP cross-context surface consistency — 2026-10-15
+
+- The private loopback-only `tools/fingerprint_surface_audit.py` was corrected
+  to place disposable data in the product's `Data/Profiles/<id>` layout and
+  invoke `BrowserLauncher.ensure_profile_path_is_isolated` immediately before
+  each of its four Chromium launches. Its repeat pass reopens the same
+  synthetic profile. The production launch guard's real-junction regression
+  passed; the audit's 34 pure evaluation tests passed.
+- Exact ZIP Chromium SHA-256: `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+  Result: **PASS, 170/170 consistency assertions**, two disposable profiles,
+  two visits each, loopback origins only; no public network or user profile.
+- Audit tool SHA-256: `5028e518048e5d88f9a3e04f3d072ebe8b1722028e666e1b5adc40a97d79b0c2`.
+  Raw local report is retained outside the repository at
+  `C:\N155\qa-network-0.8.19-preview-20261015\fingerprint-surface-0.8.19.json`,
+  SHA-256 `7ed48ca54cc4178c93de68784483349c963adb307342d676c9a1538598f0d3ee`.
+  The raw report is private because it contains local environment traits.
+- This is a same-machine consistency measurement only. It neither changes nor
+  spoofs fingerprint values, compares a second computer, checks public egress,
+  nor establishes anonymity or anti-bot success.
+
 Harness reports are retained locally outside the public repository; their raw
 local addresses, synthetic tokens and diagnostics are not published. Script
 and report hashes and the route/storage matrices are recorded in
