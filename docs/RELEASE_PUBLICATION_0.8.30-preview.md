@@ -45,9 +45,10 @@ GUI-smoke предыдущего кандидата 0.8.29 не переноси
 proxy, local-first режим и раздельные профили не гарантируют анонимность или
 отсутствие внешних сетевых утечек.
 
-## Сайт
+## Сайт после публикации
 
-На момент подготовки публичный Site ещё указывает на 0.8.29-preview. Публикация
-сайта допускается только после создания Release, повторного скачивания ZIP и
-совпадения SHA-256/размера с этим evidence; затем требуется live-проверка
-главной страницы, `/release.json`, `/CHANGELOG.md` и публичного ZIP.
+- Существующий public Site: [nevision-win.mail782861.chatgpt.site](https://nevision-win.mail782861.chatgpt.site/), Sites version 68; audience сохранён.
+- Site source commit: `a86d9933eb25d093a1b8cd733a2fa046c36f7631`; deployment status `succeeded`.
+- Главная, `/release.json` и `/CHANGELOG.md` — HTTP 200; live release metadata совпадает с версией 0.8.30, binary-source commit, именем/размером/SHA-256 ZIP.
+- Публичный GitHub ZIP HEAD — HTTP 200, `Content-Length: 262393616`.
+- Сжатый Site deployment archive: `16183229` байт, SHA-256 `17921209f9ef682a7f21f4e20087c2501fb7cd30878bb3ee9a6f780b90f4cd3b`; архив содержит `dist/.openai/hosting.json`, `dist/server/index.js` и проверенный `dist/client/release.json`.
