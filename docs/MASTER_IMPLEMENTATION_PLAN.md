@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.24-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.24-preview), бинарный source commit `96da9945be1558fa2fd47b372ea61315e96fbd04`, ZIP 262,386,734 байта, SHA-256 `a440ab85d2ac4a8e152ecb3f4069fad870db4c1a19d444a6973f8d82c0380591`. Локальный и повторно скачанный ZIP, sidecar и GitHub API digest совпали; verifier прошёл (1,066 файлов), упакованный EXE self-test — exit 0, Windows CI run `38733032956` — success. Public-source guard: 222 файла PASS. Production Site version 58 развёрнут из source commit `0d129644c5316a25d6db67b32270afb4ac19b1d4`; живые `/`, `/release.json`, `/CHANGELOG.md` и ZIP HEAD проверены, версия/source/filename/size/SHA совпали. GUI точной сборки запустился и показал пустое локальное рабочее пространство — PASS. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.24-preview.md).
+**Текущий публичный выпуск:** [0.8.24-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.24-preview), бинарный source commit `96da9945be1558fa2fd47b372ea61315e96fbd04`, ZIP 262,386,734 байта, SHA-256 `a440ab85d2ac4a8e152ecb3f4069fad870db4c1a19d444a6973f8d82c0380591`. Локальный и повторно скачанный ZIP, sidecar и GitHub API digest совпали; verifier прошёл (1,066 файлов), упакованный EXE self-test — exit 0, Windows CI run `38733032956` — success. Public-source guard: 222 файла PASS. На момент выпуска production Site version 58 был развёрнут из source commit `0d129644c5316a25d6db67b32270afb4ac19b1d4`; после MR-034 текущая Site version 59 описана ниже. Живые `/`, `/release.json`, `/CHANGELOG.md` и ZIP HEAD были проверены, версия/source/filename/size/SHA совпали. GUI точной сборки запустился и показал пустое локальное рабочее пространство — PASS. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.24-preview.md).
 
 **Дополнение после релиза (2026-10-15):** MR-034 прошёл на точных публичных ZIP 0.8.23 → 0.8.24 для side-by-side переноса synthetic storage, proxy/DPAPI и Chromium cookie + localStorage под тем же Windows-пользователем; старый snapshot не изменился. Это не проверка in-place, иных browser stores или межмашинного переноса. Инструкции и ограничения опубликованы в Site version 59 (source commit `b794a92a6bd72dd16e0e60a9110c157048c5c277`); live `/`, `/CHANGELOG.md`, `/release.json` и GitHub ZIP HEAD вернули согласованные данные. Полный протокол — в [MR-034 evidence](RELEASE_PUBLICATION_0.8.24-preview.md#post-release-updaterollback-check-mr-034).
 
@@ -564,6 +564,13 @@ main frame и двух iframe. Это только базовая линия о�
   4 PASS. Это не тест отключения питания, GUI или другого Windows account.
   Непроверенные сценарии перечислены в [P3 evidence](PROFILE_ISOLATION_2026-10.md).
   Ни один тест не работает на пользовательской `Data/`.
+  В source commit `65923978f9e9c1af89d7437763d4585bd04178e6` добавлена
+  fault-injection проверка двух отдельных crash windows: реальное удаление
+  профиля и реальное восстановление прерываются после DB commit, но до очистки
+  журнала; новый `Storage` сверяет состояние, сохраняет посторонний профиль и
+  идемпотентно стартует второй раз. Весь `StorageTests` — 33 PASS на этом
+  commit; код продукта не менялся. Это не power-loss, packaged GUI или другой
+  Windows account.
   Дополнительно в source commit `21d75f382425e12c70b3b8f6ec183a71c0fc28bf`
   UI восстановления теперь отклоняет native-mode backup, если сборка не
   сообщает о совместимом встроенном ядре; source regression и полный набор

@@ -327,3 +327,18 @@ This remains one Windows 11 host, one account, headless source integration and
 one loopback origin—not packaged GUI/manual interaction, another account or
 PC, downloads/extensions, arbitrary origins, external routing or a complete
 inventory of browser storage. P3 remains open.
+
+## Post-commit restore/delete journal recovery — 15 October 2026
+
+Source commit `65923978f9e9c1af89d7437763d4585bd04178e6` adds two fault-
+injection regressions to `test_nevision_win.StorageTests`. Each runs the real
+storage operation with synthetic data, raises a process-stop exception at the
+final journal-cleanup call (after the profile filesystem move and SQLite
+transaction have committed), then constructs fresh `Storage` instances to
+exercise startup reconciliation twice. Delete retains the deleted profile data
+and an unrelated profile while clearing the completed journal; restore retains
+the restored profile/data and its source while clearing the journal. The entire
+`StorageTests` class passed **33/33** on that exact source commit. This is a
+source-level deterministic crash-window test, not a power-loss/filesystem
+durability test, packaged GUI restore, or cross-account/PC verification; no
+browser process or user `Data/` was used and product code/binary were unchanged.
