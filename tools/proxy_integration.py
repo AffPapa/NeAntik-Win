@@ -37,7 +37,7 @@ import uuid
 from browser_integration import (APP_VERSION, AppPaths, OwnedJob,
                                  REPOSITORY, Storage, await_profile_closed, check, require, spawn_owned_browser)
 from native_persona_context_audit import prepare_disposable_engine
-from nevision_win import bundled_proxy_privacy_arguments, proxy_endpoint
+from nevision_win import BrowserLauncher, bundled_proxy_privacy_arguments, proxy_endpoint
 
 TEST_HOST = "nevision-qa.invalid"
 INVALID_PROXY_HOST = "neantik-proxy-unresolvable.invalid"
@@ -255,6 +255,9 @@ def launch(chrome: Path, storage: Storage, profile_id: str, url: str, endpoint: 
     process = None
     try:
         started = time.monotonic()
+        # Match the production launch boundary: validate portable roots and
+        # sensitive Chromium profile locations immediately before Popen.
+        BrowserLauncher(storage).ensure_profile_path_is_isolated(profile_id)
         process = spawn_owned_browser(arguments, folder, job)
         step["owned_gated_launcher_process_id"] = process.pid
         stdout, stderr = process.communicate(input=b"G", timeout=45)
