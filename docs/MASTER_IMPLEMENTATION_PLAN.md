@@ -611,6 +611,14 @@ main frame и двух iframe. Это только базовая линия о�
   27,7 мс median / 29,7 мс p95 на одном Windows 11. Скрипт не обходит более
   глубокие уровни и не устраняет TOCTOU/same-user tampering; [evidence
   0.8.25](RELEASE_PUBLICATION_0.8.25-preview.md).
+  На точном публичном ZIP 0.8.30 hosted Windows second-host run
+  `38779333300` дополнительно прошёл **21/21 storage assertions за 7 visits**;
+  exact release provenance, packaged self-test и Chromium storage harness были
+  проверены на Windows Server 2022. Набор включает cookies, localStorage,
+  IndexedDB, Cache Storage, service worker, permissions, same-account
+  backup/restore и configuration-only clone. Это hosted CI account, не GUI,
+  другая пользовательская учётная запись или физический consumer PC; backup
+  ZIP остаётся незашифрованным. [Точный release evidence](RELEASE_PUBLICATION_0.8.30-preview.md).
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после
