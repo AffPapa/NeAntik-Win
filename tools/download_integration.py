@@ -21,7 +21,7 @@ import time
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
-from browser_integration import OwnedJob, spawn_owned_browser
+from browser_integration import AppPaths, BrowserLauncher, OwnedJob, Storage, spawn_owned_browser
 from privacy_defaults import ensure_managed_download_directory, initialize_privacy_defaults
 
 
@@ -98,9 +98,11 @@ class DownloadHandler(BaseHTTPRequestHandler):
             pass
 
 
-def run_browser(chrome: Path, root: Path, profile: Path,
+def run_browser(chrome: Path, storage: Storage, profile_id: str, label: str,
                 server: DownloadServer, report: dict) -> tuple[str, bytes]:
-    if not profile.is_dir():
+    root = storage.paths.root
+    profile = storage.profile_path(profile_id)
+    if not profile.is_dir() or not any(profile.iterdir()):
         if not initialize_privacy_defaults(profile):
             raise RuntimeError("Could not initialize disposable profile")
     if not ensure_managed_download_directory(profile):
@@ -118,6 +120,9 @@ def run_browser(chrome: Path, root: Path, profile: Path,
     path = profile / "Downloads" / f"neantik-qa-{token[:12]}.bin"
     matched = False
     try:
+        # Exercise the production portable Data/Profiles path boundary before
+        # every Chromium launch, including after moving the portable root.
+        BrowserLauncher(storage).ensure_profile_path_is_isolated(profile_id)
         process = spawn_owned_browser(arguments, root, job)
         process.stdin.write(b"G")
         process.stdin.flush()
@@ -145,7 +150,7 @@ def run_browser(chrome: Path, root: Path, profile: Path,
                 process.communicate(timeout=5)
     if not matched:
         raise RuntimeError("Synthetic download did not appear with expected bytes in the managed profile folder")
-    report["cases"].append({"profile": profile.name, "bytes": len(expected),
+    report["cases"].append({"profile": label, "bytes": len(expected),
                             "download_in_managed_folder": True})
     return path.name, expected
 
@@ -165,22 +170,33 @@ def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="neantik-download-qa-"))
     try:
         try:
+            storage = Storage(AppPaths(root))
             server = DownloadServer()
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:
-                a, b = root / "A", root / "B"
-                a_name, _ = run_browser(args.chrome, root, a, server, report)
-                b_name, _ = run_browser(args.chrome, root, b, server, report)
+                profile_a_id = storage.save_profile({"name": "Disposable download QA A"})
+                profile_b_id = storage.save_profile({"name": "Disposable download QA B"})
+                a = storage.profile_path(profile_a_id)
+                b = storage.profile_path(profile_b_id)
+                a_name, _ = run_browser(args.chrome, storage, profile_a_id, "A", server, report)
+                b_name, _ = run_browser(args.chrome, storage, profile_b_id, "B", server, report)
                 if (b / "Downloads" / a_name).exists() or (a / "Downloads" / b_name).exists():
                     raise RuntimeError("Synthetic download crossed profiles")
-                moved = root / "A-moved"
-                if a.resolve().parent != root.resolve() or moved.resolve().parent != root.resolve() or a.is_symlink():
-                    raise RuntimeError("Unsafe disposable profile move")
-                shutil.move(a, moved)
+                storage.ensure_profile_closed(profile_a_id)
+                temp_parent = Path(tempfile.gettempdir()).resolve()
+                moved_root = root.with_name(root.name + "-portable-moved")
+                if (root.resolve().parent != temp_parent or moved_root.resolve().parent != temp_parent
+                        or root.is_symlink() or moved_root.exists()):
+                    raise RuntimeError("Unsafe disposable portable-root move")
+                shutil.move(root, moved_root)
+                root = moved_root
+                storage = Storage(AppPaths(root))
+                moved = storage.profile_path(profile_a_id)
                 if not ensure_managed_download_directory(moved):
                     raise RuntimeError("Managed download path did not rebase after portable move")
-                moved_name, _ = run_browser(args.chrome, root, moved, server, report)
+                moved_name, _ = run_browser(args.chrome, storage, profile_a_id,
+                                            "A-after-portable-move", server, report)
                 if not (moved / "Downloads" / a_name).is_file() or not (moved / "Downloads" / moved_name).is_file():
                     raise RuntimeError("Portable move lost or misplaced a download")
                 report["profile_isolation"] = True
