@@ -56,6 +56,25 @@ class StorageTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
 
+    def test_startup_rejects_database_hardlink_before_sqlite_opens(self):
+        portable_root = self.root / "hardlink-portable"
+        data = portable_root / "Data"
+        data.mkdir(parents=True)
+        outside = self.root / "synthetic-outside-database"
+        outside.write_bytes(b"synthetic-only")
+        database = data / "nevision.db"
+        try:
+            os.link(outside, database)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"hardlink creation is unavailable in this environment: {exc}")
+
+        with patch("nevision_win.sqlite3.connect") as connect:
+            with self.assertRaisesRegex(NeVisionError, "hardlink"):
+                Storage(AppPaths(portable_root))
+        connect.assert_not_called()
+        self.assertEqual(outside.read_bytes(), b"synthetic-only")
+        self.assertEqual(database.read_bytes(), b"synthetic-only")
+
     @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
     def test_startup_rejects_data_junction_before_sqlite_opens_outside_database(self):
         portable_root = self.root / "isolated-portable"
