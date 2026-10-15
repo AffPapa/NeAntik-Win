@@ -1,4 +1,4 @@
-# P2.1 route matrix — updated 15 October 2026
+# P2.1 route matrix — updated 16 October 2026
 
 This is an evidence inventory, **not** a leak-free or anonymity certificate. It
 describes the bundled Chromium with a fixed proxy selected in NeAntik Win.
@@ -21,6 +21,27 @@ recorded below for exact public 0.8.18-preview
 whose `chrome.exe` SHA-256 is
 `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`.
 Both use disposable loopback fixtures, not an independent public observer.
+
+### Exact public 0.8.30-preview HTTP/SOCKS5 loopback route gate — 16 October 2026
+
+The verified public ZIP (`07766ee6edc251c5d7a512cd056da41e5f2ae8994f63a7cd6c2d724e6bf7be6a`)
+was tested with its exact bundled `chrome.exe` (`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`).
+`tools/proxy_integration.py` passed **72/72 assertions in 19 launches**,
+including direct positive controls, unauthenticated HTTP/SOCKS5 proxy routes,
+IPv4/IPv6 loopback target/proxy cases and no direct fallback for the tested
+unavailable-proxy cases. All targets and proxies were local synthetic
+fixtures. The current harness `nevision_win.py` SHA-256
+(`e13ddec2b13d551515974d3660c77393511417298333c9b3bf46cf48d3d6acad`) matched
+the same file's entry in the release `build-provenance.json`; source/binary
+commit `09f516f6dc340c126f1d1f8615d68a9f9251b734`, harness commit
+`9703445288a9a02304207527e8166523f3629bf6`.
+
+Harness SHA-256 `9af53f5f0c84c74d690486a241cd0b5bcc411d6ab270d6da7d810e74200fc5b6`;
+private raw report SHA-256
+`4a27968a6b683dce7c3f00217025f17fce5f6fb15e487bb0e98d87a11db90e56` remains
+outside Git. This is a one-host loopback result only; HTTPS-proxy, successful
+proxy authentication, external DNS/IPv6/UDP/STUN/TURN, independent egress
+observation and anonymity remain **NOT RUN**.
 
 Additional 2026-10-14 local evidence on the exact 0.8.12 public Chromium core:
 the HTTPS-proxy fixture passed 10/10 cases, including a 407 authentication

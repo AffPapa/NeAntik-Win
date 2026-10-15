@@ -374,6 +374,11 @@ main frame и двух iframe. Это только базовая линия о�
   подтверждает только перечисленные same-host маршруты; внешний DNS/IPv6,
   proxy auth и GUI остаются **NOT RUN**. Доказательства и hash harness — в
   [route matrix](ROUTE_MATRIX_2026-10.md) и release evidence.
+  На точном Chromium из публичного ZIP 0.8.30 HTTP/SOCKS5 loopback gate прошёл
+  72/72 assertions за 19 запусков; `nevision_win.py` harness совпадает по SHA
+  с release provenance. Это актуализирует только перечисленные локальные route
+  checks; external DNS/IPv6/UDP/STUN/TURN, auth success и GUI не покрыты.
+  Точные SHA и метод — в [route matrix](ROUTE_MATRIX_2026-10.md).
   [Доказательства](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.2 Наблюдение на внешнем стенде:** контролируемые серверы в другой
   сети, packet capture и серверные логи только для одноразовых профилей.
