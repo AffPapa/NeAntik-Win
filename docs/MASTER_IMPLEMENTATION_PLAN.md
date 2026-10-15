@@ -580,6 +580,12 @@ main frame и двух iframe. Это только базовая линия о�
   постороннюю клавишу. Это callback-level тест, не проверка физической
   клавиатуры, Windows key-repeat, UIA/MSAA или screen reader; эти ворота
   остаются **INCONCLUSIVE/NOT RUN** по прежним основаниям.
+  После независимого code review в test-only commit
+  `1e29439e99a30df40326f19289f5435db363bea7` добавлен отдельный regression на
+  сброс защёлки при `<FocusOut>`: GUI suite **20/20 PASS** (8.247 с), полный
+  `python -m unittest discover -q` — **265 PASS, 3 skipped** (13.843 с).
+  Этот commit меняет только тесты, не бинарный релиз; физическая клавиатура,
+  UIA/MSAA и screen reader по-прежнему не проверены.
   Повтор 13 октября 2026 на отдельной копии точного публичного EXE
   (`e3c97c1623dee5fa2f59d08744b8006d8ca82e2ef3fecf189785688e34bf07eb`):
   окно и форма отрисовались, но synthetic `type_text` не попал в поле имени
