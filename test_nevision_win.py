@@ -368,6 +368,40 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
         self.assertEqual(linked.read_text(encoding="utf-8"), "synthetic file")
 
+    @unittest.skipUnless(os.name == "nt" and hasattr(Path, "is_junction"),
+                         "Windows junction behavior")
+    def test_backup_rejects_directory_junction_without_partial_archive(self):
+        profile_id = self.storage.save_profile({"name": "Directory junction boundary"})
+        outside = self.root / "outside-synthetic-junction-target"
+        outside.mkdir()
+        marker = outside / "marker.txt"
+        marker.write_text("synthetic content outside profile", encoding="utf-8")
+
+        profile = self.storage.profile_path(profile_id)
+        junction = profile / "Default" / "Network"
+        junction.parent.mkdir(parents=True)
+        command = Path(os.environ["WINDIR"]) / "System32" / "cmd.exe"
+        result = subprocess.run(
+            [str(command), "/d", "/c", "mklink", "/J", str(junction), str(outside)],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        if result.returncode or not junction.is_junction():
+            if junction.exists():
+                junction.rmdir()
+            self.skipTest("Windows junction creation is unavailable in this environment")
+
+        try:
+            with self.assertRaisesRegex(NeVisionError, "junction"):
+                self.storage.backup_profile(profile_id)
+            self.assertEqual(list(self.storage.paths.backups.glob("*.zip")), [])
+            self.assertEqual(list(self.storage.paths.backups.glob("*.partial")), [])
+            self.assertEqual(marker.read_text(encoding="utf-8"),
+                             "synthetic content outside profile")
+        finally:
+            # Remove only the junction itself; never recurse into its target.
+            if junction.is_junction():
+                os.rmdir(junction)
+
     @unittest.skipUnless(os.name == "nt", "Windows Chromium lockfile semantics")
     def test_backup_and_delete_refuse_an_externally_locked_chromium_profile(self):
         profile_id = self._profile_with_file("Locked profile")
