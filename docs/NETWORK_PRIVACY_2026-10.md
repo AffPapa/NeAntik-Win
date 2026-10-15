@@ -447,6 +447,8 @@ source commit `85580d07b28cd8d795576481b3119f04dd1ba6dd`). The tested
 `chrome.exe` SHA-256 was
 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`; the
 disposable engine copy alone received the AppContainer read/execute ACL.
+The immutable harness source commit was
+`15c5039166f84cc4f4b170b6f5ce3cc70a855d0f`.
 
 All 10 assertions passed: requests initially traversed the synthetic
 loopback-only HTTP proxy; while it was stopped the browser stayed alive but the
@@ -454,7 +456,7 @@ target received no request; after restart the same browser process sent exactly
 two probes through the proxy. NetLog recorded only `127.0.0.1` TCP and zero UDP
 sends. The QA harness also rejects a junction/reparse point at its temporary
 profile root before creating Chromium; its Windows junction controls passed.
-Private report: `C:\N155\proxy-loss-0.8.18-preview-20261015.json`.
+Private report: `C:\N155\proxy-loss-0.8.18-preview-20261015-committed-harness.json`.
 
 This is one host, one browser process, and loopback fixtures only. It does not
 observe the public DNS resolver, external IPv6 route, TURN, other proxy types,

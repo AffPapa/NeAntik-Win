@@ -66,8 +66,9 @@ independently below.
   the proxy stopped, the target got no request; after recovery, the same live
   Chromium process sent exactly two probes through the synthetic proxy. NetLog
   saw only `127.0.0.1` TCP and zero UDP sends. Local harness and actual junction
-  launch controls passed (3/3 and product launch-junction regression). Private
-  report: `C:\N155\proxy-loss-0.8.18-preview-20261015.json`.
+  launch controls passed (3/3 and product launch-junction regression). Harness
+  source commit: `15c5039166f84cc4f4b170b6f5ce3cc70a855d0f`. Private report:
+  `C:\N155\proxy-loss-0.8.18-preview-20261015-committed-harness.json`.
 
 Not rerun on this exact archive: HTTPS/SOCKS5 route matrix, proxy-auth success,
 download and broader browser/network
