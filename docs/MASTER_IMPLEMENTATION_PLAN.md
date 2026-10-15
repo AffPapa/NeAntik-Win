@@ -311,7 +311,9 @@ main frame и двух iframe. Это только базовая линия о�
   commit; повторно скачанный публичный ZIP совпал по размеру и SHA-256 и прошёл
   verifier. Публичный Sites version 67 развёрнут; live homepage, changelog,
   `release.json` и GitHub asset HEAD — HTTP 200, metadata и размер совпали.
-  Site source commit `6a9fa352edf277b71253a5fb2a9e473221eb1bec`.
+  Site source commit `6a9fa352edf277b71253a5fb2a9e473221eb1bec`. Полная
+  идентичность и PASS/INCONCLUSIVE/NOT RUN — в
+  [release evidence](RELEASE_PUBLICATION_0.8.29-preview.md).
 - **Gate P1:** опубликованный patchset, набор cross-context/cross-machine
   тестов, профиль производительности и список сайтов совместимости. Успех —
   измеренное снижение нескольких сигналов, не «невидимость».
