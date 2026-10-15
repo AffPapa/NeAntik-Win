@@ -119,6 +119,8 @@ def run_browser(chrome: Path, storage: Storage, profile_id: str, label: str,
     process: subprocess.Popen[bytes] | None = None
     path = profile / "Downloads" / f"neantik-qa-{token[:12]}.bin"
     matched = False
+    stdout = b""
+    stderr = b""
     try:
         # Exercise the production portable Data/Profiles path boundary before
         # every Chromium launch, including after moving the portable root.
@@ -143,13 +145,32 @@ def run_browser(chrome: Path, storage: Storage, profile_id: str, label: str,
         job.close()
         if process is not None:
             try:
-                process.communicate(timeout=10)
+                stdout, stderr = process.communicate(timeout=10)
             except subprocess.TimeoutExpired:
                 if process.poll() is None:
                     process.kill()
-                process.communicate(timeout=5)
+                stdout, stderr = process.communicate(timeout=5)
+    try:
+        actual_size = path.stat().st_size
+    except OSError:
+        actual_size = None
+    stderr_excerpt = (stderr.decode("utf-8", errors="replace")
+                      .replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")[-1200:])
+    stdout_excerpt = (stdout.decode("utf-8", errors="replace")
+                      .replace(token, "<synthetic-token>").replace(str(root), "<qa-root>")[-1200:])
+    attempt = {"profile": label, "process_return_code": process.returncode if process else None,
+               "server_completed_download": server.cases[token].is_set(),
+               "download_file_present": actual_size is not None,
+               "download_file_bytes": actual_size, "expected_file_bytes": len(expected),
+               "stdout_excerpt": stdout_excerpt, "stderr_excerpt": stderr_excerpt}
+    report.setdefault("attempts", []).append(attempt)
     if not matched:
-        raise RuntimeError("Synthetic download did not appear with expected bytes in the managed profile folder")
+        raise RuntimeError(
+            "Synthetic download was not verified in the managed profile folder "
+            f"(process_exit={attempt['process_return_code']}, "
+            f"server_completed={attempt['server_completed_download']}, "
+            f"file_bytes={actual_size}, stderr={stderr_excerpt[-500:]!r})"
+        )
     report["cases"].append({"profile": label, "bytes": len(expected),
                             "download_in_managed_folder": True})
     return path.name, expected
