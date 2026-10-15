@@ -52,7 +52,8 @@ independently below.
   snapshot remained unchanged; 14 external proxy attempts were rejected.
   The harness now checks the portable root, `Data`, `Profiles`, and profile root
   for Windows reparse points before each Chromium process creation; its local
-  controls exercised actual junctions at all three data-path levels.
+  controls exercised actual junctions at all three data-path levels (5/5 local
+  harness tests and the product launch-junction regression passed).
 - `tools/concurrent_profile_integration.py` on the exact public 0.8.18 ZIP:
   **PASS**, 17/17 checks for two simultaneous synthetic profiles via the
   application launcher. Cookie, localStorage, IndexedDB and Cache Storage
