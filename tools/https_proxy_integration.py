@@ -19,6 +19,7 @@ import re
 import select
 import shutil
 import socket
+import stat
 import ssl
 import subprocess
 import tempfile
@@ -156,6 +157,24 @@ def stop_server(server: LocalServer, worker: threading.Thread) -> None:
     worker.join(timeout=5)
 
 
+def require_plain_profile_directory(root: Path, profile: Path) -> None:
+    """Reject redirected temporary user-data roots before a browser process starts."""
+    root, profile = Path(root), Path(profile)
+    if profile.parent != root:
+        raise RuntimeError("profile_path_boundary")
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    for label, path in (("root", root), ("profile", profile)):
+        try:
+            details = path.lstat()
+        except OSError as exc:
+            raise RuntimeError(f"profile_path_missing:{label}") from exc
+        attributes = getattr(details, "st_file_attributes", 0)
+        if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+            raise RuntimeError(f"profile_path_reparse_point:{label}")
+        if not stat.S_ISDIR(details.st_mode):
+            raise RuntimeError(f"profile_path_not_directory:{label}")
+
+
 def case_arguments(chrome: Path, profile: Path, url: str, scheme: str | None,
                    proxy_port: int | None, spki_pin: str | None,
                    proxy_host: str = "127.0.0.1") -> list[str]:
@@ -187,6 +206,7 @@ def run_browser_case(chrome: Path, root: Path, label: str, url: str,
     job = OwnedJob()
     process = None
     try:
+        require_plain_profile_directory(root, profile)
         process = spawn_owned_browser(args, profile, job)
         stdout, stderr = process.communicate(input=b"G", timeout=TIMEOUT_SECONDS)
         output = stdout.decode("utf-8", "replace")
@@ -362,6 +382,9 @@ def main() -> int:
         report = {"status": "INCONCLUSIVE", "scope": "disposable IPv4/IPv6 loopback-only HTTPS proxy TLS + CONNECT",
                   "checked_at_utc": datetime.now(timezone.utc).isoformat(),
                   "error_type": type(error).__name__, "error": str(error)[:250]}
+    report["harness_source_commit"] = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1], text=True).strip()
+    report["harness_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "case_statuses": [
         {"case": case["case"], "status": case["status"]} for case in report.get("cases", [])],

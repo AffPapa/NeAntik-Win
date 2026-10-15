@@ -1,12 +1,55 @@
 """Pure checks for the isolated HTTPS proxy route harness."""
 
+import os
 from pathlib import Path
+import stat
+import subprocess
+import tempfile
 import unittest
 
-from https_proxy_integration import case_arguments, evaluate_case
+from https_proxy_integration import case_arguments, evaluate_case, require_plain_profile_directory
 
 
 class HTTPSProxyIntegrationTests(unittest.TestCase):
+    def test_plain_profile_directory_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="neantik-https-profile-test-") as temporary:
+            root = Path(temporary)
+            profile = root / "Profile"
+            profile.mkdir()
+            require_plain_profile_directory(root, profile)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_root_and_profile_junctions_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="neantik-https-junction-test-") as temporary:
+            base = Path(temporary)
+            for redirected in ("root", "profile"):
+                with self.subTest(redirected=redirected):
+                    if redirected == "root":
+                        root = base / "root-link"
+                        target = base / "root-target"
+                        target.mkdir()
+                        (target / "Profile").mkdir()
+                        link = root
+                    else:
+                        root = base / "plain-root"
+                        root.mkdir()
+                        target = base / "profile-target"
+                        target.mkdir()
+                        link = root / "Profile"
+                    result = subprocess.run(
+                        ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(target)],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if result.returncode:
+                        self.skipTest("Windows junction creation is unavailable in this environment")
+                    try:
+                        self.assertTrue(link.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                        marker = "profile_path_reparse_point:root" if redirected == "root" else "profile_path_reparse_point:profile"
+                        with self.assertRaisesRegex(RuntimeError, marker):
+                            require_plain_profile_directory(root, root / "Profile")
+                    finally:
+                        link.rmdir()
+
     def test_unknown_case_cannot_silently_pass_as_negative(self) -> None:
         result = {"exit_code": 0, "owned_processes_after_exit": 0,
                   "page_loaded": False, "net_errors": []}
