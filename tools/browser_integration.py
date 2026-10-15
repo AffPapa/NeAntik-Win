@@ -454,11 +454,22 @@ def configuration_clone(storage: Storage, source_id: str) -> tuple[str, str]:
 
 
 def run(args: argparse.Namespace, report: dict[str, Any]) -> None:
+    # Import after this module is fully initialized: the helper reaches a
+    # fingerprint audit module that imports browser_integration's job helpers.
+    from native_persona_context_audit import prepare_disposable_engine
+
     root = Path(tempfile.mkdtemp(prefix="nevision-browser-integration-"))
     report["disposable_root"] = str(root)
     storage = Storage(AppPaths(root))
-    chrome = Path(args.chrome).resolve() if args.chrome else BrowserLauncher(storage).resolve_browser().resolve()
-    require(chrome.is_file() and chrome.name.lower() == "chrome.exe", "A valid Chromium/Chrome chrome.exe is required")
+    source_chrome = Path(args.chrome).resolve() if args.chrome else BrowserLauncher(storage).resolve_browser().resolve()
+    require(source_chrome.is_file() and source_chrome.name.lower() == "chrome.exe", "A valid Chromium/Chrome chrome.exe is required")
+    source_hash = hashlib.sha256(source_chrome.read_bytes()).hexdigest()
+    chrome = prepare_disposable_engine(source_chrome, root)
+    prepared_hash = hashlib.sha256(chrome.read_bytes()).hexdigest()
+    require(prepared_hash == source_hash, "Sandbox-prepared disposable Chromium differs from the supplied executable")
+    report["browser_executable_sha256"] = source_hash
+    report["prepared_executable_sha256"] = prepared_hash
+    report["disposable_engine_acl_prepared"] = chrome != source_chrome
     report["browser_executable"] = str(chrome)
     server = LoopbackServer()
     server_thread = threading.Thread(target=server.serve_forever, name="nevision-qa-loopback", daemon=True)
