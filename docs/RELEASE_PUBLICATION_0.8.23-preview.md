@@ -16,6 +16,7 @@ This is evidence for this version only; it does not transfer to later builds.
 ## Checks
 
 - Relevant Python suite: `python -m unittest -v test_proxy_diagnostics test_nevision_win.py test_profile_identity.py test_privacy_defaults.py tools.test_public_source_export tools.test_public_second_host_gate tools.test_upgrade_rollback_integration` — 164 tests, 4 platform skips, PASS.
+- Additional Windows storage recovery gate on the same unchanged application source commit: `python -m unittest -v tools.test_two_manager_process_gate` — 4/4 PASS, including synthetic process crash after restore publication, startup recovery, and preservation of the source profile. This is source-level integration evidence, not a manual packaged-EXE restore test.
 - `tools/test-release-tools.ps1` — 58 checks, PASS.
 - `tools/check-public-repo.ps1` — 221 files, PASS.
 - `tools/verify-release-archive.ps1` on local and newly downloaded public ZIP — PASS, 1,066 files.
