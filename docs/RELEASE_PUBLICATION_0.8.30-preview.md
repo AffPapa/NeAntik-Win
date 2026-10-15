@@ -7,7 +7,10 @@ fingerprint нет.
 ## Источник и артефакт
 
 - Binary-source commit: `09f516f6dc340c126f1d1f8615d68a9f9251b734`.
-- Тег `v0.8.30-preview` и GitHub Release на момент подготовки ещё отсутствовали.
+- Annotated tag `v0.8.30-preview` и публичный GitHub prerelease опубликованы;
+  tag указывает на точный binary-source commit выше. ZIP и sidecar/manifest
+  доступны как неизменяемые assets; публичный ZIP был повторно скачан и совпал
+  с локальным архивом по размеру и SHA-256.
 - Portable ZIP: `NeAntikWin-portable-v0.8.30-preview.zip`, 262,393,616 байт,
   SHA-256 `07766ee6edc251c5d7a512cd056da41e5f2ae8994f63a7cd6c2d724e6bf7be6a`.
 - Packaged EXE SHA-256:
@@ -28,10 +31,15 @@ fingerprint нет.
 | Public-source guard | PASS, 231 файл на source commit; staged release evidence после добавления — PASS, 1 файл |
 | Локальный portable archive verifier | PASS, 1,066 файлов |
 | Fresh extraction точного ZIP и packaged `--self-test` | PASS, exit 0; пользовательские Data/Profiles отсутствуют |
+| Public second-host gate (GitHub Actions run `38779333300`) | PASS на отдельном hosted Windows Server 2022 runner: публичный ZIP/source provenance, packaged self-test, synthetic storage 21 assertions / 7 visits; runner commit `ec7c3e50f52e71ffd5417f237f34ce49ef3eb6e6` |
 | GUI-smoke кандидата 0.8.30 | NOT RUN: отдельное action-time подтверждение для запуска этой сборки не получено |
-| Windows 10/ARM64, другая физическая машина и внешние DNS/IPv6/UDP/STUN/TURN | NOT RUN |
+| Другая пользовательская Windows-машина/учётная запись; GUI, Windows 10/ARM64 и внешний DNS/IPv6/UDP/STUN/TURN | NOT RUN |
 
 GUI-smoke предыдущего кандидата 0.8.29 не переносится на этот бинарник.
+Hosted second-host gate подтверждает только скачивание точного публичного ZIP,
+self-test и synthetic storage на отдельной CI-машине; он не заменяет ручной GUI,
+cross-account migration, проверку разных CPU/GPU или независимое сетевое
+наблюдение.
 Проверка junction для `Data`/`Profiles` подтверждает защиту конкретных корневых
 путей до открытия SQLite; не заявляется защита от same-user TOCTOU или всех
 вложенных ссылок Chromium.
