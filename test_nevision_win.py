@@ -16,7 +16,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from nevision_win import (
     AppPaths,
@@ -2053,56 +2053,133 @@ class InterfaceLogicTests(unittest.TestCase):
     def test_old_clipboard_timer_cannot_clear_new_copy(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
-        app.root.clipboard_get.return_value = "same-password"
         app._clipboard_secret = "same-password"
         app._clipboard_generation = 2
-        app._clear_copied_password("same-password", 1)
-        app.root.clipboard_clear.assert_not_called()
-        app._clear_copied_password("same-password", 2)
-        app.root.clipboard_clear.assert_called_once_with()
+        app._clipboard_sequence = 17
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", return_value=True) as clear:
+            app._clear_copied_password("same-password", 1)
+            clear.assert_not_called()
+            app._clear_copied_password("same-password", 2)
+            clear.assert_called_once_with("same-password", 17)
 
     def test_clipboard_cleanup_keeps_retry_state_after_temporary_read_error(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
-        app.root.clipboard_get.side_effect = [tk.TclError("clipboard busy"), "same-password"]
         app._clipboard_secret = "same-password"
         app._clipboard_generation = 1
+        app._clipboard_sequence = 17
 
-        self.assertFalse(app._clear_copied_password("same-password", 1))
-        self.assertEqual(app._clipboard_secret, "same-password")
-        app.root.clipboard_clear.assert_not_called()
-        self.assertEqual(app.root.after.call_args.args[0], 1_000)
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", side_effect=[False, True]) as clear:
+            self.assertFalse(app._clear_copied_password("same-password", 1))
+            self.assertEqual(app._clipboard_secret, "same-password")
+            self.assertEqual(app.root.after.call_args.args[0], 1_000)
 
-        app.root.after.call_args.args[1]()
-        app.root.clipboard_clear.assert_called_once_with()
-        self.assertIsNone(app._clipboard_secret)
+            app.root.after.call_args.args[1]()
+            clear.assert_has_calls([call("same-password", 17), call("same-password", 17)])
+            self.assertIsNone(app._clipboard_secret)
 
     def test_clipboard_clear_error_keeps_retry_state(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
-        app.root.clipboard_get.return_value = "same-password"
-        app.root.clipboard_clear.side_effect = [tk.TclError("clipboard busy"), None]
         app._clipboard_secret = "same-password"
         app._clipboard_generation = 1
+        app._clipboard_sequence = 23
 
-        self.assertFalse(app._clear_copied_password("same-password", 1))
-        self.assertEqual(app._clipboard_secret, "same-password")
-        app.root.after.call_args.args[1]()
-        app.root.clipboard_clear.assert_called_with()
-        self.assertEqual(app.root.clipboard_clear.call_count, 2)
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", side_effect=[False, True]) as clear:
+            self.assertFalse(app._clear_copied_password("same-password", 1))
+            self.assertEqual(app._clipboard_secret, "same-password")
+            app.root.after.call_args.args[1]()
+            clear.assert_has_calls([call("same-password", 23), call("same-password", 23)])
+            self.assertIsNone(app._clipboard_secret)
+
+    def test_clipboard_cleanup_forgets_secret_if_clipboard_was_replaced(self):
+        app = object.__new__(NeVisionApp)
+        app.root = MagicMock()
+        app._clipboard_secret = "synthetic-password"
+        app._clipboard_generation = 1
+        app._clipboard_sequence = 29
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", return_value=True) as clear:
+            self.assertTrue(app._clear_copied_password("synthetic-password", 1))
+        clear.assert_called_once_with("synthetic-password", 29)
         self.assertIsNone(app._clipboard_secret)
+        self.assertIsNone(app._clipboard_sequence)
+
+    def test_native_clipboard_sequence_change_prevents_clearing_same_text(self):
+        # Synthetic Win32 API only; no system clipboard is opened by this test.
+        user32 = MagicMock()
+        kernel32 = MagicMock()
+        user32.OpenClipboard.return_value = True
+        user32.GetClipboardSequenceNumber.return_value = 42
+        with patch("nevision_win.os.name", "nt"), patch(
+            "nevision_win.ctypes.WinDLL", side_effect=[user32, kernel32]
+        ):
+            from nevision_win import _clear_windows_clipboard_if_unchanged
+            self.assertTrue(_clear_windows_clipboard_if_unchanged("same synthetic text", 41))
+        user32.GetClipboardData.assert_not_called()
+        user32.EmptyClipboard.assert_not_called()
+        user32.CloseClipboard.assert_called_once_with()
+
+    def test_clipboard_sequence_number_preserves_unsigned_dword(self):
+        user32 = MagicMock()
+        user32.GetClipboardSequenceNumber.return_value = 0xF0000001
+        with patch("nevision_win.os.name", "nt"), patch(
+            "nevision_win.ctypes.WinDLL", return_value=user32
+        ):
+            from nevision_win import _windows_clipboard_sequence_number
+            self.assertEqual(_windows_clipboard_sequence_number(), 0xF0000001)
+        self.assertEqual(user32.GetClipboardSequenceNumber.restype, ctypes.c_uint)
+
+    def test_native_clipboard_owned_text_is_cleared_under_open_lock(self):
+        user32 = MagicMock()
+        kernel32 = MagicMock()
+        expected_password = "synthetic 🔒 password 😀"
+        text_buffer = ctypes.create_unicode_buffer(expected_password)
+        text_handle = ctypes.c_void_p(1234)
+        user32.OpenClipboard.return_value = True
+        user32.GetClipboardSequenceNumber.return_value = 43
+        user32.GetClipboardData.return_value = text_handle
+        kernel32.GlobalLock.return_value = ctypes.cast(text_buffer, ctypes.c_void_p)
+        # Deliberately oversized allocation: only expected text + terminator is read.
+        kernel32.GlobalSize.return_value = 512 * 1024 * 1024
+        user32.EmptyClipboard.return_value = True
+        with patch("nevision_win.os.name", "nt"), patch(
+            "nevision_win.ctypes.WinDLL", side_effect=[user32, kernel32]
+        ), patch("nevision_win.ctypes.wstring_at", wraps=ctypes.wstring_at) as read_text:
+            from nevision_win import _clear_windows_clipboard_if_unchanged
+            self.assertTrue(_clear_windows_clipboard_if_unchanged(expected_password, 43))
+        user32.OpenClipboard.assert_called_once_with(None)
+        kernel32.GlobalLock.assert_called_once_with(text_handle)
+        kernel32.GlobalUnlock.assert_called_once_with(text_handle)
+        user32.EmptyClipboard.assert_called_once_with()
+        user32.CloseClipboard.assert_called_once_with()
+        expected_units = len(expected_password.encode("utf-16-le")) // 2
+        self.assertEqual(read_text.call_args.args[1], expected_units + 1)
+
+    def test_oversized_expected_clipboard_secret_is_never_read(self):
+        user32 = MagicMock()
+        kernel32 = MagicMock()
+        with patch("nevision_win.os.name", "nt"), patch(
+            "nevision_win.ctypes.WinDLL", side_effect=[user32, kernel32]
+        ):
+            from nevision_win import MAX_CLIPBOARD_SECRET_CHARS, _clear_windows_clipboard_if_unchanged
+            self.assertFalse(
+                _clear_windows_clipboard_if_unchanged("x" * (MAX_CLIPBOARD_SECRET_CHARS + 1), 43)
+            )
+        user32.OpenClipboard.assert_not_called()
 
     def test_close_warns_and_stays_open_if_clipboard_cannot_be_checked(self):
         app = object.__new__(NeVisionApp)
         app.root = MagicMock()
-        app.root.clipboard_get.side_effect = tk.TclError("clipboard busy")
         app._clipboard_secret = "synthetic-password"
         app._clipboard_generation = 1
+        app._clipboard_sequence = 1
         app._background_operations = set()
         app._closing = False
         app._executor = MagicMock()
 
-        with patch("nevision_win.messagebox.askyesno", return_value=False) as confirm:
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", return_value=False), patch(
+            "nevision_win.messagebox.askyesno", return_value=False
+        ) as confirm:
             app._request_close()
 
         self.assertIn("может остаться в буфере", confirm.call_args.args[1])

@@ -98,6 +98,82 @@ CHROMIUM_LOCK_MARKERS = ("SingletonLock", "SingletonCookie", "SingletonSocket")
 WINDOWS_CHROMIUM_LOCKFILE = "lockfile"
 JOURNAL_FORMAT = "nevision-operation-v1"
 NATIVE_JOURNAL_FORMAT = "neantik-operation-v3"
+CF_UNICODETEXT = 13
+MAX_CLIPBOARD_SECRET_CHARS = 64 * 1024
+
+
+def _windows_clipboard_sequence_number() -> int | None:
+    if os.name != "nt":
+        return None
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    get_sequence = user32.GetClipboardSequenceNumber
+    get_sequence.argtypes = []
+    get_sequence.restype = ctypes.c_uint  # DWORD is unsigned, including bit 31.
+    sequence = int(get_sequence())
+    return sequence if sequence else None
+
+
+def _clear_windows_clipboard_if_unchanged(expected: str, sequence: int | None) -> bool:
+    """Clear only the exact Windows clipboard NeAntik wrote, in one locked transaction."""
+    if os.name != "nt" or sequence is None:
+        return False
+    if sequence == 0:  # GetClipboardSequenceNumber uses zero when access is unavailable.
+        return False
+    try:
+        expected_utf16_units = len(expected.encode("utf-16-le", errors="strict")) // 2
+    except UnicodeEncodeError:
+        return False  # Ill-formed UTF-16 cannot be safely verified.
+    if expected_utf16_units > MAX_CLIPBOARD_SECRET_CHARS:
+        return False
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.OpenClipboard.argtypes = [ctypes.c_void_p]
+    user32.OpenClipboard.restype = ctypes.c_bool
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = ctypes.c_bool
+    user32.GetClipboardSequenceNumber.argtypes = []
+    user32.GetClipboardSequenceNumber.restype = ctypes.c_uint
+    user32.GetClipboardData.argtypes = [ctypes.c_uint]
+    user32.GetClipboardData.restype = ctypes.c_void_p
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = ctypes.c_bool
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.restype = ctypes.c_bool
+    kernel32.GlobalSize.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalSize.restype = ctypes.c_size_t
+
+    if not user32.OpenClipboard(None):
+        return False
+    try:
+        # Sequence comparison and content check happen while other processes are
+        # unable to replace the clipboard, closing the read-then-clear race.
+        if user32.GetClipboardSequenceNumber() != sequence:
+            return True  # It is no longer ours; leave it untouched.
+        handle = user32.GetClipboardData(CF_UNICODETEXT)
+        if not handle:
+            return False
+        pointer = kernel32.GlobalLock(handle)
+        if not pointer:
+            return False
+        try:
+            size_bytes = kernel32.GlobalSize(handle)
+            wchar_bytes = ctypes.sizeof(ctypes.c_wchar)
+            if not size_bytes or size_bytes % wchar_bytes:
+                return False
+            required_bytes = (expected_utf16_units + 1) * wchar_bytes
+            if size_bytes < required_bytes:
+                return False
+            # Read only the expected text plus terminator, never the full allocation.
+            clipboard_text = ctypes.wstring_at(pointer, expected_utf16_units + 1)
+            if clipboard_text != expected + "\0":
+                return True
+        finally:
+            kernel32.GlobalUnlock(handle)
+        return bool(user32.EmptyClipboard())
+    finally:
+        user32.CloseClipboard()
 NATIVE_BACKUP_FORMAT = "neantik-profile-backup-v3"
 SCHEMA_VERSION = "1"
 DB_BUSY_TIMEOUT_MS = 8_000
@@ -2831,6 +2907,7 @@ class NeVisionApp:
         self._unknown_profiles: set[str] = set()
         self._clipboard_secret: str | None = None
         self._clipboard_generation = 0
+        self._clipboard_sequence: int | None = None
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME} {APP_VERSION}")
         self.root.geometry("1240x780")
@@ -3717,6 +3794,10 @@ class NeVisionApp:
         self.root.clipboard_clear()
         self.root.clipboard_append(password)
         self._clipboard_secret = password
+        try:
+            self._clipboard_sequence = _windows_clipboard_sequence_number()
+        except (OSError, AttributeError):
+            self._clipboard_sequence = None
         self._clipboard_generation += 1
         generation = self._clipboard_generation
         self.root.after(30_000, lambda value=password, token=generation: self._clear_copied_password(value, token))
@@ -3742,19 +3823,18 @@ class NeVisionApp:
         if value is None:
             return True
         try:
-            clipboard_value = self.root.clipboard_get()
-        except tk.TclError:
+            cleared_or_replaced = _clear_windows_clipboard_if_unchanged(
+                value, self._clipboard_sequence
+            )
+        except (OSError, AttributeError):
+            cleared_or_replaced = False
+        if not cleared_or_replaced:
             # Keep state and make a few bounded retries after the expiry timer.
             self._schedule_clipboard_cleanup_retry(value, generation, retry_count)
             return False
-        if clipboard_value == value:
-            try:
-                self.root.clipboard_clear()
-            except tk.TclError:
-                self._schedule_clipboard_cleanup_retry(value, generation, retry_count)
-                return False
         if self._clipboard_secret == value:
             self._clipboard_secret = None
+            self._clipboard_sequence = None
         return True
 
     def open_profile_folder(self) -> None:

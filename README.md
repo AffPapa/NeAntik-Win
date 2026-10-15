@@ -1,6 +1,6 @@
 # NeAntik Win
 
-Local-first portable Windows browser profile manager, previously named NeVision Win. The 0.8.30-preview candidate bundles unbranded Chromium 155.0.8059.79 from pinned upstream source, so new profiles work without installed Chrome or Edge. The application does not modify browser fingerprint values: per-profile storage is separation of local data, not a separate network identity or anonymity guarantee. Existing browser-family pins remain respected. See the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the currently published archive and checksum; after publication, [release evidence](docs/RELEASE_PUBLICATION_0.8.30-preview.md) will record exact source and artifact identities.
+Local-first portable Windows browser profile manager, previously named NeVision Win. The 0.8.32-preview candidate bundles unbranded Chromium 155.0.8059.79 from pinned upstream source, so new profiles work without installed Chrome or Edge. The application does not modify browser fingerprint values: per-profile storage is separation of local data, not a separate network identity or anonymity guarantee. Existing browser-family pins remain respected. See the [official download page](https://nevision-win.mail782861.chatgpt.site/#download) for the currently published archive and checksum; this candidate will be published only after its remaining release gates pass.
 
 This release removes the experimental native-persona control and launch path.
 Older experimental profiles and their files are preserved, but are not launched
