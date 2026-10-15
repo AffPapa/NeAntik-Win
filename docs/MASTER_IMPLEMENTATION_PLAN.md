@@ -306,8 +306,12 @@ main frame и двух iframe. Это только базовая линия о�
   открывается, но ручной ввод имени через UI bridge не сработал после одной
   повторной попытки — INCONCLUSIVE, не доказанный дефект; форма закрыта без
   сохранения. Этот ввод не затрагивает изменённую P1.5-функцию. Полная
-  keyboard-only/UIA проверка — NOT RUN. Публичные GitHub/Site gates — NOT RUN,
-  тег/релиз не созданы; до их прохождения функция остаётся непубличной.
+  keyboard-only/UIA проверка — NOT RUN. Публикационный gate закрыт:
+  annotated tag/release `v0.8.29-preview` указывает на этот binary-source
+  commit; повторно скачанный публичный ZIP совпал по размеру и SHA-256 и прошёл
+  verifier. Публичный Sites version 67 развёрнут; live homepage, changelog,
+  `release.json` и GitHub asset HEAD — HTTP 200, metadata и размер совпали.
+  Site source commit `6a9fa352edf277b71253a5fb2a9e473221eb1bec`.
 - **Gate P1:** опубликованный patchset, набор cross-context/cross-machine
   тестов, профиль производительности и список сайтов совместимости. Успех —
   измеренное снижение нескольких сигналов, не «невидимость».
