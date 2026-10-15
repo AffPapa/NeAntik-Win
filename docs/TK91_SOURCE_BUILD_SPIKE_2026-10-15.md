@@ -74,6 +74,35 @@ with the installed matching CPython 3.12.10 headers/import library, Tcl/Tk
   production package, keyboard-only profile workflow, MSAA + NVDA, and UIA +
   Narrator.
 
+## NeAntik application compatibility spot check
+
+After the isolated packaging smoke, a disposable copy of the minimum NeAntik
+0.8.19-preview application files from source HEAD
+`8c77638241abc1607b33c22688b18c14c4811bd3` was launched against this Tcl/Tk
+9.1 runtime. This was a scratch-only GUI check: no production files, portable
+archive, release, Site, Chromium process, real profile, or proxy was used.
+
+- **PASS — application window render:** the copied application opened with the
+  expected `NeAntik Win 0.8.19-preview` title and the profiles dashboard
+  rendered.
+- **PASS — profile form render:** opening “Создать профиль” displayed the
+  profile form and its visible fields/actions.
+- **NOT RUN — profile entry/save flow:** CUA exposed no accessible focus/tree
+  element for the focused name field, so no text was entered and no profile
+  saved. The scratch app initialized its own temporary `Data` directory; it is
+  not user or production data.
+- **INCONCLUSIVE — close/control automation:** a single Alt+F4 attempt did not
+  remove the window from the observed window list; the follow-up state read
+  failed because the foreground window did not report a process id. No further
+  UI actions were attempted.
+- **NOT RUN — accessibility/performance/release gates:** no active screen
+  reader was tested, and this was not the production portable build. It does
+  not qualify the app for runtime migration or release.
+
+This improves confidence that the app's basic startup widgets are compatible
+with the scratch runtime, but does not change the Tk 8.6 production runtime or
+the migration decision.
+
 Upstream references: [Tk TIP 733](https://core.tcl-lang.org/tips/doc/main/tip/733.md),
 [Tk 9.1 accessibility manual](https://www.tcl-lang.org/man/tcl9.1/TkCmd/accessible.html),
 [official Tcl/Tk downloads](https://www.tcl-lang.org/software/tcltk/download.html),
@@ -95,9 +124,9 @@ bundled data trees. That is not a full CPython or application migration test.
 ## Next gate
 
 Do not replace production Tk 8.6 or change packaging pins based on this spike.
-Next adapt the isolated build configuration to the actual app and real portable
-layout; audit every bundled license notice; measure startup/memory/size against
-the production baseline; test keyboard-only profile flows and named controls
-with MSAA + NVDA. Test UIA + Narrator separately; Tk's upstream documentation
-says its Windows UIA bridge is not robust. The Tk Canvas itself still needs a
-semantic alternative/control.
+Next adapt the isolated build to the actual portable layout and repeat the
+check on an isolated, packaged app; audit every bundled license notice;
+measure startup/memory/size against the production baseline; test keyboard-only
+profile flows and named controls with MSAA + NVDA. Test UIA + Narrator
+separately; Tk's upstream documentation says its Windows UIA bridge is not
+robust. The Tk Canvas itself still needs a semantic alternative/control.
