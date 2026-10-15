@@ -37,8 +37,13 @@ release test matrix or authorize publishing a candidate that failed a gate.
   `.sha256` sidecar, and the build manifest. Keep the release prerelease when
   the channel is preview.
 - Query public release metadata and print only allowlisted fields (tag,
-  prerelease state, asset names/sizes/states/digests). Download the ZIP again
-  from the public `browser_download_url`. Require nonzero size, exact size and
+  prerelease state, asset names/sizes/states/digests). For this preview channel,
+  do not use GitHub's `/releases/latest` endpoint as the existence check: it
+  excludes prereleases and can return 404 while valid preview releases exist.
+  Enumerate `/releases?per_page=...` or request the exact
+  `/releases/tags/<tag>` and compare the returned tag to the intended immutable
+  version. Download the ZIP again from the public `browser_download_url`.
+  Require nonzero size, exact size and
   SHA-256 equality with the local candidate and the published sidecar/API
   digest; rerun the archive verifier on the downloaded bytes. A zero-byte file
   from `gh release download` is not a pass: retry once with `curl.exe -L
