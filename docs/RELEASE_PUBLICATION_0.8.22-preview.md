@@ -40,6 +40,29 @@ not implement fingerprint spoofing or establish network anonymity.
   packaged self-test uses synthetic storage/backup data; it is not equivalent
   to a full GUI acceptance run.
 
+## Post-release proxy-route retest
+
+Verified 2026-10-15 against the extracted portable ZIP above (ZIP SHA-256
+`27beb070067034f48493a4b45f00f1ab43f86a7a0c467dc76e06b02dddf9c81d`). The
+portable Chromium `chrome.exe` SHA-256 was
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`; the
+test harness source was checked out at `64acfd754eb5c92f8718a9a8509c488fb74ffa8d`
+(the changes after the tagged binary source commit are documentation-only).
+
+- `tools/proxy_integration.py`: **PASS**, 72 assertions across 19 owned
+  headless launches; synthetic HTTP and SOCKS5 positive routes, unavailable
+  proxies, IPv4/IPv6 loopback cases, and no-direct-fallback controls. Its
+  ACL-prepared Chromium copy was hash-identical to the supplied portable engine.
+- `tools/proxy_loss_recovery_gate.py`: **PASS**, 10/10 checks in one owned
+  browser session; target saw no request while the proxy was down, then traffic
+  recovered through the proxy in the same process. NetLog saw loopback TCP
+  only and zero UDP sends for this fixture.
+- Both tests used disposable synthetic profiles and loopback-only fixtures;
+  no user profiles, real proxy credentials, commercial proxy, or external
+  route observer were used. These results do not establish DNS/IPv6/public
+  egress behavior, WebRTC/STUN/TURN privacy, or anonymity. External packet
+  capture and independent DNS/route observation remain **NOT RUN**.
+
 ## Site deployment
 
 - Public Site: https://nevision-win.mail782861.chatgpt.site/
