@@ -456,9 +456,22 @@ main frame и двух iframe. Это только базовая линия о�
   и на локальном receiver, и в Chromium NetLog для HTTP/SOCKS5 proxy; direct
   positive-control принял 5 пакетов. Внешние DNS/IPv6/TURN/egress остаются
   NOT RUN.
-- **P2.4 Анонимная сеть:** отдельно принять архитектурное решение на основе
-  Tor Browser / Tor спецификаций и лицензий. Нельзя переименовать proxy
-  в «Tor-режим». Нужны независимое ревью, план обновлений и UX предупреждений.
+- **P2.4 Сеть Tor — архитектурное решение (2026-10-16):** не подключать Arti/Tor
+  SOCKS к штатному Chromium и не называть такую конфигурацию анонимной. Tor
+  Project предупреждает, что другой браузер может раскрыть IP через DNS/WebRTC,
+  сведения об ОС/шрифтах/плагинах и сохраняемые cookies/cache; Tor Browser
+  построен на Firefox ESR с отдельными патчами и общей стандартизованной
+  когортой, letterboxing и другими privacy-мерами. Источники: [Tor Browser и
+  fingerprint-защита](https://support.torproject.org/tor-browser/features/fingerprinting-protections/),
+  [официальное предупреждение о других браузерах](https://support.torproject.org/tor-browser/security/using-tor-with-other-browsers/),
+  [Arti — подключение приложений](https://arti.torproject.org/guides/configuring-arti/).
+  Arti как сетевой proxy не добавляет Chromium-защит и сам Tor Project
+  рекомендует для безопасного браузинга Tor Browser. Если продукту нужен Tor,
+  рассматривать отдельный явно обозначенный режим с поддерживаемым upstream
+  Tor Browser + Arti, а не отдельную «персону» внутри NeAntik; обязательны
+  лицензии, воспроизводимый provenance, синхронные обновления, UX-границы и
+  независимые route/fingerprint проверки. Это архитектурная рекомендация, не
+  реализованная функция и не гарантия анонимности.
 - **Gate P2:** внешний протокол проверок и отсутствие обнаруженных direct
   запросов при назначенном маршруте на контролируемой конфигурации. Это не
   математическое доказательство отсутствия всех утечек в любой сети.
