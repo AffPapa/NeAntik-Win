@@ -260,3 +260,34 @@ These tests establish only the enumerated local routes. They do not observe
 public DNS, external IPv6/UDP/STUN/TURN or an independent egress/packet
 observer, and do not cover proxy-auth success or prove anonymity. Those gates
 remain **NOT RUN**; P2 remains **OPEN**.
+
+### Exact public 0.8.23-preview HTTPS and proxy-loss controls — 15 October 2026
+
+The exact Chromium extracted from the public 0.8.23-preview ZIP (archive
+SHA-256
+`f2a3e6829d8a904d3454586d967c4d150f8c1608f3d940785ee18129271249ca`;
+`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`) passed
+two targeted loopback-only checks. The HTTPS proxy fixture passed **10/10
+cases**: direct positive controls, IPv4/IPv6 TLS CONNECT, untrusted
+certificates, unavailable proxy ports, and a rejecting 407 auth challenge
+with no alternate/direct target request. Correct proxy credentials remain
+**NOT RUN**. The separate one-process HTTP-proxy loss/recovery gate passed
+**10/10 checks**: positive route before loss, zero target requests during the
+outage, route restored through the proxy in the same live browser process,
+NetLog TCP destinations limited to `127.0.0.1`, and zero NetLog UDP sends.
+
+Both harnesses used disposable profiles/engine copies and synthetic local
+listeners only. Harness commit `c7f91db7875272a186282d7c2c641e6cd158a011`;
+`https_proxy_integration.py` SHA-256
+`2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`;
+`proxy_loss_recovery_gate.py` SHA-256
+`2b5350167d7aefc7a5dcf2829d45a85830532f57a0cdeb748baa5ddf64a500ea`;
+`chrome.dll` SHA-256
+`be2e1ab71dd749509e2f2cf64c3f7e883b0ce5218e644e3e58e087dee3a4bdc9`.
+This redacted summary is the public evidence record; raw reports remain under
+ignored local `build/` artifacts, not in the public repository.
+
+This adds no evidence about public DNS, external IPv6/UDP/STUN/TURN, another
+host, or independent egress/packet observations. Overall network privacy gate
+remains **OPEN** and those checks remain **NOT RUN**; no anonymity claim follows.

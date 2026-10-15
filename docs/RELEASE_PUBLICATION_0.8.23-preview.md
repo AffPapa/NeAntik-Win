@@ -21,6 +21,12 @@ This is evidence for this version only; it does not transfer to later builds.
 - `tools/check-public-repo.ps1` — 221 files, PASS.
 - `tools/verify-release-archive.ps1` on local and newly downloaded public ZIP — PASS, 1,066 files.
 - Exact packaged EXE `--self-test` — exit 0, PASS.
+- Post-publication route checks against the exact packaged `chrome.exe` from
+  the verified ZIP (hash above), using only disposable loopback fixtures —
+  HTTPS proxy **10/10 cases PASS** and proxy loss/recovery **10/10 checks
+  PASS**. This is additional exact-engine evidence, not a rebuilt application
+  or public-network observation; details are in
+  [`ROUTE_MATRIX_2026-10.md`](ROUTE_MATRIX_2026-10.md).
 - GitHub Windows CI run `38728938907` for the exact source commit — completed, success.
 - Manual GUI startup from the exact package — window rendered, PASS. Profile-form typing did not register through the UI automation helper after one refreshed retry; that interaction is **INCONCLUSIVE**, not a product failure. No real profile, proxy credential or browser session was used.
 
