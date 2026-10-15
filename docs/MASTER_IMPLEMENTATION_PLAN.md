@@ -287,6 +287,14 @@ main frame и двух iframe. Это только базовая линия о�
   direct positive-control был, но target и alternate proxy не получили запрос.
   Это подтверждает только выбранные loopback-маршруты; correct proxy credentials,
   GUI auth prompt и независимое внешнее наблюдение остаются **NOT RUN**.
+  После релиза на том же точном Chromium HTTP/SOCKS5 loopback матрица прошла
+  72/72 assertions за 19 запусков: direct-контроли, HTTP и SOCKS5 маршруты к
+  IPv4/IPv6 loopback target через IPv4/IPv6 proxy endpoint и отказ недоступных
+  endpoints без запроса к target. Перед каждым Popen вызывается штатная
+  проверка portable/profile reparse boundaries; реальный Windows junction
+  regression прошёл непосредственно перед прогоном. Это отдельный source
+  harness, не проверка GUI/auth или внешней DNS/IPv6/UDP privacy. Точные
+  provenance и ограничения — в release evidence и route matrix.
   [Доказательства](RELEASE_PUBLICATION_0.8.18-preview.md).
 - **P2.2 Наблюдение на внешнем стенде:** контролируемые серверы в другой
   сети, packet capture и серверные логи только для одноразовых профилей.

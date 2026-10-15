@@ -78,8 +78,21 @@ independently below.
   `2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`.
   Private report:
   `C:\N155\https-proxy-0.8.18-preview-20261015-committed-harness.json`.
+- Post-release source-harness check `tools/proxy_integration.py` on the same
+  exact public Chromium: **PASS**, 72/72 assertions over 19 disposable-profile
+  launches. Direct positive controls; HTTP/SOCKS5 success against synthetic
+  IPv4/IPv6 loopback targets through IPv4/IPv6 proxy endpoints; and unavailable
+  endpoint cases with zero target requests. Actual Windows profile-junction
+  regression passed immediately before the run, and the harness invokes the
+  product profile-path isolation check immediately before each Popen. Harness
+  commit `9d16e8a2ad0b963969d48d2d08c5c9342d1573dd`, SHA-256
+  `9af53f5f0c84c74d690486a241cd0b5bcc411d6ab270d6da7d810e74200fc5b6`;
+  product source SHA-256 `3c7ef3590cae465549241040393f6db99a5840b9f021de40c3f596e487168168`.
+  Private report: `C:\N155\proxy-integration-0.8.18-preview-20261015.json`.
+  These are loopback source-harness results, not packaged GUI/authentication or
+  external DNS/IPv6/UDP/TURN evidence.
 
-Not rerun on this exact archive: HTTPS/SOCKS5 route matrix, proxy-auth success,
+Not rerun on this exact archive: proxy-auth success,
 download and broader browser/network
 integration suites. Migration coverage is same-account, synthetic and limited
 to one cookie/localStorage origin; it is not an interactive update or a check

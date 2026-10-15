@@ -9,8 +9,9 @@ identified. `INCONCLUSIVE` means a related observation exists but cannot prove
 the stated route property. Detailed historical entries reflect their linked
 runs, not a new execution of every test on the current commit. Bounded public
 STUN and external HTTPS route audits were rerun against the exact downloaded
-0.8.7-preview Chromium; the local HTTPS proxy TLS/CONNECT gate was rerun on the
-exact public 0.8.18-preview Chromium in the dated addendum below. Other
+0.8.7-preview Chromium; local HTTPS proxy TLS/CONNECT and HTTP/SOCKS5 loopback
+gates were rerun on the exact public 0.8.18-preview Chromium in dated addenda
+below. Other
 historical routes were not rerun on 0.8.18. Local
 HTTPS-proxy and WebSocket supplements below were rerun against the unpacked
 0.8.6-preview candidate-3 ZIP
@@ -137,3 +138,25 @@ the report remains local and contains only synthetic fixture measurements.
 These controls share one Windows host and use loopback-only services. They do
 not close external DNS, public IPv6, TURN, packet-capture or independent-egress
 gates; P2 remains **OPEN**.
+
+### Exact public 0.8.18-preview HTTP/SOCKS5 loopback controls — 15 October 2026
+
+The exact downloaded Chromium (`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`) passed
+**72/72 assertions over 19 launches** using disposable local profiles. Direct
+positive controls, HTTP and SOCKS5 success, IPv4/IPv6 loopback targets and
+proxy endpoints, and unavailable HTTP/SOCKS5 endpoints were exercised. Every
+unavailable-endpoint case produced zero target requests; the working SOCKS5
+fixture received the destination hostname (SOCKS5 domain address type 3).
+Before each Chromium Popen the harness calls the product's
+`BrowserLauncher.ensure_profile_path_is_isolated`; the actual Windows junction
+launch regression passed immediately before this run. Harness commit
+`9d16e8a2ad0b963969d48d2d08c5c9342d1573dd`, harness SHA-256
+`9af53f5f0c84c74d690486a241cd0b5bcc411d6ab270d6da7d810e74200fc5b6`, and
+product-source SHA-256 `3c7ef3590cae465549241040393f6db99a5840b9f021de40c3f596e487168168`.
+Private report:
+`C:\N155\proxy-integration-0.8.18-preview-20261015.json`.
+
+This is source-harness evidence against the exact release engine, not packaged
+GUI coverage. It does not establish external DNS/IPv6/UDP/TURN behavior,
+proxy-auth success, independent egress, or anonymity; P2 remains **OPEN**.
