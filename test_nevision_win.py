@@ -727,6 +727,40 @@ class PortableCoreRegressionTests(unittest.TestCase):
                     if held.exists():
                         os.replace(held, link)
 
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_launch_rejects_cookie_junction_before_resolve_pin_or_popen(self):
+        profile = self._profile_with_proxy()
+        profile_id = profile["id"]
+        profile_dir = self.storage.profile_path(profile_id)
+        cookie_store = profile_dir / "Default" / "Network" / "Cookies"
+        cookie_store.parent.mkdir(parents=True)
+        outside = self.root / "outside-cookie-store"
+        outside.mkdir()
+        marker = outside / "synthetic-marker"
+        marker.write_bytes(b"synthetic-only")
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(cookie_store), str(outside)],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode:
+            self.skipTest("Windows junction creation is unavailable in this environment")
+
+        try:
+            attrs = getattr(cookie_store.lstat(), "st_file_attributes", 0)
+            self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+            launcher = BrowserLauncher(self.storage)
+            with patch.object(launcher, "resolve_browser") as resolve_browser, \
+                    patch.object(self.storage, "pin_browser_family") as pin_browser, \
+                    patch("nevision_win.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(NeVisionError, "junction"):
+                    launcher._launch_locked(profile, profile_id)
+            resolve_browser.assert_not_called()
+            pin_browser.assert_not_called()
+            popen.assert_not_called()
+            self.assertEqual(marker.read_bytes(), b"synthetic-only")
+        finally:
+            cookie_store.rmdir()
+
     def test_invalid_proxy_host_is_not_persisted(self):
         with self.assertRaises(NeVisionError):
             self.storage.save_proxy({"name": "Injected", "scheme": "http", "host": "example.com,direct://", "port": 8080})
