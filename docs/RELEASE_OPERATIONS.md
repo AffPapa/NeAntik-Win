@@ -1,7 +1,7 @@
 # Release operations: GitHub + public Site
 
 This is the repeatable publication path validated on the Windows host through
-2026-10-15 (including browser v0.8.19-preview and public Site version 53). It supplements the per-version evidence; it does not replace the
+2026-10-15 (including browser v0.8.20-preview and public Site version 54). It supplements the per-version evidence; it does not replace the
 release test matrix or authorize publishing a candidate that failed a gate.
 
 ## 1. Prepare the immutable browser release
@@ -53,10 +53,12 @@ release test matrix or authorize publishing a candidate that failed a gate.
 
 1. Read the Sites skill and the selected checkout's `.openai/hosting.json`.
    Preserve the current Site audience. Call `get_site`; use its exact
-   `project_id`, then obtain the short-lived source-write credential. Keep that
-   credential only in session memory and send it to `site-workflow.mjs` via its
-   hidden stdin protocol. Never write it to disk, command arguments, output or
-   chat.
+   `project_id`, then obtain the short-lived source-write credential. Before
+   editing any Site file, run `site-workflow.mjs` in opening mode and use the
+   returned `checkout_path` and full opening result as `source` for the publish
+   run. Keep the credential only in session memory and send it to the helper
+   through its hidden stdin protocol. Never write it to disk, command
+   arguments, output or chat.
 2. Run typecheck and production build before committing. On this Windows host,
    the direct Site helper command `node .../build-site.mjs` failed while
    resolving the npm shim, but `cmd.exe /d /c npm.cmd run build` succeeded.
