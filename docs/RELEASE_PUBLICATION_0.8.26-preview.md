@@ -31,14 +31,18 @@
 | Build + archive verifier | exact local ZIP; 1,066 files | PASS |
 | Packaged EXE `--self-test` | fresh isolated extraction; exit 0 | PASS |
 | GUI window smoke | exact isolated portable EXE; window displayed v0.8.26-preview and closed; no user profile used | PASS for launch/render only |
+| Keyboard smoke | Tab moved visible focus to Settings; Ctrl+N did not open profile form after one documented-key-notation retry. UIA exposed a generic panel as focused, not a named button. No profile was created. | INCONCLUSIVE for shortcut/UIA semantics |
 | Fresh GitHub asset download | exact release ZIP; size + SHA-256 equal local/API digest; verifier rerun | PASS |
 | Site production acceptance | Site v63, Site source commit `279d40d0364626d5c4e936e37961ddccb0980cc8`; `/`, `/release.json`, `/CHANGELOG.md` HTTP 200; ZIP HEAD 200 and `Content-Length` 262,391,420 | PASS |
 
 ## Limits and not-run checks
 
 - The callback tests invoke the button handlers directly. The GUI smoke proves
-  the window opens; it does not prove an actual keyboard-only journey, Tcl/Tk
-  event routing, UIA/MSAA exposure, or NVDA/Narrator behavior.
+  the window opens, and Tab visibly moved focus; the attempted Ctrl+N form-open
+  was not observed. Because this injected-key result does not distinguish an
+  app shortcut defect from a UI automation/input-path limitation, it is
+  INCONCLUSIVE, not PASS or confirmed product FAIL. This is not a full
+  keyboard-only journey, Tcl/Tk event-routing, UIA/MSAA, or NVDA/Narrator test.
 - Windows 10, Windows ARM64, another physical machine/account, broad website
   compatibility, external DNS/IPv6/UDP/STUN/TURN routes were not tested.
 - No fingerprint spoofing or anonymity claim is made. A local proxy assignment
