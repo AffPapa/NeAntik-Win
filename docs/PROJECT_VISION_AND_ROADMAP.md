@@ -73,14 +73,23 @@ archive in place.
 
 ## Current status (2026-10-15)
 
-The public release remains 0.8.16-preview until a new portable ZIP is published.
-The next 0.8.17-preview candidate is intentionally scoped as a local profile
-manager with pinned, unmodified stock Chromium 155.0.8059.79: no browser
-fingerprint override is included. The local Chromium compile and blank-page
-startup smoke passed, but staging, app integration, exact-ZIP gates and public
-release checks are still pending. Earlier native-persona work is historical;
-the new candidate preserves its stored profiles but does not launch them.
-Profile separation and selected proxy tests do not prove anonymity or absence
-of network leaks. Windows 10 compatibility and cross-machine session portability
-remain unvalidated. See the [detailed implementation plan](MASTER_IMPLEMENTATION_PLAN.md)
-for exact remaining gates, not claims about an unpublished candidate.
+The current public artifact is [NeAntik Win 0.8.19-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.19-preview), published from browser source commit
+`826f81671aa164434840eb023170c6ddf831cb51`. Its portable ZIP is
+262,378,971 bytes with SHA-256
+`adec43f1fb17c1864cac0ca826b329162a0f7b56d924f87ecc4d7aa1a4910d2a`; the
+live public Site `release.json` matches this identity. It bundles pinned,
+unmodified stock Chromium `155.0.8059.79`: `fingerprint_modification` is
+`false`, and no browser fingerprint override or anonymity guarantee is
+included. Earlier native-persona experiments are not present in this release;
+legacy experimental profile data remains stored but is not launched.
+
+Post-publication tests on the exact ZIP passed local HTTP/SOCKS5, HTTPS,
+WS/WSS, proxy-loss/recovery and same-PC WSL WebRTC route gates, plus the
+21-assertion/7-visit synthetic profile-storage integration. These are bounded
+loopback/private-namespace checks, not an external egress/DNS observer or a
+proof of leak-free networking. The independent external DNS, public IPv6,
+UDP/STUN/TURN and packet-observer gates remain open. Manual accessibility,
+Windows 10, another Windows account/PC, and complete extension/download-state
+coverage are also unvalidated. See the [detailed implementation plan](MASTER_IMPLEMENTATION_PLAN.md)
+and its linked exact-artifact evidence for current gates; do not treat historical
+native-persona experiments as capabilities of the public release.

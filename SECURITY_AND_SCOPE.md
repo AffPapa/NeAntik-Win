@@ -1,8 +1,8 @@
 # Security, privacy and scope
 
-The 0.8.17-preview candidate described below bundles stock Chromium and does not
+The published 0.8.19-preview release described below bundles stock Chromium and does not
 modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
-builds are historical and do not describe this candidate. Check the official
+builds are historical and do not describe this release. Check the official
 download page and checksum for the current artifact; local tests alone are not
 public-release proof.
 
@@ -12,7 +12,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## Historical 0.8.6-preview V4b boundary (not included in 0.8.17-preview)
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.19-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key
@@ -47,7 +47,28 @@ does not make the browser generally anonymous.
 
 ## Product boundary
 
-The 0.8.17-preview candidate manages local directories and bundles unbranded stock Chromium `155.0.8059.79`, built from pinned upstream source with a build-compatibility patch only. `fingerprint_modification` is explicitly `false`; NeAntik does not override browser/device fingerprint values. New profiles use bundled Chromium without installed Chrome/Edge; existing Chrome/Edge profiles remain pinned to their browser family. Experimental native-persona profiles from older releases stay on disk and can be backed up/restored, but this build refuses to launch them. “Чистая копия” creates a new empty profile and carries only settings; it does not copy cookies, history or sessions. Separate directories isolate normal profile storage; they are not a security sandbox against malware running as the same Windows user. The launcher rejects reparse points at the portable data, profiles, and selected profile roots before launch, but does not scan every nested Chromium directory for same-user filesystem tampering. This root-path check must not be read as isolation from another process running as the same Windows account. The bundled Chromium has no automatic updater; install newer portable releases for security fixes.
+The published 0.8.19-preview manages local directories and bundles unbranded
+stock Chromium `155.0.8059.79`, built from pinned upstream source with a
+build-compatibility patch only. `fingerprint_modification` is explicitly
+`false`; NeAntik does not override browser/device fingerprint values. New
+profiles use bundled Chromium without installed Chrome/Edge; existing Chrome/
+Edge profiles remain pinned to their browser family. Experimental
+native-persona profiles from older releases stay on disk and can be backed up/
+restored, but this build refuses to launch them. “Чистая копия” creates a new
+empty profile and carries only settings; it does not copy cookies, history or
+sessions. Separate directories isolate normal profile storage; they are not a
+security sandbox against malware running as the same Windows user.
+
+Before launch, the manager rejects reparse points at the portable `Data`,
+`Profiles` and selected profile roots. It also `lstat`s a fixed set of
+high-sensitivity Chromium paths (for example cookies, local storage,
+IndexedDB, service-worker storage, preferences and login data), without
+recursively scanning the whole profile. This catches selected pre-existing
+redirects; it is not protection against TOCTOU or same-user tampering, and
+unlisted nested paths are not covered. These checks do not isolate a profile
+from another process running as the same Windows account. The bundled
+Chromium has no automatic updater; install newer portable releases for security
+fixes.
 
 For a newly created, empty bundled-Chromium profile, the launcher writes Chromium's own initial Preferences once: block third-party cookies, deny geolocation, notifications, camera and microphone, disable network prediction/preloading, and open a blank new-tab document. It never edits existing profile preferences or overwrites later user choices. These settings can break site features until changed in Chromium. They are privacy defaults, **not** a spoofed fingerprint or network-anonymity mechanism. The blank document does not stop Chromium's other background requests. Existing profiles, installed Chrome and Edge do not receive them retroactively.
 
@@ -83,7 +104,7 @@ The Extensions action opens the selected browser's native extension manager for 
 
 ## Historical 0.8.5-preview browser-surface matrix
 
-This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.17-preview candidate. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
+This matrix describes the historical **0.8.5-preview portable Chromium binary**, unchanged from 0.8.4-preview. Later releases added experimental modes that are not included in the 0.8.19-preview release. “Inherited” means NeAntik does not set or rewrite the value; it is supplied by bundled Chromium (or an already-pinned installed browser) and Windows. These selected tests on one Windows machine were never a comprehensive anonymity assessment.
 
 | Surface | 0.8.5-preview behavior | Evidence / limitation |
 |---|---|---|
