@@ -94,6 +94,29 @@ the same PC.
   spoofs fingerprint values, compares a second computer, checks public egress,
   nor establishes anonymity or anti-bot success.
 
+### Fresh-profile third-party-cookie behavior — 2026-10-15
+
+- Exact-release Chromium SHA-256:
+  `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`.
+  The two-profile, two-hostname (`localhost` and `127.0.0.1`) loopback test
+  passed **7/7 assertions**: actual block/allow preference values,
+  first-party cookie persistence and cross-site
+  iframe request both had positive controls; fresh-profile default blocked
+  the cross-site cookie while the explicit allow control transmitted it.
+- The test uses only disposable synthetic profiles and an hour-limited
+  synthetic cookie. It records boolean outcomes only. Chromium's
+  `--unsafely-treat-insecure-origin-as-secure` is scoped to the local test
+  origin so the HTTP fixture can exercise a `Secure` cookie; this is not a
+  production launch option. Harness SHA-256:
+  `ad76151f4c5b9ace836876410ea9079c4c79efa86d77df6560a88a5921f706f5`.
+- An initial attempt used a session-only cookie across separate Chrome
+  processes, so its first-party positive control did not hold and the result
+  was not interpretable. Adding `Max-Age=3600` fixed the fixture; the final
+  run passed all controls. No NeAntik runtime code or release binary changed.
+- The test does not cover CHIPS, Storage Access API grants, site exceptions,
+  or compatibility on real sites. It confirms this one Chromium default, not
+  universal third-party tracking prevention.
+
 Harness reports are retained locally outside the public repository; their raw
 local addresses, synthetic tokens and diagnostics are not published. Script
 and report hashes and the route/storage matrices are recorded in
