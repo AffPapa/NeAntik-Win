@@ -74,6 +74,39 @@ class StorageTests(unittest.TestCase):
         self.assertIn("общий внешний IP", profile_network_note("proxy-id", 2))
         self.assertIn("не подтверждены", profile_network_note("proxy-id", 1))
 
+    def test_profile_path_accepts_only_generated_uuid_hex_ids(self):
+        valid_id = uuid.uuid4().hex
+        self.assertEqual(self.storage.profile_path(valid_id), self.storage.paths.profiles / valid_id)
+        for invalid_id in (
+            "../outside", r"..\outside", r"C:\outside", "C:/outside", "/outside",
+            "A" * 32, "a" * 31, "a" * 33, "__data_recovery__",
+        ):
+            with self.subTest(profile_id=invalid_id), self.assertRaisesRegex(NeVisionError, "идентификатор профиля"):
+                self.storage.profile_path(invalid_id)
+
+    def test_corrupt_profile_id_cannot_backup_or_delete_outside_profiles(self):
+        invalid_id = "../outside"
+        outside = self.storage.paths.data / "outside"
+        outside.mkdir()
+        marker = outside / "synthetic-do-not-touch.txt"
+        marker.write_text("synthetic outside-profile fixture", encoding="utf-8")
+        with self.storage.connection() as db:
+            db.execute(
+                """INSERT INTO profiles(id, name, group_name, tags, notes, browser_family, created_at, updated_at)
+                   VALUES (?, ?, '', '', '', '', ?, ?)""",
+                (invalid_id, "Synthetic corrupt row", "2026-10-15T00:00:00Z", "2026-10-15T00:00:00Z"),
+            )
+
+        for operation in (self.storage.backup_profile, self.storage.delete_profile):
+            with self.subTest(operation=operation.__name__), self.assertRaisesRegex(
+                NeVisionError, "идентификатор профиля"
+            ):
+                operation(invalid_id)
+
+        self.assertEqual(marker.read_text(encoding="utf-8"), "synthetic outside-profile fixture")
+        self.assertIsNotNone(self.storage.get_profile(invalid_id))
+        self.assertEqual(list(self.storage.paths.backups.iterdir()), [])
+
     def test_profile_template_moves_only_safe_fields_into_a_new_empty_profile(self):
         proxy_password = "synthetic-proxy-password-not-for-template"
         proxy_user = "synthetic-proxy-user-not-for-template"
@@ -1238,7 +1271,7 @@ class WindowsLongPathTests(unittest.TestCase):
         expected = Path(r"\\?\UNC\synthetic.invalid\share\a\b")
         self.assertEqual(filesystem_path(unc), expected)
         self.assertEqual(filesystem_path(expected), expected)
-        self.assertFalse(str(self.storage.profile_path("synthetic")).startswith("\\\\?\\"))
+        self.assertFalse(str(self.storage.profile_path("a" * 32)).startswith("\\\\?\\"))
 
 
 class ThemeTests(unittest.TestCase):

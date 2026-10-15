@@ -1,9 +1,10 @@
 """NeAntik Win — local-first portable Windows browser profile manager.
 
-This edition prefers bundled unbranded Chromium for new local profiles and can
-continue to launch profiles pinned to an installed Chrome or Edge browser.
-The reviewed native Chromium variant conservatively reduces two exposed
-resource signals; this is not an anonymity guarantee.
+This release uses bundled stock Chromium for new local profiles and can continue
+to launch profiles pinned to an installed Chrome or Edge browser. It does not
+modify browser or device fingerprint values. Legacy experimental profile
+metadata is retained for safe identification and migration, not enabled as a
+launch-time persona.
 """
 
 from __future__ import annotations
@@ -886,6 +887,8 @@ class Storage:
                 self.log_in_db(db, "profile.process_exited", None, f"profile={profile_id}; code={exit_code}; профиль уже удалён")
 
     def profile_path(self, profile_id: str) -> Path:
+        if type(profile_id) is not str or re.fullmatch(r"[0-9a-f]{32}", profile_id) is None:
+            raise NeVisionError("Некорректный идентификатор профиля.")
         return self.paths.profiles / profile_id
 
     def data_deleted_root(self) -> Path:
@@ -903,7 +906,10 @@ class Storage:
         return [marker for marker in CHROMIUM_LOCK_MARKERS if os.path.lexists(folder / marker)]
 
     def _profile_mutex_name(self, profile_id: str) -> str:
-        canonical = canonical_path_key(self.profile_path(profile_id))
+        # This fixed sentinel serializes Data-wide recovery and is not a profile
+        # ID. Preserve its existing mutex path while validating all real IDs.
+        mutex_path = self.paths.profiles / profile_id if profile_id == "__data_recovery__" else self.profile_path(profile_id)
+        canonical = canonical_path_key(mutex_path)
         digest = hashlib.sha256(canonical.encode("utf-8", "surrogatepass")).hexdigest()
         return f"Local\\NeVisionWin.Profile.{digest}"
 
@@ -3629,6 +3635,12 @@ def self_test() -> int:
         proxy_id = storage.save_proxy({"name": "Self test", "scheme": "http", "host": "127.0.0.1", "port": 8080, "username": "demo", "password": fixture_value})
         profile_id = storage.save_profile({"name": "Self test profile", "group_name": "QA", "tags": "test", "notes": "ok", "proxy_id": proxy_id})
         profile_dir = storage.profile_path(profile_id)
+        try:
+            storage.profile_path("../outside-synthetic")
+        except NeVisionError as exc:
+            assert "идентификатор профиля" in str(exc)
+        else:
+            raise AssertionError("Profile path accepted a traversal ID")
         (profile_dir / "Default").mkdir(parents=True)
         (profile_dir / "Default" / "test.txt").write_text("hello", encoding="utf-8")
         # Exercise the packaged interpreter's actual file APIs, not just source
