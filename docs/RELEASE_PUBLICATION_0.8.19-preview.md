@@ -28,10 +28,61 @@ patch. Chrome Stable was 155.0.8059.79 on 2026-10-13
 - Live `/`, `/release.json`, and `/CHANGELOG.md`: HTTP 200. The live metadata named version `0.8.19-preview`, browser source commit `826f816…`, the exact ZIP filename, 262,378,971-byte size, expected SHA-256, and exact GitHub download URL. Public ZIP HEAD: HTTP 200 and Content-Length 262,378,971. Changelog response: `text/markdown; charset=utf-8`, Russian text and the new release heading decoded correctly.
 - Hosted second-host gate: PASS, GitHub Actions run [38708197509](https://github.com/AffPapa/NeAntik-Win/actions/runs/38708197509), Windows Server 2022 runner. It fetched the exact public ZIP, checked its expected SHA/source identity, ran the packaged self-test, and verified isolated portable storage using synthetic data. This complements—but does not replace—manual GUI/accessibility, cross-PC/account, and external-network testing.
 
+## Post-publication exact-ZIP route checks — 2026-10-15
+
+The following loopback-only checks were run after publication against
+`Engine/Chromium/chrome.exe` extracted from the exact ZIP above. The executable
+SHA-256 was
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`; it matches
+the ACL-prepared disposable copy in the harnesses. Browser source commit
+`826f816…` is unchanged at harness commit
+`d40d839b713962e3790a97893cfb36637a0e7639`; `nevision_win.py` was byte-identical
+between those commits. All runs used synthetic profiles and loopback fixtures,
+except the WebRTC STUN receiver hosted in the private WSL network namespace on
+the same PC.
+
+- HTTP/SOCKS5 route matrix: **72/72 assertions, 19 launches PASS**, including
+  IPv4/IPv6 loopback targets and proxies, positive controls, and unavailable
+  proxy no-direct-fallback checks.
+- HTTPS proxy: **10/10 cases PASS**, including IPv4/IPv6 CONNECT, untrusted
+  certificates, unavailable endpoints and a rejecting 407-auth case. Correct
+  proxy credential entry is not covered.
+- WS/WSS: **16/16 cases PASS** over direct, HTTP, HTTPS and SOCKS5 routes, plus
+  unavailable proxies and untrusted HTTPS-proxy certificate controls.
+- Proxy loss/recovery: **10/10 checks PASS** in one browser process; no target
+  hits during outage, route resumed after recovery, NetLog contained only
+  loopback TCP and zero UDP sends.
+- WebRTC via WSL: **3 cases PASS**. The direct positive control delivered five
+  STUN Binding requests/five UDP datagrams to the private WSL receiver. With
+  HTTP and SOCKS5 proxy selected, it received zero STUN requests and zero UDP
+  datagrams; Chromium NetLog recorded zero UDP sends in both proxy cases.
+- Browser-storage integration: **21/21 assertions across seven visits PASS**
+  on harness source commit `c988ec25dfaced8733909bd82f6cf1f959150ce9`.
+  Synthetic A/B profiles isolated cookies, localStorage, IndexedDB, Cache
+  Storage and service workers through restart; backup/restore retained A's
+  state, while a configuration-only clone started empty. It used real
+  `Storage`/backup/clone code and the exact release `chrome.exe`, not the GUI.
+  Full unit suite on this harness commit: **266 PASS, 3 skipped**.
+- The first browser-storage attempt was **INCONCLUSIVE**, before any storage
+  assertion: Chromium sandbox reported access denied for the source-extracted
+  executable (`0x5`). The harness was repaired to create a disposable
+  ACL-prepared copy and verify byte-identical executable SHA-256. The exact-ZIP
+  rerun passed; browser product code and the release ZIP were unchanged.
+- A new real-Windows-junction regression on harness commit `d40d839…` checked
+  the production `BrowserLauncher.ensure_profile_path_is_isolated` method. It
+  rejects junctions at `Data`, `Profiles`, and the selected profile directory
+  before process creation. Full unit suite on that commit: **266 PASS, 3
+  skipped**.
+
+Harness reports are retained locally outside the public repository; their raw
+local addresses, synthetic tokens and diagnostics are not published. Script
+and report hashes and the route/storage matrices are recorded in
+[`ROUTE_MATRIX_2026-10.md`](ROUTE_MATRIX_2026-10.md).
+
 ## NOT RUN / INCONCLUSIVE
 
 - Physical keyboard held-key behavior, manual profile create/edit, Windows UI Automation/MSAA tree, and NVDA/Narrator: NOT RUN. Synthetic callback tests do not prove operating-system key delivery or screen-reader semantics.
-- Browser storage beyond the isolated synthetic portable-storage gate, proxy/route, external DNS/IPv6/UDP/STUN/TURN, another Windows account/PC, and Windows 10: NOT RUN on this exact ZIP. The Chromium engine is unchanged, but do not relabel older ZIP results as fresh 0.8.19 tests.
+- Browser-storage cases beyond the listed synthetic APIs/origin (including extension/download state and arbitrary sites); external DNS, public IPv6/UDP/STUN/TURN, independent egress/packet observer, another Windows account/PC, and Windows 10: NOT RUN on this exact ZIP. The local route checks above do not imply those results.
 - No claim of fingerprint spoofing, passing anti-bot checks, complete anonymity, or universal privacy is made. Profiles isolate local browser storage; they are not separate network identities.
 
 ## Release recovery note

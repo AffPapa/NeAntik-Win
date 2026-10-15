@@ -10,8 +10,10 @@ the stated route property. Detailed historical entries reflect their linked
 runs, not a new execution of every test on the current commit. Bounded public
 STUN and external HTTPS route audits were rerun against the exact downloaded
 0.8.7-preview Chromium; local HTTPS proxy TLS/CONNECT and HTTP/SOCKS5 loopback
-gates were rerun on the exact public 0.8.18-preview Chromium in dated addenda
-below. Other historical routes were not rerun on 0.8.18. The older local
+gates were rerun on the exact public 0.8.18-preview Chromium, then the local
+HTTP/SOCKS5, HTTPS, WS/WSS, proxy-loss/recovery, and cross-namespace WebRTC
+gates were rerun against the exact public 0.8.19-preview Chromium in dated
+addenda below. Other historical routes were not rerun on 0.8.19. The older local
 HTTPS-proxy/WebSocket supplements were run against the unpacked
 0.8.6-preview candidate-3 ZIP; a newer full WS/WSS matrix is separately
 recorded below for exact public 0.8.18-preview
@@ -210,3 +212,51 @@ Harness source commit `9baae953bf38d169b7c768c4a83558bd94e69806`, SHA-256
 Private report: `C:\N155\websocket-route-0.8.18-preview-20261015.json`.
 This establishes only the listed same-host loopback routes. External
 WebSocket/proxy/DNS/IPv6 and proxy-auth success remain **NOT RUN**.
+
+### Exact public 0.8.19-preview route checks — 15 October 2026
+
+All browser cases used `chrome.exe` extracted from the verified public
+0.8.19-preview ZIP (ZIP SHA-256
+`adec43f1fb17c1864cac0ca826b329162a0f7b56d924f87ecc4d7aa1a4910d2a`;
+`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`). The
+Chromium image matches the exact 0.8.18 engine; binary source commit is
+`826f81671aa164434840eb023170c6ddf831cb51`. Test harness/source commit was
+`d40d839b713962e3790a97893cfb36637a0e7639`; `nevision_win.py` is byte-identical
+between the release and harness commits. Before each launched case the harness
+called `BrowserLauncher.ensure_profile_path_is_isolated`. A real Windows
+junction regression on the same harness commit exercised that production guard
+against `Data`, `Profiles` and the selected profile root; all three were
+rejected before process creation.
+
+| Gate | Result | Narrow evidence |
+| --- | --- | --- |
+| HTTP/SOCKS5 | **72/72 assertions, 19 launches PASS** | Direct controls; IPv4/IPv6 loopback target/proxy; unavailable proxies had zero target requests; SOCKS5 hostname forwarded to fixture. |
+| HTTPS proxy | **10/10 cases PASS** | IPv4/IPv6 CONNECT, untrusted cert, dead endpoints, 407 rejection with no target/direct fallback. Successful authentication was not covered. |
+| WS/WSS | **16/16 cases PASS** | Direct + HTTP/HTTPS/SOCKS5 success and unavailable/untrusted failure controls; local fixtures only. |
+| Proxy loss/recovery | **10/10 checks PASS** | Same browser session; zero target hits during outage; recovered through proxy; NetLog loopback TCP only and zero UDP sends. |
+| WebRTC cross-namespace | **3 cases PASS** | Same-PC private WSL UDP sink: direct positive control got 5 STUN/UDP packets; HTTP and SOCKS5 routes got zero STUN/UDP and NetLog zero UDP sends. |
+
+Full unit suite on the test commit: **266 PASS, 3 skipped**. Raw reports remain
+outside the public repository because they contain private-interface addresses
+and synthetic run tokens; only allowlisted summaries are published here.
+SHA-256 identities:
+
+- `chrome.exe`: `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`;
+  `nevision_win.py`: `0903fd0e75fd3d9b7adb316398bbc60d6546724ecd6635b03ac7cb6429ece594`.
+- `proxy_integration.py`: `9af53f5f0c84c74d690486a241cd0b5bcc411d6ab270d6da7d810e74200fc5b6`;
+  report: `e87f3cd84befd5caa431c4b00d7455fa7f4de6b36943814b5cf2b2d96d80a5de`.
+- `https_proxy_integration.py`: `2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`;
+  report: `8036614a68ba2f1d244c4ccb6d3965de33c26ccba6cbd5db5df331169583f8bc`.
+- `websocket_route_integration.py`: `08c51b6810da7072028754832c559b83cb036de66d9fd50b24b9ff1e009d759f`;
+  report: `242c2d12f5fd35e42baf2e26cac3138b95530b6fa22b14666117d171c99adf75`.
+- `proxy_loss_recovery_gate.py`: `2b5350167d7aeefc7a5dcf2829d45a85830532f57a0cdeb748baa5d5df64a500ea`;
+  report: `f22434d079710a9e2bd3949dd8dfddf31a00e8ba369d29c482201add470517e4`.
+- `wsl_stun_route_audit.py`: `89c63d91b382e322f4006c22b499c6cc0d8919de40a073b418ef10f99f768be1`;
+  `webrtc_udp_integration.py`: `7a4c56340b806028a686797fc88bbbeed0c81b4c40cf6bd108d4c68e9e8d64db`;
+  report: `850dc5ce7da0816727042bb7d8a52efd0b3fef1577aee14e8a72aa963b88b456`.
+
+These tests establish only the enumerated local routes. They do not observe
+public DNS, external IPv6/UDP/STUN/TURN or an independent egress/packet
+observer, and do not cover proxy-auth success or prove anonymity. Those gates
+remain **NOT RUN**; P2 remains **OPEN**.

@@ -11,7 +11,7 @@
 
 **Текущий публичный выпуск:** [0.8.19-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.19-preview), бинарный source commit `826f81671aa164434840eb023170c6ddf831cb51`, ZIP 262,378,971 байт, SHA-256 `adec43f1fb17c1864cac0ca826b329162a0f7b56d924f87ecc4d7aa1a4910d2a`. Публичная копия архива повторно скачана и сверена с локальной; серверный digest совпал. Production Site version 53 развернут из source commit `383c9e07f1bd4016e5801c1257bc5b95929ad290`; живые `/`, `/release.json` и `/CHANGELOG.md` дали HTTP 200, version/source/filename/size/SHA совпали, ZIP HEAD вернул 200 и точную длину. [Точная публикационная проверка](RELEASE_PUBLICATION_0.8.19-preview.md).
 
-0.8.19 сохраняет stock Chromium `155.0.8059.79` и формат профилей; изменён только повторный keyboard activation интерфейсного `IconButton`. Пять packaged-manager запусков дали медиану видимого окна 209 мс (208–678 мс); это не полная готовность и не запуск Chromium. Callback regression прошёл, но физическая клавиатура, UIA/MSAA и screen reader **NOT RUN/INCONCLUSIVE**. Архив и Site проверены отдельно; подробные commit, SHA, методы и ограничения — в [evidence 0.8.19](RELEASE_PUBLICATION_0.8.19-preview.md). Результаты сетевых и browser-storage тестов 0.8.18 не переносить на новый ZIP: на точном 0.8.19 их повтор не выполнялся. Текущая сборка не меняет fingerprint и не обещает анонимность.
+0.8.19 сохраняет stock Chromium `155.0.8059.79` и формат профилей; изменён только повторный keyboard activation интерфейсного `IconButton`. Пять packaged-manager запусков дали медиану видимого окна 209 мс (208–678 мс); это не полная готовность и не запуск Chromium. Callback regression прошёл, но физическая клавиатура, UIA/MSAA и screen reader **NOT RUN/INCONCLUSIVE**. После публикации на точном ZIP повторены локальные HTTP/SOCKS5, HTTPS, WS/WSS, proxy-loss/recovery и same-PC WSL WebRTC маршруты; отдельный browser-storage integration gate прошёл 21/21 на семи визитах. Эти результаты не закрывают внешний P2, полный P3 или ручной UI. Точные source/tag, ZIP SHA, ограничения и QA-гейты — в [evidence 0.8.19](RELEASE_PUBLICATION_0.8.19-preview.md), [route matrix](ROUTE_MATRIX_2026-10.md) и [P3.1 протоколе](PROFILE_ISOLATION_2026-10.md). Текущая сборка не меняет fingerprint и не обещает анонимность.
 
 В 0.8.18 использовался Chromium `155.0.8059.79` с build-compat patch, но без изменений fingerprint: в release manifest `fingerprint_modification: false`, privacy patch отсутствует. Там была добавлена валидация идентификатора профиля на границе путей/backup/delete; это не полноценная анонимность и не обход антибот-защиты. После публикации точный публичный Chromium прошёл локальный loopback P0 audit: 170 согласованностей на двух одноразовых профилях и двух запусках каждого, внешние попытки блокировались. Exact-ZIP A/B-тест также подтвердил одновременную изоляцию двух профилей (17 проверок) и перенос synthetic cookie/localStorage через обновление 0.8.17→0.8.18 при сохранении старого snapshot. Всё проверено на одной машине и без реальной пользовательской сессии; это не доказательство сетевой анонимности и межмашинной миграции. Fingerprint spoofing не реализован; независимые DNS/IPv6/UDP/STUN/TURN и cross-machine проверки **NOT RUN**. Не переносить PASS между релизами. Следующая очередь — P0/P1 из раздела 4 и оставшиеся P2 сетевые проверки с точной фиксацией ограничений. Для выбора короткого набора тестов и публикации см. [матрицу QA](QA_TEST_SELECTION.md) и [операционный регламент GitHub + Sites](RELEASE_OPERATIONS.md).
 
@@ -378,6 +378,16 @@ main frame и двух iframe. Это только базовая линия о�
   egress/packet observer; внешние DNS, IPv6, TURN, другой хост и proxy auth
   остаются **NOT RUN**. Протокол и provenance — в route matrix и
   [release evidence](RELEASE_PUBLICATION_0.8.18-preview.md).
+  После публикации 0.8.19 те же route-категории повторены на точном ZIP:
+  HTTP/SOCKS5 **72/72 assertion**, HTTPS proxy **10/10 case**, WS/WSS
+  **16/16**, proxy-loss/recovery **10/10**, WSL WebRTC **3/3**. Выполнялся
+  реальный Windows-junction regression production launch guard для `Data`,
+  `Profiles` и корня профиля до Chromium-процессов. Это покрывает только
+  синтетические local loopback/WSL endpoints; внешний DNS, public egress,
+  IPv6/UDP/STUN/TURN, независимый packet observer и успешная proxy auth
+  остаются **NOT RUN**. Хеши и ограничения — в
+  [точной route matrix](ROUTE_MATRIX_2026-10.md) и
+  [отчёте 0.8.19](RELEASE_PUBLICATION_0.8.19-preview.md).
 - **P2.4 Анонимная сеть:** отдельно принять архитектурное решение на основе
   Tor Browser / Tor спецификаций и лицензий. Нельзя переименовать proxy
   в «Tor-режим». Нужны независимое ревью, план обновлений и UX предупреждений.
@@ -475,6 +485,15 @@ main frame и двух iframe. Это только базовая линия о�
   symlink/reparse-file/hardlink прошли **4/4** на Windows-хосте. Это source
   unit coverage, не packaged GUI, не защита от TOCTOU или другого процесса
   той же учётной записи; поведение продукта и публичный ZIP не менялись.
+  На точном публичном ZIP 0.8.19 storage integration затем прошёл **21/21
+  assertions в семи Chromium visits**: синтетические cookies/localStorage/
+  IndexedDB/Cache Storage/service worker разделены между A/B и сохраняются
+  после restart; backup/restore сохраняет состояние, configuration-only clone
+  начинается пустым. Первый прогон был **INCONCLUSIVE** из-за ACL ошибки
+  test-harness для извлечённого Chromium, до storage assertions; harness теперь
+  готовит изолированную ACL-копию и сравнивает SHA исполняемого файла с ZIP.
+  Итоговый source harness commit `c988ec25dfaced8733909bd82f6cf1f959150ce9`;
+  подробности и ограничения — в [P3.1 protocol](PROFILE_ISOLATION_2026-10.md).
 - **P3.2 Секреты:** DPAPI scope, 30-секундная очистка обычного буфера,
   запрет секретов в логах/argv/manifest. Backup с cookies и сессиями остаётся
   чувствительным; предложить отдельный зашифрованный экспорт только после

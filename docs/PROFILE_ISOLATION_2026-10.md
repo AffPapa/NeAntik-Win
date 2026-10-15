@@ -291,3 +291,39 @@ This is source/UI-logic coverage only: incompatible native backup restoration
 was not exercised in a packaged GUI or across separate portable installations.
 The public 0.8.16-preview binary and Site do not include this source change;
 no new release was built or published in this cycle. P3 remains open.
+
+## Post-publication exact 0.8.19-preview ZIP storage check — 15 October 2026
+
+The storage integration was run against the `chrome.exe` extracted from the
+exact public 0.8.19-preview ZIP (ZIP SHA-256
+`adec43f1fb17c1864cac0ca826b329162a0f7b56d924f87ecc4d7aa1a4910d2a`;
+`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`). On
+harness source commit `c988ec25dfaced8733909bd82f6cf1f959150ce9`,
+`tools/browser_integration.py` passed **21/21 assertions across seven visits**.
+It verified A/B separation and same-machine restart persistence for synthetic
+cookies, localStorage, IndexedDB, Cache Storage and service-worker state;
+notification defaults and the A-only synthetic permission fixture; real
+product backup/restore to a new profile; and the real configuration-only clone
+starting empty. All browser-created profiles were disposable, the loopback
+page was the only navigated origin, and background HTTP(S) met a rejecting
+loopback proxy. Backup contents were declared unencrypted and sensitive; this
+does not test cross-PC DPAPI/App-Bound credential portability.
+
+The first exact-ZIP attempt was **INCONCLUSIVE** because the QA harness launched
+the extracted engine from a path that lacked Chromium sandbox read ACLs; stderr
+identified `sandbox_win.cc` access denial (`0x5`). No profile-storage
+assertion ran. The harness now copies the engine into its own disposable QA
+root, applies the product-equivalent read-only sandbox ACL, and requires the
+prepared executable SHA-256 to equal the supplied binary before launch. The
+rerun passed; this repaired a test-fixture setup error and did not change
+browser product code or the public ZIP. Full unittest suite on the same harness
+commit: **266 PASS, 3 skipped**. The report remains local; SHA-256
+`d42b68d399cc5203f1265546cb1c95a035b2a3d475856f549f86142ed4d371b0`.
+Harness SHA-256:
+`3df6060a830cfcaa29b97210e02995258e3cd7af71c4d8730cf4d3c147f05830`.
+
+This remains one Windows 11 host, one account, headless source integration and
+one loopback origin—not packaged GUI/manual interaction, another account or
+PC, downloads/extensions, arbitrary origins, external routing or a complete
+inventory of browser storage. P3 remains open.
