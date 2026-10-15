@@ -1,4 +1,4 @@
-# P2.1 route matrix — 14 October 2026
+# P2.1 route matrix — updated 15 October 2026
 
 This is an evidence inventory, **not** a leak-free or anonymity certificate. It
 describes the bundled Chromium with a fixed proxy selected in NeAntik Win.
@@ -6,10 +6,12 @@ Installed Chrome/Edge and other Windows processes are outside these checks.
 `PASS` below always names its narrow local/one-host scenario; it never implies
 that an external-network gate passed. `NOT RUN` means no matching test was
 identified. `INCONCLUSIVE` means a related observation exists but cannot prove
-the stated route property. Entries reflect the linked recorded runs, not a new
-execution of every test on the current commit. Bounded public STUN and external
-HTTPS route audits were additionally rerun against the exact downloaded
-0.8.7-preview Chromium; all other routes below were not rerun. Local
+the stated route property. Detailed historical entries reflect their linked
+runs, not a new execution of every test on the current commit. Bounded public
+STUN and external HTTPS route audits were rerun against the exact downloaded
+0.8.7-preview Chromium; the local HTTPS proxy TLS/CONNECT gate was rerun on the
+exact public 0.8.18-preview Chromium in the dated addendum below. Other
+historical routes were not rerun on 0.8.18. Local
 HTTPS-proxy and WebSocket supplements below were rerun against the unpacked
 0.8.6-preview candidate-3 ZIP
 (SHA-256 `bab9097883830edda661d64ee4d8a18f07bec57415f5c611173b960aabb138a9`),
@@ -117,3 +119,21 @@ for each supported scheme, include a working and failing route, record browser
 NetLog *and* independent server/packet observations, and require a positive
 control for each transport. Keep raw reports private and publish only
 redacted check results, exact engine commit and executable SHA-256.
+
+### Exact public 0.8.18-preview HTTPS proxy controls — 15 October 2026
+
+On the repeat-downloaded 0.8.18-preview Chromium (`chrome.exe` SHA-256
+`7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`), the
+local HTTPS-proxy harness passed **10 cases / 75 assertions**. Working IPv4
+and IPv6 TLS proxy CONNECTs reached the synthetic target; untrusted proxy
+certificates and reserved unavailable proxy ports did not. The 407-auth case
+had a preceding direct positive control, but with the rejecting proxy selected
+the target received zero requests and no alternate proxy was used (two 407
+challenges recorded). Correct proxy credentials and GUI prompt remain
+**NOT RUN**. The exact release record is in
+[`RELEASE_PUBLICATION_0.8.18-preview.md`](RELEASE_PUBLICATION_0.8.18-preview.md);
+the report remains local and contains only synthetic fixture measurements.
+
+These controls share one Windows host and use loopback-only services. They do
+not close external DNS, public IPv6, TURN, packet-capture or independent-egress
+gates; P2 remains **OPEN**.

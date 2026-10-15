@@ -69,6 +69,15 @@ independently below.
   launch controls passed (3/3 and product launch-junction regression). Harness
   source commit: `15c5039166f84cc4f4b170b6f5ce3cc70a855d0f`. Private report:
   `C:\N155\proxy-loss-0.8.18-preview-20261015-committed-harness.json`.
+- `tools/https_proxy_integration.py` on the exact public 0.8.18 Chromium:
+  **PASS**, 10 local IPv4/IPv6 HTTPS proxy/TLS cases, 75 assertions. Working
+  CONNECT routes reached the synthetic target; untrusted certificates and
+  unavailable endpoints failed closed. The 407 case followed a positive direct
+  control and reached the target zero times, with no alternate proxy. Harness
+  commit `95cdef0bb90b64ddb298ee29d2b3af74847ce407`, SHA-256
+  `2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`.
+  Private report:
+  `C:\N155\https-proxy-0.8.18-preview-20261015-committed-harness.json`.
 
 Not rerun on this exact archive: HTTPS/SOCKS5 route matrix, proxy-auth success,
 download and broader browser/network

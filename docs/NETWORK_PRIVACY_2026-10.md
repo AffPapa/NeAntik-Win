@@ -462,3 +462,27 @@ This is one host, one browser process, and loopback fixtures only. It does not
 observe the public DNS resolver, external IPv6 route, TURN, other proxy types,
 another machine or another egress. It is not a general leak-free or anonymity
 claim; P2 remains open.
+
+### HTTPS proxy TLS/CONNECT controls on the public 0.8.18-preview engine — 15 October 2026
+
+[`https_proxy_integration.py`](../tools/https_proxy_integration.py) ran against
+the exact repeat-downloaded public 0.8.18-preview Chromium (`chrome.exe`
+SHA-256 `7db4c6d779289100e04458d74863c6edd86c141a59c7c1c36e696567aba41baa`;
+ZIP SHA-256
+`62c73096470c62a9bfacefbfee30753e99def38bdc22aba1c90e222bd22af095`). Its
+committed harness was `95cdef0bb90b64ddb298ee29d2b3af74847ce407`, SHA-256
+`2955d5519f91248832fc9f71adfafd36a82967e4ab90e113a73985932ecd2a62`.
+
+All 10 cases and 75 assertions passed. IPv4 and IPv6 TLS proxy endpoints
+completed CONNECT to the synthetic HTTPS target; untrusted certificates and
+unavailable endpoints made no target request. A direct positive control reached
+the auth-case IP-literal target before the rejecting 407 proxy case. During the
+407 case the target received zero requests, the alternate proxy received zero
+CONNECTs, and the fixture recorded two authentication challenges. This covers
+only missing/rejected credentials; correct proxy credentials and the GUI auth
+prompt remain **NOT RUN**. The private report is
+`C:\N155\https-proxy-0.8.18-preview-20261015-committed-harness.json`.
+
+Fixtures and proxy egress were confined to IPv4/IPv6 loopback on this Windows
+host. This is not an independent public egress, DNS, packet capture, TURN or
+second-host result; P2 remains open.
