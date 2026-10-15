@@ -46,10 +46,25 @@ independently below.
   0.8.17 rollback. The old snapshot remained unchanged and the candidate copy
   changed as expected. Private report:
   `C:\N155\upgrade-rollback-0.8.17-to-0.8.18-20261015.json`.
+- `tools/upgrade_browser_session_integration.py` on the same exact public ZIP
+  pair: **PASS**. Old Chromium wrote a synthetic loopback-origin cookie and
+  localStorage value; 0.8.18 read both from the same profile. The old Data
+  snapshot remained unchanged; 14 external proxy attempts were rejected.
+  The harness now checks the portable root, `Data`, `Profiles`, and profile root
+  for Windows reparse points before each Chromium process creation; its local
+  controls exercised actual junctions at all three data-path levels.
+- `tools/concurrent_profile_integration.py` on the exact public 0.8.18 ZIP:
+  **PASS**, 17/17 checks for two simultaneous synthetic profiles via the
+  application launcher. Cookie, localStorage, IndexedDB and Cache Storage
+  values remained isolated; each service worker registered; profile locks
+  coexisted and were released; operations on a busy profile were rejected.
+  Private report:
+  `C:\N155\concurrent-profile-0.8.18-preview-20261015.json`.
 
 Not rerun on this exact archive: proxy, download and broader browser/network
-integration suites. The storage test covers same-account persistence only, not
-an interactive browser session, another Windows account or another machine.
+integration suites. Migration coverage is same-account, synthetic and limited
+to one cookie/localStorage origin; it is not an interactive update or a check
+of another Windows account or machine.
 Manual visible GUI, independent external DNS/IPv6/UDP/STUN/TURN observers and
 fingerprint-spoofing checks are **NOT RUN** (fingerprint spoofing is
 intentionally absent). Loopback blocking does not prove external-route privacy.

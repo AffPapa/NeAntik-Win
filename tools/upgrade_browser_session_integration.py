@@ -1,8 +1,9 @@
 """Disposable same-account Chromium session migration gate for two exact portable ZIPs.
 
-Tests one synthetic loopback origin's cookie and localStorage across the bundled
-an explicitly versioned public-old -> candidate engine pair. It never opens real profiles, copies secrets, or claims
-cross-machine portability, extension state, service workers, or full GUI update.
+Tests one synthetic loopback origin's cookie and localStorage across an
+explicitly versioned public-old -> candidate engine pair. It never opens real
+profiles, copies secrets, or claims cross-machine portability, extension state,
+service workers, or full GUI update.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -137,8 +139,8 @@ root = Path(sys.argv[2])
 storage = Storage(AppPaths(root))
 profiles = storage.list_profiles()
 assert len(profiles) == 1
-path = storage.profile_path(profiles[0]["id"]).resolve()
-assert path.parent == (root / "Data" / "Profiles").resolve()
+path = storage.profile_path(profiles[0]["id"])
+assert path.parent == root / "Data" / "Profiles"
 print(json.dumps({"profile_id": profiles[0]["id"], "path": str(path)}))
 '''
 
@@ -150,9 +152,32 @@ def profile_path(source: Path, portable: Path) -> tuple[str, Path]:
         raise RuntimeError("Synthetic profile path worker failed")
     value = json.loads(process.stdout)
     path = Path(value["path"])
-    if path.parent != (portable / "Data" / "Profiles").resolve():
+    if path.parent != portable / "Data" / "Profiles":
         raise RuntimeError("Synthetic profile escaped disposable Data")
+    validate_profile_root(path)
     return value["profile_id"], path
+
+
+def validate_profile_root(profile: Path) -> None:
+    """Reject redirected portable/profile roots before any Chromium Popen."""
+    profile = Path(profile)
+    portable = profile.parent.parent.parent
+    if (profile.parent != portable / "Data" / "Profiles"
+            or not re.fullmatch(r"[0-9a-f]{32}", profile.name)):
+        raise RuntimeError("unsafe_profile_path_boundary")
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    for label, path in (("portable", portable), ("data", portable / "Data"),
+                        ("profiles", portable / "Data" / "Profiles"),
+                        ("profile", profile)):
+        try:
+            details = path.lstat()
+        except OSError as exc:
+            raise RuntimeError(f"unsafe_profile_path_missing:{label}") from exc
+        attributes = getattr(details, "st_file_attributes", 0)
+        if stat.S_ISLNK(details.st_mode) or (reparse_flag and attributes & reparse_flag):
+            raise RuntimeError(f"unsafe_profile_path_reparse_point:{label}")
+        if not stat.S_ISDIR(details.st_mode):
+            raise RuntimeError(f"unsafe_profile_path_not_directory:{label}")
 
 
 def grant_disposable_engine_read_access(engine: Path, disposable_root: Path) -> None:
@@ -178,6 +203,7 @@ def visit(chrome: Path, profile: Path, server: FixtureServer, phase: str) -> dic
     job = OwnedJob()
     process = None
     try:
+        validate_profile_root(profile)
         process = spawn_owned_browser(arguments, profile, job)
         stdout, _stderr = process.communicate(input=b"G", timeout=55)
         if process.returncode != 0:

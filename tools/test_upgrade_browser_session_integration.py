@@ -4,10 +4,61 @@ from __future__ import annotations
 
 from http.client import HTTPConnection
 import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import tempfile
 import threading
 import unittest
 
-from upgrade_browser_session_integration import FixtureServer
+from upgrade_browser_session_integration import FixtureServer, validate_profile_root
+
+
+class ProfileBoundaryTests(unittest.TestCase):
+    def test_plain_portable_profile_path_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            profile = Path(temporary) / "portable" / "Data" / "Profiles" / ("a" * 32)
+            profile.mkdir(parents=True)
+            validate_profile_root(profile)
+
+    @unittest.skipUnless(os.name == "nt", "Windows junction behavior")
+    def test_data_profiles_and_profile_junctions_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="neantik-session-junction-") as temporary:
+            base = Path(temporary)
+            for redirected in ("Data", "Profiles", "profile"):
+                with self.subTest(redirected=redirected):
+                    portable = base / redirected / "portable"
+                    portable.mkdir(parents=True)
+                    outside = base / redirected / "outside"
+                    profile_id = "b" * 32
+                    if redirected == "Data":
+                        target = outside / "Data"
+                        (target / "Profiles" / profile_id).mkdir(parents=True)
+                        link = portable / "Data"
+                    elif redirected == "Profiles":
+                        (portable / "Data").mkdir()
+                        target = outside / "Profiles"
+                        (target / profile_id).mkdir(parents=True)
+                        link = portable / "Data" / "Profiles"
+                    else:
+                        (portable / "Data" / "Profiles").mkdir(parents=True)
+                        target = outside / "profile"
+                        target.mkdir(parents=True)
+                        link = portable / "Data" / "Profiles" / profile_id
+                    result = subprocess.run(
+                        ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(target)],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if result.returncode:
+                        self.skipTest("Windows junction creation is unavailable in this environment")
+                    try:
+                        attrs = getattr(link.lstat(), "st_file_attributes", 0)
+                        self.assertTrue(attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                        with self.assertRaisesRegex(RuntimeError, "unsafe_profile_path_reparse_point"):
+                            validate_profile_root(portable / "Data" / "Profiles" / profile_id)
+                    finally:
+                        link.rmdir()
 
 
 class MigrationFixtureTests(unittest.TestCase):
