@@ -126,6 +126,18 @@ class GuiTests(unittest.TestCase):
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
 
+    def test_native_profile_menu_exposes_actions_also_shown_as_canvas_buttons(self):
+        menu = self.app._profile_menu
+        labels = {
+            str(menu.entrycget(index, "label"))
+            for index in range(menu.index("end") + 1)
+            if menu.type(index) == "command"
+        }
+        self.assertTrue({
+            "Изменить профиль…", "Проверить proxy", "Скопировать пароль proxy", "Удалить профиль…",
+        }.issubset(labels))
+        self.assertIsInstance(menu, nv.tk.Menu)
+
     def test_icon_button_keyboard_activation_matches_button_timing(self):
         buttons = []
 
