@@ -72,3 +72,12 @@ UI automation layer may have omitted or mis-associated the window. It also does
 not establish that the UI works. Do not repeat the launch without a new,
 specific diagnostic hypothesis and a process-ID-bound way to identify the
 window; UIA/MSAA/NVDA remain separate untested gates.
+
+The public site was updated after this observation (the binary release remains
+unchanged): Site version `66`, source commit
+`5f195f989c1742ed42636912824ac791b28bc33a`, deployed successfully. Live `/`
+and `/CHANGELOG.md` show the `INCONCLUSIVE` result and link to this record;
+live `/release.json` still identifies binary source commit
+`fb8029b00b94f750f1daae6cf788ecc268b4b1b0`, ZIP size `262391330` and SHA-256
+`82d7baa19c01432ec59bdf35b67d101395080ea82f6a03799c1d8dc13bba482c`. The
+public ZIP HEAD returned HTTP 200 with the same content length.
