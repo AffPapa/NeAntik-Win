@@ -239,6 +239,10 @@ main frame и двух iframe. Это только базовая линия о�
   `hardwareConcurrency` и `deviceMemory`). Не обещать «полную подмену» после
   двух значений. Низкоклассный компьютер не должен выдавать больше ресурсов,
   чем имеет, если это ухудшит работу сайтов.
+  Дизайн-ориентир — общие для достаточно большой когорты «корзины», а не
+  случайные и настраиваемые по профилям persona: см. [Tor fingerprinting
+  protections](https://support.torproject.org/tor-browser/features/fingerprinting-protections/)
+  и [Chromium UA Reduction](https://www.chromium.org/updates/ua-reduction/).
 - **P1.2 Согласованность:** `deviceMemory` должен совпадать между Window,
   Worker и `Sec-CH-Device-Memory`; CPU — между всеми Navigator контекстами.
   Если значения различаются на других поверхностях (HTTP/JS/iframes), патч
@@ -274,8 +278,10 @@ main frame и двух iframe. Это только базовая линия о�
   непроверенного proxy: неверная подмена — дополнительный маркер. Размер
   окна оценивать с учётом доступности и UX; не копировать letterboxing без
   тестов на масштабирование и полноэкранный режим.
-  Однохостовой loopback-gate `tools/seasonal_timezone_gate.py` на точном
-  Chromium из публичного 0.8.9-preview прошёл 11/11 проверок: в opt-in V5
+  UTC-only loopback-gate `tools/seasonal_timezone_gate.py` на точном
+  Chromium публичного 0.8.9-preview прошёл 11/11 проверок; обе фиксированные
+  даты выполнялись в UTC, поэтому переходы на летнее время не тестировались.
+  В opt-in V5
   `Date` и `Intl` согласованы для 15 января и 15 июля 2026 года в главном
   документе, двух iframe и трёх типах worker. Это две фиксированные даты,
   не проверка всех API времени, внешней сети или совместимости сайтов;

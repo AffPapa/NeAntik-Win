@@ -112,7 +112,7 @@ local report; the published gate emits only verdicts and binary hashes. This
 does not establish anonymity, non-linkability, external network isolation,
 cross-machine consistency, or real-site compatibility.
 
-The additional [`seasonal_timezone_gate.py`](../tools/seasonal_timezone_gate.py)
+The additional UTC-only [`seasonal_timezone_gate.py`](../tools/seasonal_timezone_gate.py)
 passed **11/11 bounded checks** on 2026-10-14 against the Chromium extracted
 from the public 0.8.9-preview portable package (`chrome.exe` SHA-256
 `751c706c20bba0583fdfbf7c239a3bc42b29cf67b9e0c7820e8c01139a0ef2eb`,
@@ -121,10 +121,12 @@ from the public 0.8.9-preview portable package (`chrome.exe` SHA-256
 In one disposable V5 opt-in loopback session, `Date` and default/explicit-UTC
 `Intl.DateTimeFormat` agreed for fixed 2026-01-15 and 2026-07-15 instants
 across the main document, same-/cross-origin frames, and dedicated/shared/
-service workers. External proxy attempts were rejected by the local test
-server, not interpreted as evidence of no network activity. This is a
-single-host two-date consistency test; other time APIs, real sites,
-cross-machine behavior and anonymity remain **NOT RUN**.
+service workers. Both instants ran with the UTC timezone; January and July
+labels do **not** mean a daylight-saving transition was exercised. External
+proxy attempts were rejected by the local test server, not interpreted as
+evidence of no network activity. This is a single-host two-date consistency
+test; DST-observing zones, other time APIs, real sites, cross-machine behavior
+and anonymity remain **NOT RUN**.
 
 ### Worker UA Client Hints measurement, 2026-10-14
 

@@ -32,7 +32,8 @@ class SeasonalTimezoneGateTests(unittest.TestCase):
         self.assertEqual(len(checks), len(SEASONS) * 5)
         self.assertTrue(all(checks.values()))
 
-    def test_dst_offset_in_one_worker_fails(self) -> None:
+    def test_non_utc_offset_in_utc_fixture_fails(self) -> None:
+        # This is a contradictory UTC observation, not a simulated DST zone.
         report = sample()
         report["worker"]["summer"]["offsetMinutes"] = -60
         checks = assess(report)

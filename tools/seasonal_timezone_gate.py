@@ -1,8 +1,10 @@
-"""Bounded local V5 opt-in test for Date/Intl winter/summer consistency.
+"""Bounded local V5 opt-in test for Date/Intl consistency in UTC.
 
 This tests two fixed UTC instants in six browser contexts using one disposable
-profile. It is not a network privacy, anonymity, or full timezone API test.
-Only verdicts and binary hashes are written; raw observed strings stay in RAM.
+profile. Both observations are UTC; the test does not exercise a DST-observing
+timezone or a seasonal offset transition. It is not a network privacy,
+anonymity, or full timezone API test. Only verdicts and binary hashes are
+written; raw observed strings stay in RAM.
 """
 
 from __future__ import annotations
@@ -281,7 +283,7 @@ def main() -> int:
     if output.is_relative_to(SOURCE_ROOT) or output.exists() or not output.parent.is_dir():
         parser.error("Output must be a new private file outside the source repository")
     result = {"checked_at_utc": datetime.now(timezone.utc).isoformat(),
-              "scope": "one owned loopback-only opt-in session, fixed 2026 winter/summer dates; no anonymity claim",
+              "scope": "one owned loopback-only opt-in session in UTC; fixed 2026 dates do not test DST; no anonymity claim",
               "status": "INCONCLUSIVE", "checks": {}}
     try:
         receipt = _read_receipt(chrome)
