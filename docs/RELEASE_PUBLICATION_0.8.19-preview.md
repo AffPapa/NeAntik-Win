@@ -26,11 +26,12 @@ patch. Chrome Stable was 155.0.8059.79 on 2026-10-13
 - GitHub Release metadata reported prerelease and all three assets uploaded. The ZIP asset size and SHA-256 digest matched the local artifact. A fresh public download was 262,378,971 bytes, had the same SHA-256, and passed the archive verifier again.
 - Production Site version 53 deployed at <https://nevision-win.mail782861.chatgpt.site>. Site source commit: `383c9e07f1bd4016e5801c1257bc5b95929ad290`; deployment status `succeeded`. The Site package was a 17,807,360-byte tar with content hash `sha256:35ba4e5233ddbb1a6f2a69edf2fdf187795cc0d0e934f3df38c9da0c1e8e2b50`.
 - Live `/`, `/release.json`, and `/CHANGELOG.md`: HTTP 200. The live metadata named version `0.8.19-preview`, browser source commit `826f816…`, the exact ZIP filename, 262,378,971-byte size, expected SHA-256, and exact GitHub download URL. Public ZIP HEAD: HTTP 200 and Content-Length 262,378,971. Changelog response: `text/markdown; charset=utf-8`, Russian text and the new release heading decoded correctly.
+- Hosted second-host gate: PASS, GitHub Actions run [38708197509](https://github.com/AffPapa/NeAntik-Win/actions/runs/38708197509), Windows Server 2022 runner. It fetched the exact public ZIP, checked its expected SHA/source identity, ran the packaged self-test, and verified isolated portable storage using synthetic data. This complements—but does not replace—manual GUI/accessibility, cross-PC/account, and external-network testing.
 
 ## NOT RUN / INCONCLUSIVE
 
 - Physical keyboard held-key behavior, manual profile create/edit, Windows UI Automation/MSAA tree, and NVDA/Narrator: NOT RUN. Synthetic callback tests do not prove operating-system key delivery or screen-reader semantics.
-- Browser storage, proxy/route, external DNS/IPv6/UDP/STUN/TURN, another Windows account/PC, and Windows 10: NOT RUN on this exact ZIP. The Chromium engine is unchanged, but do not relabel older ZIP results as fresh 0.8.19 tests.
+- Browser storage beyond the isolated synthetic portable-storage gate, proxy/route, external DNS/IPv6/UDP/STUN/TURN, another Windows account/PC, and Windows 10: NOT RUN on this exact ZIP. The Chromium engine is unchanged, but do not relabel older ZIP results as fresh 0.8.19 tests.
 - No claim of fingerprint spoofing, passing anti-bot checks, complete anonymity, or universal privacy is made. Profiles isolate local browser storage; they are not separate network identities.
 
 ## Release recovery note
