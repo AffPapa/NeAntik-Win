@@ -9,7 +9,7 @@
 Перечень измеряемых поверхностей и протокол доказательств вынесены в
 [матрицу fingerprint](FINGERPRINT_SURFACE_MATRIX.md).
 
-**Текущий публичный выпуск:** [0.8.30-preview](https://github.com/AffPapa/NeAntik-Win/releases/tag/v0.8.30-preview), binary-source commit `09f516f6dc340c126f1d1f8615d68a9f9251b734`; ZIP 262,393,616 байт, SHA-256 `07766ee6edc251c5d7a512cd056da41e5f2ae8994f63a7cd6c2d724e6bf7be6a`; packaged EXE SHA-256 `5e566d7bd6048c2e980957f7fd48257e4c7fbd75dd39b923646cdbf256ec21cd`. Windows CI run `38775059588`, полный unit suite (301 тест, 3 пропуска), storage/path suite (37), release tooling (58), packaged self-test, локальный и повторно скачанный публичный archive verifier — PASS. Hosted second-host run `38779333300` подтвердил точный ZIP/source, packaged self-test и synthetic storage (21 assertions / 7 visits) на Windows Server 2022. GUI-smoke .30, keyboard-only/UIA/MSAA/NVDA, Windows 10/ARM64, другая пользовательская машина/учётная запись, кросс-hardware fingerprint и внешние DNS/IPv6/UDP/STUN/TURN — NOT RUN. Public-site version 68 указывает на тот же binary source и совпавшие ZIP size/SHA; homepage, `/release.json`, `/CHANGELOG.md` и GitHub asset HEAD проверены live (HTTP 200). Site source commit `a86d9933eb25d093a1b8cd733a2fa046c36f7631`, deployment `succeeded`. Post-release evidence внесён в `main`; public-source guard для релизной записи — PASS. Полная матрица — в [evidence 0.8.30](RELEASE_PUBLICATION_0.8.30-preview.md). Chromium fingerprint не модифицируется; анонимность не гарантируется.
+**Актуальный публичный выпуск и контрольная сумма:** [страница загрузки](https://nevision-win.mail782861.chatgpt.site/#download). Этот план содержит исторические результаты отдельных версий; не переносить их на новый ZIP. Ниже подробно документирован выпуск [0.8.30-preview](RELEASE_PUBLICATION_0.8.30-preview.md), но он больше не называется текущим. Chromium fingerprint не модифицируется; анонимность не гарантируется.
 
 **Дополнение после выпуска 0.8.30 (2026-10-16):** приложение проверяет portable-корни `Data`, `Profiles`, `Backups`, `Logs`, `Operations`, SQLite database и journal/WAL/SHM sidecars до подключения базы; опасные reparse points, неподходящие типы и hardlink базы отклоняются. Это ограниченная защита путей, не граница против same-user TOCTOU или всех вложенных путей Chromium. Точный архив и публичный GitHub asset совпали по размеру/SHA; однохостовый loopback P0.3 прошёл 170/170. Public second-host workflow run `38779333300` прошёл на отдельном hosted Windows runner (21 synthetic storage assertions / 7 visits); он не закрывает P0.3 cross-hardware/consumer-PC. Внешний сетевой наблюдатель, другая пользовательская машина/учётная запись и физический GUI-smoke 0.8.30 остаются открытыми.
 
@@ -65,7 +65,7 @@ fingerprint в продукте допускаются только если и�
 
 ## 2. Текущая база и правила разработки
 
-- Текущий публичный portable Windows 11 x64 выпуск — **0.8.30-preview** со stock
+- Подробно проверенный в этом плане исторический выпуск **0.8.30-preview** — со stock
   Chromium 155.0.8059.79, независимыми локальными профилями, Proxy Vault,
   backup/restore, управляемыми загрузками новых профилей, privacy defaults,
   proxy routing для bundled Chromium и ограниченной диагностикой proxy.

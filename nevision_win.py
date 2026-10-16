@@ -2017,12 +2017,12 @@ class BrowserLauncher:
 
     def available_browsers(self) -> list[tuple[str, Path]]:
         discovered: list[tuple[str, Path]] = []
-        custom = self.storage.get_setting("browser_path")
-        if custom and Path(custom).is_file() and Path(custom).name.casefold() in {"chrome.exe", "msedge.exe"}:
-            discovered.append(("Выбранный браузер", Path(custom)))
         bundled = self.bundled_browser()
-        if bundled is not None and bundled not in [item[1] for item in discovered]:
+        if bundled is not None:
             discovered.append(("NeAntik Chromium · встроенный", bundled))
+        custom = self.storage.get_setting("browser_path")
+        if custom and Path(custom).is_file() and Path(custom).name.casefold() in {"chrome.exe", "msedge.exe"} and Path(custom) not in [item[1] for item in discovered]:
+            discovered.append(("Выбранный браузер", Path(custom)))
         candidates = list(self.KNOWN_BROWSERS)
         local = os.environ.get("LOCALAPPDATA")
         if local:
@@ -2075,7 +2075,7 @@ class BrowserLauncher:
         pinned_family = validated_browser_family(profile.get("browser_family", ""))
         # Existing 0.4.x profiles stay on their original browser even after a
         # bundled core becomes the default for new profiles.
-        if family == "chromium" and pinned_family in {"chrome", "edge"} and not self.storage.get_setting("browser_path"):
+        if family == "chromium" and pinned_family in {"chrome", "edge"}:
             for _, candidate in self.available_browsers():
                 if self.browser_family(candidate) == pinned_family:
                     executable, family = candidate, pinned_family
@@ -2313,6 +2313,7 @@ class HoverTip:
 
     def __init__(self, widget: tk.Misc, text: str, colors: dict[str, str]):
         self.widget = widget
+        widget.hint = self
         self.text = text
         self.colors = colors
         self.timer: str | None = None
@@ -3157,8 +3158,9 @@ class NeVisionApp:
         sidebar.pack_propagate(False)
         sidebar_inner = tk.Frame(sidebar, bg=self.colors["sidebar"])
         sidebar_inner.pack(fill="both", expand=True, padx=16, pady=18)
-        IconButton(sidebar_inner, "Новый профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["sidebar"], kind="primary", width=238, height=42,
-                   tooltip="Создать отдельный каталог браузера с собственной историей и cookies.").pack(fill="x")
+        create_button = ttk.Button(sidebar_inner, text="Новый профиль", style="Accent.TButton", command=lambda: ProfileDialog(self))
+        create_button.pack(fill="x")
+        HoverTip(create_button, "Создать отдельный каталог браузера с собственной историей и cookies.", self.colors)
         tools = tk.Frame(sidebar_inner, bg=self.colors["sidebar"])
         tools.pack(fill="x", pady=(8, 22))
         IconButton(tools, "Vault", "vault", self.open_proxy_vault, self.colors, self.colors["sidebar"], width=112,
@@ -3239,8 +3241,9 @@ class NeVisionApp:
         illustration.pack(pady=(0, 19))
         tk.Label(empty, text="Ваше рабочее пространство", bg=self.colors["panel"], fg=self.colors["text"], font=("Segoe UI", 21, "bold")).pack()
         tk.Label(empty, text=f"Создайте локальный профиль или выберите существующий слева.\nКаждый профиль хранит свои данные отдельно. {browser_hint}", bg=self.colors["panel"], fg=self.colors["muted"], justify="center", font=("Segoe UI", 10), wraplength=500).pack(pady=(8, 20))
-        IconButton(empty, "Создать профиль", "add", lambda: ProfileDialog(self), self.colors, self.colors["panel"], kind="primary", width=180, height=42,
-                   tooltip="Новый профиль создаётся локально и запускается во встроенном Chromium.").pack()
+        create_button = ttk.Button(empty, text="Создать профиль", style="Accent.TButton", command=lambda: ProfileDialog(self))
+        create_button.pack()
+        HoverTip(create_button, "Новый профиль создаётся локально и запускается во встроенном Chromium.", self.colors)
         privacy_note = ("Данные локально · без облака · уменьшена детализация CPU/RAM"
                         if self.launcher.has_native_privacy_baseline() else
                         "Данные локально · без синхронизации · приложение не меняет fingerprint")
@@ -3300,26 +3303,27 @@ class NeVisionApp:
 
         action_row = tk.Frame(body, bg=self.colors["card"], highlightthickness=1, highlightbackground=self.colors["line"], padx=10, pady=10)
         action_row.pack(fill="x", pady=(27, 22))
-        actions = (
-            ("Запустить", "launch", self.launch_selected, "Открыть этот профиль в закреплённом браузере."),
-            ("Резервная копия", "backup", self.backup_selected, "Создать ZIP с данными профиля. В нём могут быть cookies и сессии — храните его приватно."),
-            ("Чистая копия", "clone", self.clone_selected, "Создать новый профиль с теми же настройками, но без cookies, истории и сессий."),
-            ("Проверить", "health", self.health_selected, "Проверить состояние локальных файлов и привязку браузера."),
-            ("Диагностика", "health", self.open_privacy_diagnostics, "Открыть проверку IP и видимых сайту параметров именно в этом профиле. Наш сайт увидит ваш IP; DNS и WebRTC не проверяются."),
-            ("Расширения", "profiles", self.open_extensions,
-             "Сторонние расширения могут менять отпечаток и читать данные профиля согласно разрешениям. Устанавливайте только доверенные."),
+        launch_button = ttk.Button(action_row, text="Запустить", style="Accent.TButton", command=self.launch_selected)
+        launch_button.grid(row=0, column=0, sticky="ew", padx=4, pady=3)
+        HoverTip(launch_button, "Открыть этот профиль в закреплённом браузере.", self.colors)
+        backup_button = ttk.Button(action_row, text="Резервная копия", style="Ghost.TButton", command=self.backup_selected)
+        backup_button.grid(row=0, column=1, sticky="ew", padx=4, pady=3)
+        HoverTip(backup_button, "Создать ZIP с данными профиля. В нём могут быть cookies и сессии — храните его приватно.", self.colors)
+        more_menu = tk.Menu(
+            action_row, tearoff=False, bg=self.colors["menu_bg"], fg=self.colors["menu_text"],
+            activebackground=self.colors["menu_active"], activeforeground=self.colors["menu_active_text"],
         )
-        for index, (label, icon, command, hint) in enumerate(actions):
-            IconButton(action_row, label, icon, command, self.colors, self.colors["card"], kind="primary" if index == 0 else "ghost", width=190, height=38,
-                       tooltip=hint).grid(row=index // 3, column=index % 3, sticky="ew", padx=4, pady=3)
+        more_menu.add_command(label="Создать чистую копию", command=self.clone_selected)
+        more_menu.add_command(label="Проверить профиль", command=self.health_selected)
+        more_menu.add_separator()
+        more_menu.add_command(label="Проверить IP и параметры…", command=self.open_privacy_diagnostics)
+        more_menu.add_command(label="Открыть расширения…", command=self.open_extensions)
+        more_button = ttk.Button(action_row, text="Ещё…", style="Ghost.TButton")
+        more_button.configure(command=lambda: more_menu.tk_popup(more_button.winfo_rootx(), more_button.winfo_rooty() + more_button.winfo_height()))
+        more_button.grid(row=0, column=2, sticky="ew", padx=4, pady=3)
+        HoverTip(more_button, "Чистая копия, проверка профиля, диагностика и расширения.", self.colors)
         for column in range(3):
             action_row.columnconfigure(column, weight=1)
-        tk.Label(
-            action_row,
-            text="Сторонние расширения могут менять отпечаток браузера и читать данные профиля — проверяйте разрешения.",
-            bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8),
-            wraplength=650, justify="left", anchor="w",
-        ).grid(row=2, column=0, columnspan=3, sticky="ew", padx=5, pady=(7, 0))
 
         info = tk.Frame(body, bg=self.colors["panel"])
         info.pack(fill="x")

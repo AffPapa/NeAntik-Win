@@ -1580,6 +1580,29 @@ class PortableCoreRegressionTests(unittest.TestCase):
                 launcher.launch(self.storage.get_profile(profile_id))
             self.assertEqual(spawn.call_args.args[0][0], str(installed))
 
+    def test_bundled_core_stays_default_with_legacy_browser_path(self):
+        engine = self.root / "Engine" / "Chromium"
+        engine.mkdir(parents=True)
+        for name in ("chrome.exe", "chrome.dll", "icudtl.dat", "resources.pak", "ENGINE_PROVENANCE.json"):
+            (engine / name).touch()
+        legacy = self.root / "Legacy" / "chrome.exe"
+        legacy.parent.mkdir()
+        legacy.touch()
+        self.storage.set_setting("browser_path", str(legacy))
+        new_id = self.storage.save_profile({"name": "New bundled profile"})
+        old_id = self.storage.save_profile({"name": "Old Chrome profile"})
+        self.storage.pin_browser_family(old_id, "chrome")
+        launcher = BrowserLauncher(self.storage)
+        process = MagicMock()
+        process.poll.return_value = None
+        with patch.object(launcher, "KNOWN_BROWSERS", ()), patch.dict(os.environ, {"LOCALAPPDATA": str(self.root / "missing")}), patch("nevision_win.winreg", None), patch.object(launcher, "ensure_bundled_sandbox_access"), patch.object(self.storage, "wait_for_chromium_lock"), patch("nevision_win.subprocess.Popen", return_value=process) as spawn:
+            launcher.launch(self.storage.get_profile(new_id))
+            self.assertEqual(spawn.call_args.args[0][0], str(engine / "chrome.exe"))
+            launcher.launch(self.storage.get_profile(old_id))
+            self.assertEqual(spawn.call_args.args[0][0], str(legacy))
+        self.assertEqual(self.storage.get_profile(new_id)["browser_family"], "chromium")
+        self.assertEqual(self.storage.get_profile(old_id)["browser_family"], "chrome")
+
     def test_registry_discovery_deduplicates_paths_and_keeps_custom_choice_first(self):
         custom = self.root / "Chosen Browser" / "chrome.exe"
         registered = self.root / "Registered Browser" / "msedge.exe"

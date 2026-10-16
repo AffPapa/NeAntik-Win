@@ -77,15 +77,14 @@ class GuiTests(unittest.TestCase):
             destroy.assert_called_once()
 
     def test_clipboard_clear_preserves_new_user_content(self):
-        self.app.root.clipboard_clear()
-        self.app.root.clipboard_append("new synthetic text")
-        self.app._clipboard_secret = "old synthetic password"
-        self.app._clear_copied_password()
-        self.assertEqual(self.app.root.clipboard_get(), "new synthetic text")
-        self.app._clipboard_secret = "new synthetic text"
-        self.app._clear_copied_password()
-        with self.assertRaises(nv.tk.TclError):
-            self.app.root.clipboard_get()
+        self.app._clipboard_secret = "synthetic password"
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", return_value=False) as clear:
+            self.assertFalse(self.app._clear_copied_password())
+            clear.assert_called_once_with("synthetic password", None)
+            self.assertEqual(self.app._clipboard_secret, "synthetic password")
+        with patch("nevision_win._clear_windows_clipboard_if_unchanged", return_value=True):
+            self.assertTrue(self.app._clear_copied_password())
+        self.assertIsNone(self.app._clipboard_secret)
 
     def test_search_theme_and_selection(self):
         self.app.refresh_profiles(self.profile)
@@ -137,6 +136,21 @@ class GuiTests(unittest.TestCase):
             "Изменить профиль…", "Проверить proxy", "Скопировать пароль proxy", "Удалить профиль…",
         }.issubset(labels))
         self.assertIsInstance(menu, nv.tk.Menu)
+
+    def test_primary_profile_actions_are_native_buttons_with_more_menu(self):
+        self.app.refresh_profiles(self.profile)
+        self.app.root.update()
+        def walk(widget):
+            yield widget
+            for child in widget.winfo_children():
+                yield from walk(child)
+        widgets = list(walk(self.app.detail))
+        buttons = {str(widget.cget("text")): widget for widget in widgets if isinstance(widget, nv.ttk.Button)}
+        self.assertTrue({"Запустить", "Резервная копия", "Ещё…"}.issubset(buttons))
+        menus = [widget for widget in widgets if isinstance(widget, nv.tk.Menu)]
+        self.assertEqual(len(menus), 1)
+        labels = {str(menus[0].entrycget(index, "label")) for index in range(menus[0].index("end") + 1) if menus[0].type(index) == "command"}
+        self.assertEqual(labels, {"Создать чистую копию", "Проверить профиль", "Проверить IP и параметры…", "Открыть расширения…"})
 
     def test_icon_button_keyboard_activation_matches_button_timing(self):
         buttons = []
@@ -348,10 +362,14 @@ class GuiTests(unittest.TestCase):
             for child in widget.winfo_children():
                 yield from walk(child)
         buttons = {widget.text: widget for widget in walk(self.app.root) if isinstance(widget, nv.IconButton)}
-        for label in ("Резервная копия", "Чистая копия", "Диагностика", "Проверить proxy", "Удалить профиль"):
+        for label in ("Проверить proxy", "Удалить профиль"):
             self.assertIsNotNone(buttons[label].hint)
             self.assertGreater(len(buttons[label].hint.text), 20)
-        hint = buttons["Чистая копия"].hint
+        native = {str(widget.cget("text")): widget for widget in walk(self.app.detail) if isinstance(widget, nv.ttk.Button)}
+        for label in ("Запустить", "Резервная копия", "Ещё…"):
+            self.assertIsNotNone(native[label].hint)
+            self.assertGreater(len(native[label].hint.text), 20)
+        hint = native["Ещё…"].hint
         hint._show()
         self.assertIsNotNone(hint.popup)
         hint._hide()
@@ -362,9 +380,12 @@ class GuiTests(unittest.TestCase):
         with patch.object(self.app, "_is_profile_active", return_value=True), \
                 patch.object(self.app.launcher, "launch") as launch, \
                 patch("nevision_win.messagebox.askyesno", return_value=True), \
-                patch("nevision_win.messagebox.showinfo"):
+                patch("nevision_win.messagebox.showinfo"), \
+                patch.object(self.app.root, "clipboard_clear") as clear, \
+                patch.object(self.app.root, "clipboard_append") as append:
             self.app.open_privacy_diagnostics()
-        self.assertEqual(self.app.root.clipboard_get(), nv.PRIVACY_CHECK_URL)
+        clear.assert_called_once_with()
+        append.assert_called_once_with(nv.PRIVACY_CHECK_URL)
         launch.assert_not_called()
 
     def test_profile_browser_label_matches_pinned_engine(self):
