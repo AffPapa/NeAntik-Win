@@ -1,11 +1,11 @@
 # Security, privacy and scope
 
-The 0.8.30-preview candidate described below bundles stock Chromium and does not
-modify browser fingerprint values. Sections about 0.8.6/0.8.8 native-persona
-builds are historical and do not describe this release. Check the official
-download page and checksum for the current artifact; local tests alone are not
-public-release proof. Exact source, ZIP identity, test evidence and known gaps for
-this release are recorded in [release evidence](docs/RELEASE_PUBLICATION_0.8.30-preview.md) after release gates pass.
+The 0.8.34-preview candidate bundles stock Chromium and does not modify browser
+fingerprint values. Sections about 0.8.6/0.8.8 native-persona builds and the
+[0.8.30 release evidence](docs/RELEASE_PUBLICATION_0.8.30-preview.md) are
+historical; they do not verify this candidate. Check the official download page
+and checksum for the current published artifact. Local tests alone are not
+public-release proof.
 
 The published 0.8.7-preview rejects hardlinked files during backup to avoid
 copying data outside a profile into the unencrypted ZIP. The exact public
@@ -13,7 +13,7 @@ download and remaining test gaps are recorded in
 [release evidence](docs/RELEASE_PUBLICATION_0.8.7-preview.md). This change
 does not encrypt backups or prove the absence of other local data exposures.
 
-## Historical 0.8.6-preview V4b boundary (not included in 0.8.30-preview)
+## Historical 0.8.6-preview V4b boundary (not included in 0.8.34-preview)
 
 The opt-in V4b mode requires a matching Chromium 155 source build
 and exact capability/provenance receipt. It uses a fresh in-memory session key

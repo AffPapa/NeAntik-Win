@@ -118,14 +118,14 @@ class GuiTests(unittest.TestCase):
             yield widget
             for child in widget.winfo_children(): yield from walk(child)
         for widget in walk(self.app.detail):
-            if isinstance(widget, nv.IconButton):
+            if isinstance(widget, nv.ttk.Button):
                 self.assertGreater(widget.winfo_width(), 60,
-                                   f"button {widget.text!r} was {widget.winfo_width()}px inside {widget.master.winfo_width()}px")
+                                   f"button {widget.cget('text')!r} was {widget.winfo_width()}px inside {widget.master.winfo_width()}px")
                 self.assertGreater(widget.winfo_height(), 20)
                 self.assertLessEqual(widget.winfo_x() + widget.winfo_width(), widget.master.winfo_width() + 1)
                 self.assertLessEqual(widget.winfo_y() + widget.winfo_height(), widget.master.winfo_height() + 1)
 
-    def test_native_profile_menu_exposes_actions_also_shown_as_canvas_buttons(self):
+    def test_native_profile_menu_exposes_profile_actions(self):
         menu = self.app._profile_menu
         labels = {
             str(menu.entrycget(index, "label"))
@@ -361,12 +361,9 @@ class GuiTests(unittest.TestCase):
             yield widget
             for child in widget.winfo_children():
                 yield from walk(child)
-        buttons = {widget.text: widget for widget in walk(self.app.root) if isinstance(widget, nv.IconButton)}
-        for label in ("Проверить proxy", "Удалить профиль"):
-            self.assertIsNotNone(buttons[label].hint)
-            self.assertGreater(len(buttons[label].hint.text), 20)
         native = {str(widget.cget("text")): widget for widget in walk(self.app.detail) if isinstance(widget, nv.ttk.Button)}
-        for label in ("Запустить", "Резервная копия", "Ещё…"):
+        for label in ("Изменить", "Запустить", "Резервная копия", "Ещё…",
+                      "История профиля", "Проверить proxy", "Скопировать пароль", "Удалить профиль"):
             self.assertIsNotNone(native[label].hint)
             self.assertGreater(len(native[label].hint.text), 20)
         hint = native["Ещё…"].hint
@@ -374,6 +371,26 @@ class GuiTests(unittest.TestCase):
         self.assertIsNotNone(hint.popup)
         hint._hide()
         self.assertIsNone(hint.popup)
+
+    def test_profile_operations_are_native_buttons_with_original_callbacks(self):
+        with patch.object(self.app, "edit_selected") as edit, \
+                patch.object(self.app, "test_selected_proxy") as test_proxy, \
+                patch.object(self.app, "copy_selected_proxy_password") as copy_password, \
+                patch.object(self.app, "delete_selected") as delete:
+            self.app.refresh_profiles(self.profile)
+            self.app.root.update()
+            def walk(widget):
+                yield widget
+                for child in widget.winfo_children():
+                    yield from walk(child)
+            buttons = {str(widget.cget("text")): widget for widget in walk(self.app.detail)
+                       if isinstance(widget, nv.ttk.Button)}
+            for label, callback in (("Изменить", edit), ("Проверить proxy", test_proxy),
+                                    ("Скопировать пароль", copy_password), ("Удалить профиль", delete)):
+                self.assertTrue(buttons[label].winfo_ismapped(), label)
+                buttons[label].invoke()
+                callback.assert_called_once_with()
+            self.assertEqual(str(buttons["Удалить профиль"].cget("style")), "Danger.TButton")
 
     def test_diagnostics_for_open_profile_copies_link_without_relaunch(self):
         self.app.refresh_profiles(self.profile)

@@ -3298,8 +3298,9 @@ class NeVisionApp:
         status_chip = tk.Frame(top, bg=chip_bg, padx=10, pady=6)
         status_chip.pack(side="right", padx=(10, 8), pady=5)
         tk.Label(status_chip, text=state, bg=chip_bg, fg=chip_fg, font=("Segoe UI", 8, "bold")).pack()
-        IconButton(top, "Изменить", "edit", self.edit_selected, self.colors, self.colors["panel"], width=112,
-                   tooltip="Изменить название, группу, proxy или заметку профиля.").pack(side="right", pady=5)
+        edit_button = ttk.Button(top, text="Изменить", style="Ghost.TButton", command=self.edit_selected)
+        edit_button.pack(side="right", pady=5)
+        HoverTip(edit_button, "Изменить название, группу, proxy или заметку профиля.", self.colors)
 
         action_row = tk.Frame(body, bg=self.colors["card"], highlightthickness=1, highlightbackground=self.colors["line"], padx=10, pady=10)
         action_row.pack(fill="x", pady=(27, 22))
@@ -3356,8 +3357,10 @@ class NeVisionApp:
         tk.Label(note_heading, text="ЗАМЕТКА", bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(7, 0))
         notes = profile.get("notes") or "Заметка пока не добавлена."
         tk.Label(left, text=notes, bg=self.colors["card"], fg=self.colors["text"] if profile.get("notes") else self.colors["muted"], wraplength=470, justify="left", anchor="nw", font=("Segoe UI", 10)).pack(fill="both", expand=True, pady=(13, 0))
-        IconButton(left, "История профиля", "history", lambda: HistoryDialog(self, profile["id"]), self.colors, self.colors["card"], width=160,
-                   tooltip="Посмотреть локальную историю действий только этого профиля.").pack(anchor="w", pady=(19, 0))
+        history_button = ttk.Button(left, text="История профиля", style="Ghost.TButton",
+                                    command=lambda: HistoryDialog(self, profile["id"]))
+        history_button.pack(anchor="w", pady=(19, 0))
+        HoverTip(history_button, "Посмотреть локальную историю действий только этого профиля.", self.colors)
         right = tk.Frame(lower, bg=self.colors["card"], width=255, height=220, highlightthickness=1, highlightbackground=self.colors["line"], padx=12, pady=12)
         right.pack(side="left", fill="y", padx=(14, 0))
         right.pack_propagate(False)
@@ -3365,12 +3368,17 @@ class NeVisionApp:
         operations_heading.pack(fill="x")
         VectorIcon(operations_heading, "health", 18, self.colors["cyan"], self.colors["card"]).pack(side="left")
         tk.Label(operations_heading, text="ОПЕРАЦИИ", bg=self.colors["card"], fg=self.colors["muted"], font=("Segoe UI", 8, "bold")).pack(side="left", padx=(7, 0))
-        IconButton(right, "Проверить proxy", "proxy", self.test_selected_proxy, self.colors, self.colors["card"], width=224,
-                   tooltip="Отправляет короткий протокольный запрос выбранному proxy. Без сохранённого пароля и запроса сайта.").pack(fill="x", pady=(10, 0))
-        IconButton(right, "Скопировать пароль", "vault", self.copy_selected_proxy_password, self.colors, self.colors["card"], width=244,
-                   tooltip="Скопировать сохранённый proxy-пароль на 30 секунд. Доступно только для текущего Windows-пользователя.").pack(fill="x", pady=(8, 0))
-        IconButton(right, "Удалить профиль", "trash", self.delete_selected, self.colors, self.colors["card"], kind="danger", width=244,
-                   tooltip="Переместить закрытый профиль в Data\\Deleted после подтверждения.").pack(fill="x", pady=(24, 0))
+        test_proxy_button = ttk.Button(right, text="Проверить proxy", style="Ghost.TButton",
+                                       command=self.test_selected_proxy)
+        test_proxy_button.pack(fill="x", pady=(10, 0))
+        HoverTip(test_proxy_button, "Отправляет короткий протокольный запрос выбранному proxy. Без сохранённого пароля и запроса сайта.", self.colors)
+        copy_password_button = ttk.Button(right, text="Скопировать пароль", style="Ghost.TButton",
+                                          command=self.copy_selected_proxy_password)
+        copy_password_button.pack(fill="x", pady=(8, 0))
+        HoverTip(copy_password_button, "Скопировать сохранённый proxy-пароль на 30 секунд. Доступно только для текущего Windows-пользователя.", self.colors)
+        delete_button = ttk.Button(right, text="Удалить профиль", style="Danger.TButton", command=self.delete_selected)
+        delete_button.pack(fill="x", pady=(24, 0))
+        HoverTip(delete_button, "Переместить закрытый профиль в Data\\Deleted после подтверждения.", self.colors)
 
     def set_status(self, message: str) -> None:
         self.status_label.configure(text=message)
